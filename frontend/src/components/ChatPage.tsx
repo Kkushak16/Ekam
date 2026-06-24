@@ -8,7 +8,7 @@ import Header from './Header';
 export function ChatPage() {
   const token = useChatStore(state => state.token);
   const socket = useChatStore(state => state.socket);
-  const roomId = 'general'; // Default public room name
+  const roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a'; // Default public room ID
   
   const userId = useChatStore(state => {
     if (!state.token) return '';

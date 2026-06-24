@@ -4,8 +4,9 @@ import { io, Socket } from 'socket.io-client';
 import axios from 'axios';
 import { Message, PresenceMap } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
-const WS_URL = import.meta.env.VITE_WS_URL || '';
+const BACKEND_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || "https://ekam-backend-3b2w.onrender.com";
+const API_URL = BACKEND_URL.replace(/\/$/, '');
+const WS_URL = import.meta.env.VITE_WS_URL || API_URL.replace(/^http/, 'ws');
 
 export interface ChatState {
   token: string | null;
@@ -64,8 +65,7 @@ export const useChatStore = create<ChatState>()(
 
           socket.on('connect', () => {
             set({ connectionStatus: 'connected', socket });
-            const user = get().parseJwt(jwt);
-            socket.emit('join_room', { userId: user.id, roomId: 'general' });
+            socket.emit('join_room', { roomId: 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' });
           });
 
           socket.on('disconnect', () => {
@@ -170,7 +170,7 @@ export const useChatStore = create<ChatState>()(
             });
             
             set((state) => {
-              const incomingMessages = Array.isArray(resp.data) ? resp.data : [];
+              const incomingMessages = resp.data && Array.isArray(resp.data.messages) ? resp.data.messages : [];
               const safeMessages = Array.isArray(state.messages) ? state.messages : [];
               const currentIds = new Set(safeMessages.map((m) => m.clientMessageId));
               const filteredNew = incomingMessages.filter((m: Message) => !currentIds.has(m.clientMessageId));
@@ -190,7 +190,7 @@ export const useChatStore = create<ChatState>()(
               headers: { Authorization: `Bearer ${token}` },
             });
             set((state) => {
-              const incomingMessages = Array.isArray(resp.data) ? resp.data : [];
+              const incomingMessages = resp.data && Array.isArray(resp.data.messages) ? resp.data.messages : [];
               const safeMessages = Array.isArray(state.messages) ? state.messages : [];
               const currentIds = new Set(safeMessages.map((m) => m.clientMessageId));
               const filteredNew = incomingMessages.filter((m: Message) => !currentIds.has(m.clientMessageId));

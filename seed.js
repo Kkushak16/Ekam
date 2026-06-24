@@ -133,10 +133,10 @@ async function runSeed() {
     // 3. Create rooms (group and dm types)
     console.log("🏠 Creating rooms...");
     const roomsToCreate = [
-      { name: 'General', created_by: createdUsers['alice@example.com'].id, type: 'group' },
-      { name: 'Random Chat', created_by: createdUsers['bob@example.com'].id, type: 'group' },
-      { name: 'Tech Talk', created_by: createdUsers['charlie@example.com'].id, type: 'group' },
-      { name: 'Alice & Bob DM', created_by: createdUsers['alice@example.com'].id, type: 'dm' }
+      { id: 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a', name: 'General', created_by: createdUsers['alice@example.com'].id, type: 'group' },
+      { id: 'e8a36d7d-5a9e-4e4f-bbfb-dc874e4c278b', name: 'Random Chat', created_by: createdUsers['bob@example.com'].id, type: 'group' },
+      { id: 'f8a36d7d-5a9e-4e4f-bbfb-dc874e4c278c', name: 'Tech Talk', created_by: createdUsers['charlie@example.com'].id, type: 'group' },
+      { id: '08a36d7d-5a9e-4e4f-bbfb-dc874e4c278d', name: 'Alice & Bob DM', created_by: createdUsers['alice@example.com'].id, type: 'dm' }
     ];
 
     const { data: createdRooms, error: roomsError } = await supabase

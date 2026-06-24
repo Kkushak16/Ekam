@@ -4,10 +4,9 @@ import ChatPage from './components/ChatPage';
 import SettingsPage from './pages/SettingsPage';
 import DirectMessages from './pages/DirectMessages';
 import LoginForm from './components/LoginForm';
-import { useChatStore } from './store/chatStore.ts'; // Explicit typescript mapping link
+import { useChatStore } from './store/chatStore';
 
 export function App() {
-  // 🛡️ Single-property atomic selector execution mapping to isolate your values:
   const token = useChatStore((state) => state.token);
   const initializeSocket = useChatStore((state) => state.initializeSocket);
   const disconnectSocket = useChatStore((state) => state.disconnectSocket);
@@ -16,7 +15,6 @@ export function App() {
   const [activeTab, setActiveTab] = useState('chat');
 
   useEffect(() => {
-    // Confirm token layout properties match string structures safely
     if (token && typeof token === 'string' && token.trim().length > 0) {
       initializeSocket(token);
     } else {

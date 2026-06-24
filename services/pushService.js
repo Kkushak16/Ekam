@@ -17,11 +17,28 @@ export function setPushQueue(queue) {
  * - lastSeenAt is older than 60 seconds
  */
 export async function isUserOffline(userId) {
-  const [presence, sessionCount, lastSeenStr] = await Promise.all([
-    redisRest.get(`presence:${userId}`),
-    redisRest.scard(`sessions:${userId}`),
-    redisRest.get(`last_seen:${userId}`)
-  ]);
+  let presence, sessionCount, lastSeenStr;
+  try {
+    [presence, sessionCount, lastSeenStr] = await Promise.all([
+      redisRest.get(`presence:${userId}`),
+      redisRest.scard(`sessions:${userId}`),
+      redisRest.get(`last_seen:${userId}`)
+    ]);
+  } catch (err) {
+    if (err.message && err.message.includes('WRONGTYPE')) {
+      console.warn(`⚠️ WRONGTYPE encountered for user ${userId}. Deleting and resetting sessions key.`);
+      try {
+        await redisRest.del(`sessions:${userId}`);
+      } catch (delErr) {
+        console.error(`❌ Failed to delete sessions key for user ${userId}:`, delErr.message);
+      }
+      sessionCount = 0;
+      presence = await redisRest.get(`presence:${userId}`).catch(() => null);
+      lastSeenStr = await redisRest.get(`last_seen:${userId}`).catch(() => null);
+    } else {
+      throw err;
+    }
+  }
 
   const isOnline = presence === 'online' && (Number(sessionCount) || 0) > 0;
   if (isOnline) return false;

@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en" style=""><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Ekam | Friends Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-container": "#4d8eff",
+                    "on-secondary-fixed-variant": "#3c475a",
+                    "tertiary-fixed": "#ffdcc6",
+                    "on-primary-fixed-variant": "#004395",
+                    "inverse-primary": "#005ac2",
+                    "on-error": "#690005",
+                    "on-surface-variant": "#c2c6d6",
+                    "surface-container-high": "#2a2a2a",
+                    "outline": "#8c909f",
+                    "on-primary": "#002e6a",
+                    "inverse-surface": "#e2e2e2",
+                    "on-tertiary-fixed": "#311400",
+                    "on-surface": "#e2e2e2",
+                    "error": "#ffb4ab",
+                    "on-background": "#e2e2e2",
+                    "surface-bright": "#393939",
+                    "on-primary-container": "#00285d",
+                    "surface-variant": "#353535",
+                    "surface": "#131313",
+                    "outline-variant": "#424754",
+                    "surface-container-highest": "#353535",
+                    "on-secondary-container": "#aeb9d0",
+                    "inverse-on-surface": "#303030",
+                    "secondary": "#bcc7de",
+                    "on-secondary": "#263143",
+                    "on-error-container": "#ffdad6",
+                    "secondary-fixed": "#d8e3fb",
+                    "primary": "#adc6ff",
+                    "on-secondary-fixed": "#111c2d",
+                    "secondary-fixed-dim": "#bcc7de",
+                    "tertiary-fixed-dim": "#ffb786",
+                    "on-tertiary-fixed-variant": "#723600",
+                    "surface-tint": "#adc6ff",
+                    "tertiary": "#ffb786",
+                    "on-primary-fixed": "#001a42",
+                    "primary-fixed-dim": "#adc6ff",
+                    "on-tertiary-container": "#461f00",
+                    "surface-dim": "#131313",
+                    "surface-container": "#1f1f1f",
+                    "surface-container-low": "#1b1b1b",
+                    "tertiary-container": "#df7412",
+                    "error-container": "#93000a",
+                    "background": "#000000",
+                    "primary-fixed": "#d8e2ff",
+                    "secondary-container": "#3e495d",
+                    "surface-container-lowest": "#0e0e0e",
+                    "on-tertiary": "#502400"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sm": "12px",
+                    "xs": "4px",
+                    "base": "8px",
+                    "xl": "80px",
+                    "gutter": "24px",
+                    "md": "24px",
+                    "lg": "48px",
+                    "container-max": "1280px",
+                    "margin-mobile": "16px"
+            },
+            "fontFamily": {
+                    "display-lg": ["Hanken Grotesk"],
+                    "label-md": ["Hanken Grotesk"],
+                    "headline-sm": ["Hanken Grotesk"],
+                    "body-lg": ["Hanken Grotesk"],
+                    "headline-md": ["Hanken Grotesk"],
+                    "display-lg-mobile": ["Hanken Grotesk"],
+                    "body-md": ["Hanken Grotesk"],
+                    "label-sm": ["Hanken Grotesk"],
+                    "headline-lg": ["Hanken Grotesk"],
+                    "label-mono": ["Hanken Grotesk"],
+                    "label-caps": ["Hanken Grotesk"],
+                    "body-sm": ["Hanken Grotesk"]
+            },
+            "fontSize": {
+                    "display-lg": ["56px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "label-md": ["14px", {"lineHeight": "1.4", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                    "headline-sm": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-md": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "display-lg-mobile": ["40px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "1.4", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "label-mono": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #000000;
+            color: #e2e2e2;
+            overflow: hidden;
+        }
+
+        .glass-panel {
+            background: rgba(31, 31, 31, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .inner-glow {
+            box-shadow: inset 1px 1px 0px rgba(255, 255, 255, 0.03);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #2a2a2a;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #adc6ff;
+        }
+
+        @keyframes status-glow {
+            0%, 100% { opacity: 0.8; transform: scale(1); filter: blur(0px) brightness(1); }
+            50% { opacity: 1; transform: scale(1.1); filter: blur(1px) brightness(1.5); }
+        }
+        
+        .presence-gem {
+            position: relative;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 1.5px solid #000000;
+            box-shadow: 0 0 10px rgba(173, 198, 255, 0.3);
+        }
+
+        .presence-gem.online {
+            background: radial-gradient(circle at 30% 30%, #adc6ff 0%, #005ac2 100%);
+            animation: status-glow 3s infinite ease-in-out;
+        }
+
+        .presence-gem.offline {
+            background: radial-gradient(circle at 30% 30%, #424754 0%, #1b1b1b 100%);
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col font-body-lg">
+<!-- TopAppBar: Refined High-Fidelity Header -->
+<header class="fixed top-0 w-full z-50 bg-black/40 backdrop-blur-2xl border-b border-white/[0.05] flex items-center justify-between px-md h-16">
+<div class="flex items-center gap-base">
+<div class="flex items-center justify-center w-9 h-9 rounded-xl bg-primary-container text-on-primary-container shadow-[0_0_20px_rgba(77,142,255,0.2)]">
+<span class="material-symbols-outlined font-bold">diamond</span>
+</div>
+<span class="font-headline-md text-headline-sm font-extrabold tracking-tight text-on-surface">Ekam</span>
+</div>
+<!-- Search Bar: Centralized and Refined -->
+<div class="hidden md:flex items-center absolute left-1/2 -translate-x-1/2 w-full max-w-lg">
+<div class="relative w-full group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/40 group-focus-within:text-primary transition-colors text-xl">search</span>
+<input class="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl py-2.5 pl-12 pr-4 text-body-sm focus:ring-2 focus:ring-primary/20 focus:bg-white/[0.05] transition-all outline-none text-on-surface placeholder:text-on-surface-variant/30" placeholder="Search friends or groups..." type="text"/>
+<div class="absolute right-4 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] text-on-surface-variant/50 font-label-caps">⌘K</div>
+</div>
+</div>
+<div class="flex items-center gap-sm">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface hover:bg-white/5 p-2 rounded-full transition-all active:scale-95">notifications</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface hover:bg-white/5 p-2 rounded-full transition-all active:scale-95">settings</button>
+<div class="w-10 h-10 rounded-xl overflow-hidden border border-white/10 p-[1px] ml-2 group cursor-pointer hover:border-primary/50 transition-colors">
+<img alt="User Profile" class="w-full h-full object-cover rounded-[10px]" src="https://lh3.googleusercontent.com/aida/AP1WRLvR8rNvxMWUsExKvH5OfrfMx80lxpzW4V8mJ7O9bh04GDcbM7gRVn6mN7YRb5hgAiznZfRIna65Yn0ezltDgbt2CAXhrlCybruQ7zNaExXTiKjQEkmz9Wy7CgX80366zMomyNYa6LcWOP3fBNHvj2Zz7uFWFWqE-Fy-I_zye3orHGfTJQ8tXokbC1hWrEEDTPU2-CRYfLf1nPkJyYPpc21s2aGFvUpQMQyYeHldiY9T_PrTjwB5lbs8wi1K"/>
+</div>
+</div>
+</header>
+<div class="flex h-full pt-16 overflow-hidden">
+<!-- Main Content Canvas -->
+<main class="flex-1 relative flex flex-col bg-background overflow-hidden">
+<!-- Atmospheric Background Glow -->
+<div class="absolute -top-[10%] -right-[5%] w-[800px] h-[800px] bg-primary/5 rounded-full blur-[150px] pointer-events-none"></div>
+<div class="absolute bottom-[0%] -left-[5%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[130px] pointer-events-none"></div>
+<div class="relative z-10 flex flex-col h-full overflow-y-auto custom-scrollbar px-gutter md:px-lg py-lg">
+<!-- Header Section -->
+<div class="mb-lg flex flex-col md:flex-row md:items-end justify-between gap-md">
+<div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface mb-xs tracking-tight">Connected Friends</h1>
+<p class="text-on-surface-variant max-w-md opacity-70">Manage your network and start seamless real-time collaborations.</p>
+</div>
+<div class="flex items-center gap-sm">
+<button class="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-xl font-label-md hover:bg-primary/90 transition-all active:scale-95 shadow-lg shadow-primary/10">
+<span class="material-symbols-outlined text-lg">person_add</span>
+Add Friend
+</button>
+</div>
+</div>
+<!-- Friends List Grid (Premium Sapphire Style) -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-md pb-12">
+<!-- Friend Card 1: Elena -->
+<div class="glass-panel inner-glow p-md rounded-2xl hover:bg-white/[0.08] transition-all cursor-pointer group border-white/5 hover:border-primary/20">
+<div class="flex items-start justify-between mb-sm">
+<div class="relative">
+<div class="w-16 h-16 rounded-2xl overflow-hidden border border-white/10 p-[2px] group-hover:border-primary/40 transition-colors">
+<div class="w-full h-full rounded-[14px] overflow-hidden bg-surface-container-high">
+<img alt="Elena Vance" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBvFg5StiAXeKbrs11Lh_nftoK4Or7sGawkqLDxYD5nrTTR88sAVVP819cUv2Iq7eotIw2OWZjaNmE20T2hWtZBf0Tb03gHq_2eMTPH-rTIaMr1yU-pJHKHTfaST1oiP_OzKBaTvqbk1w5Pic_rX5_rMNIzyR_p4vpyaJS_hVM8vZ0lbv2rABmxYX0O880lOwlD9fqXK7scW2-nmBGbR8V7l3cNY5RS_X5c3x3WtIpLhnANnbLB75crIb6vvQp3NonV-R3AkkmeLxlc"/>
+</div>
+</div>
+<div class="absolute -bottom-1 -right-1 presence-gem online"></div>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant/40 hover:text-primary transition-colors">more_horiz</button>
+</div>
+<div class="space-y-1">
+<h3 class="font-headline-md text-base text-on-surface font-bold tracking-tight">Elena Vance</h3>
+<p class="text-label-sm text-primary/60 font-medium">@elena_v</p>
+<p class="text-[12px] text-on-surface-variant/80 pt-2 italic leading-relaxed">"Working on this, don't disturb"</p>
+</div>
+</div>
+<!-- Friend Card 2: Marcus -->
+<div class="glass-panel inner-glow p-md rounded-2xl hover:bg-white/[0.08] transition-all cursor-pointer group border-white/5 hover:border-primary/20">
+<div class="flex items-start justify-between mb-sm">
+<div class="relative">
+<div class="w-16 h-16 rounded-2xl overflow-hidden border border-white/10 p-[2px] group-hover:border-primary/40 transition-colors">
+<div class="w-full h-full rounded-[14px] overflow-hidden bg-surface-container-high grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 transition-all">
+<img alt="Marcus Thorne" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB4Gpl8zbwG-re7QZIsuB-MLNsEjLV_cjImRQdsx_ae-sLTF05gZ2bQWcvclDnwFza7NtqHCGMC3JYeHB22Mx-qwPiN8pkFXKvxtr5LWiCO_TAhPV5nvC9r4gA6Od6IE5JijPUEqjLscDNoeHqONUQwCPWh_IaGC2r2qICF5h9LqwyPeqZZMT1kyIZP3WDUIr3H9A_haZPZZoxn6PwsnLqZ5moDmNshujTs5SamSIHtI63DCreIMUMXjVyzEQ3u6NLOxfyWLSzuc_0w"/>
+</div>
+</div>
+<div class="absolute -bottom-1 -right-1 presence-gem offline"></div>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant/40 hover:text-primary transition-colors">more_horiz</button>
+</div>
+<div class="space-y-1">
+<h3 class="font-headline-md text-base text-on-surface font-bold tracking-tight">Marcus Thorne</h3>
+<p class="text-label-sm text-on-surface-variant/40 font-medium">@mthorne_dev</p>
+<p class="text-[12px] text-on-surface-variant/50 pt-2 leading-relaxed">Away for the weekend</p>
+</div>
+</div>
+<!-- Friend Card 3: Sarah -->
+<div class="glass-panel inner-glow p-md rounded-2xl hover:bg-white/[0.08] transition-all cursor-pointer group border-white/5 hover:border-primary/20">
+<div class="flex items-start justify-between mb-sm">
+<div class="relative">
+<div class="w-16 h-16 rounded-2xl overflow-hidden border border-white/10 p-[2px] group-hover:border-primary/40 transition-colors">
+<div class="w-full h-full rounded-[14px] overflow-hidden bg-surface-container-high">
+<img alt="Sarah Chen" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCp5CEWdAG-ae2QPIzOTP-jXxx6YMMuX_J_xCX5F4Vg-Lwp36xtkOQWFHMnIxbTsrtVshDKwZBRcteeRNoZ_ONSvOK5zvMFUexCbcaK0OjeNr3Dm6jH-Vt36PLSMcWCsfDYBGG5oDA1CNGqTw5yRUSOsRRUE9gWR6N5vuX95DJf4b1-IK5qTigbiMp84IBXuPa_Lj8TtkD4jax1iJ6NVj_QV30Upa6VuG70FFPNUk7IHgRmdtoakV_5x4XRkpXBhqCF2MHsCE_65TFk"/>
+</div>
+</div>
+<div class="absolute -bottom-1 -right-1 presence-gem online"></div>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant/40 hover:text-primary transition-colors">more_horiz</button>
+</div>
+<div class="space-y-1">
+<h3 class="font-headline-md text-base text-on-surface font-bold tracking-tight">Sarah Chen</h3>
+<p class="text-label-sm text-primary/60 font-medium">@schen_studio</p>
+<p class="text-[12px] text-on-surface-variant/80 pt-2 italic leading-relaxed">"Designing the future of Ekam"</p>
+</div>
+</div>
+<!-- Friend Card 4: Aria (Favorite) -->
+<div class="glass-panel inner-glow p-md rounded-2xl bg-primary/5 border-primary/20 hover:bg-primary/10 transition-all cursor-pointer group shadow-[0_8px_32px_rgba(173,198,255,0.05)]">
+<div class="flex items-start justify-between mb-sm">
+<div class="relative">
+<div class="w-16 h-16 rounded-2xl overflow-hidden border border-primary/40 p-[2px]">
+<div class="w-full h-full rounded-[14px] overflow-hidden bg-primary-container/20">
+<img alt="Aria Montgomery" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCjAUMySsizN10fsYKa6DyanWISl7ot6n8dycPMUxIfQjFWdYmFORMUqputtkuCiK6bJfvNhf38p7YLpg-3jCz4y8ytY8UoJb0ppP9IHW6v4RNUuGM4V52PJ3MjvP4Q4SkgN5DKRcNyEDKIl8cR7UZfRwYhMnl8Z6_RklFMuSS84GVPV2_ImpvrHpagO3IZb2P8TvMC94bz6XWTXLBKFGHt81vLJmD636Ag0j0JztU8yr8sskB_PYPpB-ee99t5ArE-ecR36RLCPAQP"/>
+</div>
+</div>
+<div class="absolute -bottom-1 -right-1 presence-gem online"></div>
+</div>
+<span class="text-[9px] bg-primary/20 text-primary px-2 py-1 rounded-lg font-bold tracking-widest uppercase">Favorite</span>
+</div>
+<div class="space-y-1">
+<h3 class="font-headline-md text-base text-on-surface font-bold tracking-tight">Aria Montgomery</h3>
+<p class="text-label-sm text-primary/80 font-medium">@aria_m</p>
+<p class="text-[12px] text-primary/70 pt-2 italic leading-relaxed">"In a meeting, back at 4 PM"</p>
+</div>
+</div>
+<!-- Friend Card 5: Julian -->
+<div class="glass-panel inner-glow p-md rounded-2xl hover:bg-white/[0.08] transition-all cursor-pointer group border-white/5 hover:border-primary/20">
+<div class="flex items-start justify-between mb-sm">
+<div class="relative">
+<div class="w-16 h-16 rounded-2xl overflow-hidden border border-white/10 p-[2px] group-hover:border-primary/40 transition-colors">
+<div class="w-full h-full rounded-[14px] overflow-hidden bg-surface-container-high grayscale opacity-40">
+<img alt="Julian Vane" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCA-4jARTXpwFdUkkai6UtY-djyC79AyTeQPgSBnqyGHDZgRsuPlV7wwK32RnRQ4394Or-z23fM5UepSLSqGTfyj3VoJ9YNrF4tZT-E9-vZFtpYeBKonaBuDTQauIxNuXgY1TaHwxZ3erI_sMIOFIbUMSTe49UE-XRYlw0_uIfTJiUAkWzTG1zrQDCdpmpoUsFmrr1rYOlJMK3Rq3jhJ_MXUP2PaGIVi0j6kWd_PihiVkAeerdzgeUKvBVvoiybtZGO60eFWA1jtjrZ"/>
+</div>
+</div>
+<div class="absolute -bottom-1 -right-1 presence-gem offline"></div>
+</div>
+<button class="material-symbols-outlined text-on-surface-variant/40 hover:text-primary transition-colors">more_horiz</button>
+</div>
+<div class="space-y-1">
+<h3 class="font-headline-md text-base text-on-surface font-bold tracking-tight">Julian Vane</h3>
+<p class="text-label-sm text-on-surface-variant/40 font-medium">@jvane</p>
+<p class="text-[12px] text-on-surface-variant/50 pt-2 leading-relaxed">Last seen 3h ago</p>
+</div>
+</div>
+</div>
+<!-- Suggested Connects Section -->
+<div class="mt-8 pb-12">
+<div class="flex items-center gap-2 mb-gutter">
+<span class="material-symbols-outlined text-primary text-xl">auto_awesome</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface tracking-tight">Suggested Connects</h2>
+</div>
+<div class="flex gap-md overflow-x-auto pb-4 custom-scrollbar">
+<!-- Suggestion Card 1 -->
+<div class="min-w-[280px] glass-panel inner-glow p-md rounded-2xl border-white/5 flex items-center gap-md group hover:bg-white/[0.08] hover:border-primary/20 transition-all">
+<div class="w-12 h-12 rounded-xl bg-surface-container-highest overflow-hidden border border-white/10 group-hover:border-primary/40 transition-all">
+<img alt="Alex Chen" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnE_K-hXG6f1p8_U7T-NIn7fT7-vUu3K9vO_I0k7t3S_V-Kx8Z3j_E9K"/>
+</div>
+<div class="flex-1">
+<h4 class="text-on-surface font-bold text-sm tracking-tight">Alex Rivera</h4>
+<p class="text-[11px] text-on-surface-variant/60 font-medium">Shared projects: 4</p>
+</div>
+<button class="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-on-primary transition-all">
+<span class="material-symbols-outlined text-base">add</span>
+</button>
+</div>
+<!-- Suggestion Card 2 -->
+<div class="min-w-[280px] glass-panel inner-glow p-md rounded-2xl border-white/5 flex items-center gap-md group hover:bg-white/[0.08] hover:border-primary/20 transition-all">
+<div class="w-12 h-12 rounded-xl bg-surface-container-highest overflow-hidden border border-white/10 group-hover:border-primary/40 transition-all">
+<img alt="Jordan Smith" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_9yX-vL7h1m8-Kx8Z3j_E9K"/>
+</div>
+<div class="flex-1">
+<h4 class="text-on-surface font-bold text-sm tracking-tight">Jordan Lee</h4>
+<p class="text-[11px] text-on-surface-variant/60 font-medium">Design System team</p>
+</div>
+<button class="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-on-primary transition-all">
+<span class="material-symbols-outlined text-base">add</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="fixed bottom-0 w-full md:hidden z-50 bg-black/60 backdrop-blur-2xl border-t border-white/[0.05] flex justify-around items-center h-16 px-gutter">
+<a class="flex flex-col items-center text-on-surface-variant active:bg-surface-variant/20 transition-all" href="#">
+<span class="material-symbols-outlined text-2xl">forum</span>
+<span class="font-label-caps text-[9px] mt-1">Chats</span>
+</a>
+<a class="flex flex-col items-center text-primary active:bg-surface-variant/20 transition-all" href="#">
+<span class="material-symbols-outlined text-2xl">contacts</span>
+<span class="font-label-caps text-[9px] mt-1">Friends</span>
+</a>
+<a class="flex flex-col items-center text-on-surface-variant active:bg-surface-variant/20 transition-all" href="#">
+<span class="material-symbols-outlined text-2xl">grid_view</span>
+<span class="font-label-caps text-[9px] mt-1">Hub</span>
+</a>
+<a class="flex flex-col items-center text-on-surface-variant active:bg-surface-variant/20 transition-all" href="#">
+<span class="material-symbols-outlined text-2xl">person</span>
+<span class="font-label-caps text-[9px] mt-1">Profile</span>
+</a>
+</nav>
+<script>
+    // Search Filtering logic
+    const searchInput = document.querySelector('input[type="text"]');
+    const friendCards = document.querySelectorAll('.grid > div');
+
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            friendCards.forEach(card => {
+                const name = card.querySelector('h3')?.textContent.toLowerCase() || "";
+                const username = card.querySelector('p')?.textContent.toLowerCase() || "";
+                if (name.includes(term) || username.includes(term)) {
+                    card.style.display = 'block';
+                    card.style.opacity = '1';
+                } else {
+                    card.style.opacity = '0';
+                    setTimeout(() => {
+                        if(card.style.opacity === '0') card.style.display = 'none';
+                    }, 200);
+                }
+            });
+        });
+    }
+
+    // Interactive Atmospheric Mouse Effect
+    document.addEventListener('mousemove', (e) => {
+        const glow = document.createElement('div');
+        glow.className = 'fixed w-48 h-48 bg-primary/10 blur-[80px] rounded-full pointer-events-none z-[1]';
+        glow.style.left = e.clientX - 96 + 'px';
+        glow.style.top = e.clientY - 96 + 'px';
+        document.body.appendChild(glow);
+        
+        setTimeout(() => {
+            glow.style.opacity = '0';
+            glow.style.transition = 'opacity 0.8s ease-out';
+            setTimeout(() => glow.remove(), 800);
+        }, 50);
+    });
+</script>
+</body></html>

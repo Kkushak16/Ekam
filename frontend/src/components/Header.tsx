@@ -25,7 +25,7 @@ export function Header({ roomId }: HeaderProps) {
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
         <h1 style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-primary)' }}>
-          #{roomId === 'general' ? 'global-stream' : roomId}
+          #{roomId === 'general' || roomId === 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' ? 'global-stream' : roomId}
         </h1>
         <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
           Ekam Real-Time Secure Gateway Channel

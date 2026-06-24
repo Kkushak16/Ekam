@@ -50,7 +50,11 @@ app.use(cors({
     const cleanOrigin = origin.trim().replace(/\/$/, '');
     const isAllowed = allowedOrigins.some(allowed => {
       return cleanOrigin === allowed || cleanOrigin.startsWith(allowed);
-    }) || cleanOrigin.endsWith('.vercel.app') || cleanOrigin.endsWith('.netlify.app') || cleanOrigin.endsWith('.onrender.com');
+    }) || cleanOrigin.startsWith('http://localhost:') 
+       || cleanOrigin.startsWith('http://127.0.0.1:')
+       || cleanOrigin.endsWith('.vercel.app') 
+       || cleanOrigin.endsWith('.netlify.app') 
+       || cleanOrigin.endsWith('.onrender.com');
 
     if (isAllowed) {
       return callback(null, true);
@@ -164,8 +168,11 @@ app.get('/rooms', requireAuth, async (req, res) => {
 // ---- Messages ----
 // GET /messages?room_id=...&before=_id (pagination older)
 app.get('/messages', requireAuth, async (req, res) => {
-  const { room_id, before, limit } = req.query;
+  let { room_id, before, limit } = req.query;
   if (!room_id) return res.status(400).json({ error: 'room_id required' });
+  if (room_id === 'general') {
+    room_id = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
+  }
   const lim = parseInt(limit) || 50;
   const { db } = await connectToDatabase();
   const query = { room_id: room_id };
@@ -182,8 +189,11 @@ app.get('/messages', requireAuth, async (req, res) => {
 
 // GET /messages/sync?roomId=...&after=clientMessageId (missed messages after reconnection)
 app.get('/messages/sync', requireAuth, async (req, res) => {
-  const { roomId, after } = req.query;
+  let { roomId, after } = req.query;
   if (!roomId) return res.status(400).json({ error: 'roomId required' });
+  if (roomId === 'general') {
+    roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
+  }
   const { db } = await connectToDatabase();
   const query = { room_id: roomId };
   if (after) query.clientMessageId = { $gt: after };
@@ -251,11 +261,14 @@ app.post('/api/upload', requireAuth, ipUploadLimiter, userUploadLimiter, (req, r
 
 // POST /api/messages: Implement the 5-step write flow with compensating rollbacks
 app.post('/api/messages', requireAuth, async (req, res) => {
-  const { room_id, body, media_url, media_type } = req.body;
+  let { room_id, body, media_url, media_type } = req.body;
 
   // Input validations
   if (!room_id || typeof room_id !== 'string') {
     return res.status(400).json({ error: 'Invalid or missing room_id parameter.' });
+  }
+  if (room_id === 'general') {
+    room_id = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
   }
   if (!body || typeof body !== 'string') {
     return res.status(400).json({ error: 'Invalid or missing body parameter.' });
@@ -389,6 +402,9 @@ async function authenticateToken(token) {
 
 // Cache helpers for Room members & User rooms in Redis
 async function getRoomMembers(roomId) {
+  if (roomId === 'general') {
+    roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
+  }
   const cacheKey = `room_members:${roomId}`;
   try {
     const cached = await redisRest.smembers(cacheKey);
@@ -582,7 +598,11 @@ async function startServer() {
         const cleanOrigin = origin.trim().replace(/\/$/, '');
         const isAllowed = allowedOrigins.some(allowed => {
           return cleanOrigin === allowed || cleanOrigin.startsWith(allowed);
-        }) || cleanOrigin.endsWith('.vercel.app') || cleanOrigin.endsWith('.netlify.app') || cleanOrigin.endsWith('.onrender.com');
+        }) || cleanOrigin.startsWith('http://localhost:') 
+           || cleanOrigin.startsWith('http://127.0.0.1:')
+           || cleanOrigin.endsWith('.vercel.app') 
+           || cleanOrigin.endsWith('.netlify.app') 
+           || cleanOrigin.endsWith('.onrender.com');
 
         if (isAllowed) {
           return callback(null, true);
@@ -620,27 +640,186 @@ async function startServer() {
     }
   });
 
-  io.on('connection', async (socket) => {
+  io.on('connection', (socket) => {
     const userId = socket.user.id;
+    console.log(`🔌 Socket connection established for user: ${userId}`);
     socket.join(userId);
 
-    const contactIds = await getUserContacts(userId);
-    const onlineContacts = [];
-    if (contactIds.length > 0) {
-      const keys = contactIds.map(id => `presence:${id}`);
-      const values = await redisRest.mget(...keys);
-      contactIds.forEach((id, idx) => {
-        if (values[idx] === 'online') onlineContacts.push({ userId: id, status: 'online' });
-      });
-    }
+    // Asynchronously perform initialization to prevent blocking listener registration
+    (async () => {
+      try {
+        console.log(`🔍 Fetching contacts for user: ${userId}...`);
+        const contactIds = await getUserContacts(userId);
+        console.log(`✅ Contacts fetched: ${contactIds.length} found.`);
+        const onlineContacts = [];
+        if (contactIds.length > 0) {
+          const keys = contactIds.map(id => `presence:${id}`);
+          const values = await redisRest.mget(...keys);
+          contactIds.forEach((id, idx) => {
+            if (values[idx] === 'online') onlineContacts.push({ userId: id, status: 'online' });
+          });
+        }
 
-    socket.emit('presence.snapshot', { onlineUsers: onlineContacts, timestamp: Math.floor(Date.now() / 1000) });
+        console.log(`📤 Emitting presence.snapshot with ${onlineContacts.length} online contacts.`);
+        socket.emit('presence.snapshot', { onlineUsers: onlineContacts, timestamp: Math.floor(Date.now() / 1000) });
 
-    const sessionCount = await redisRest.incr(`sessions:${userId}`);
-    if (sessionCount === 1) {
-      await redisRest.set(`presence:${userId}`, 'online', { ex: 30 });
-      io.emit('presence.changed', { userId, status: 'online' });
-    }
+        console.log(`🔄 Adding socket ${socket.id} to sessions Set for user: ${userId}`);
+        await redisRest.sadd(`sessions:${userId}`, socket.id);
+        const sessionCount = await redisRest.scard(`sessions:${userId}`);
+        console.log(`ℹ️ Session count for user ${userId} is now ${sessionCount}`);
+        if (sessionCount === 1) {
+          await redisRest.set(`presence:${userId}`, 'online', { ex: 30 });
+          io.emit('presence.changed', { userId, status: 'online' });
+          console.log(`🟢 User status broadcasted: online`);
+        }
+      } catch (err) {
+        console.error('❌ Error during async socket connection initialization:', err.message);
+      }
+    })();
+
+    socket.on('join_room', async ({ roomId }) => {
+      if (!roomId) return;
+      if (roomId === 'general') roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
+      socket.join(roomId);
+      console.log(`👤 Socket ${socket.id} (user ${userId}) joined room ${roomId}`);
+    });
+
+    socket.on('send_message', async (message, ack) => {
+      let roomId = message.roomId || message.room_id;
+      const clientMessageId = message.clientMessageId || message.client_message_id || message.id;
+      const body = message.body || message.content;
+      const mediaUrl = message.mediaUrl || message.media_url;
+      const mediaType = message.mediaType || message.media_type;
+
+      console.log(`✉️ Received send_message from ${userId} for room ${roomId}. Client ID: ${clientMessageId}`);
+
+      if (!roomId || !body) {
+        console.warn(`⚠️ Invalid send_message payload: roomId or body is missing.`);
+        if (typeof ack === 'function') ack({ success: false, error: 'roomId and body required' });
+        return;
+      }
+
+      if (roomId === 'general') {
+        roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
+      }
+
+      const senderId = userId;
+      let mongoDoc = null;
+
+      try {
+        // Step 2: Insert into MongoDB
+        console.log(`⏳ [Step 2/5] Inserting message into MongoDB...`);
+        mongoDoc = await insertMessage({
+          room_id: roomId,
+          sender_id: senderId,
+          body: body,
+          media_url: mediaUrl,
+          media_type: mediaType,
+          status: 'sent'
+        });
+        console.log(`✅ [Step 2/5] MongoDB insert succeeded. ID: ${mongoDoc._id}`);
+
+        // Step 3: Insert basic metadata to Supabase
+        console.log(`⏳ [Step 3/5] Syncing message metadata to Supabase...`);
+        const { data: supabaseMessage, error: supabaseError } = await supabaseAdmin
+          .from('messages')
+          .insert({
+            room_id: roomId,
+            sender_id: senderId,
+            content: body,
+            media_url: mediaUrl || null,
+            media_type: mediaType || null
+          })
+          .select('id')
+          .single();
+
+        if (supabaseError || !supabaseMessage) {
+          throw new Error(supabaseError?.message || 'Failed to retrieve supabase UUID.');
+        }
+        console.log(`✅ [Step 3/5] Supabase sync succeeded. UUID: ${supabaseMessage.id}`);
+
+        // Step 4: Link identifiers (set supabase_id in MongoDB to the UUID)
+        console.log(`⏳ [Step 4/5] Linking identifiers in MongoDB...`);
+        const { db } = await connectToDatabase();
+        await db.collection('messages').updateOne(
+          { _id: mongoDoc._id },
+          { $set: { supabase_id: supabaseMessage.id } }
+        );
+
+        mongoDoc.supabase_id = supabaseMessage.id;
+        mongoDoc.clientMessageId = clientMessageId;
+        console.log(`✅ [Step 4/5] Identifiers linked successfully.`);
+
+        // Determine offline participants and enqueue push notifications
+        console.log(`⏳ [Step 5/5] Fetching room members and checking offline status...`);
+        const members = await getRoomMembers(roomId);
+        console.log(`ℹ️ Room members for ${roomId}: ${JSON.stringify(members)}`);
+        const participantIds = members.filter(id => id !== senderId);
+        for (const recipientId of participantIds) {
+          if (await isUserOffline(recipientId)) {
+            console.log(`🔔 Recipient ${recipientId} is offline. Enqueuing push notification...`);
+            const payload = {
+              type: 'message',
+              roomId: roomId,
+              messageId: mongoDoc._id,
+              senderId: senderId,
+              senderName: senderId,
+              body: body.length > 80 ? body.slice(0, 77) + '…' : body,
+              timestamp: Date.now()
+            };
+            await enqueuePushForUser(recipientId, payload);
+          }
+        }
+        console.log(`✅ [Step 5/5] Push notification check done.`);
+
+        // Emit message_ack to the sender (acknowledgment with status 'sent')
+        const ackData = { success: true, clientMessageId, status: 'sent', messageId: mongoDoc._id };
+        if (typeof ack === 'function') {
+          console.log(`📤 Executing ack callback...`);
+          ack(ackData);
+        }
+        console.log(`📤 Emitting message_ack event...`);
+        socket.emit('message_ack', ackData);
+
+        // Broadcast message to other online room members
+        console.log(`📤 Broadcasting message to room members...`);
+        const broadcastPayload = {
+          _id: mongoDoc._id,
+          clientMessageId,
+          room_id: roomId,
+          sender_id: senderId,
+          body: body,
+          ts: Date.now(),
+          status: 'sent',
+          media_url: mediaUrl || null,
+          media_type: mediaType || null,
+          supabase_id: mongoDoc.supabase_id
+        };
+
+        // Send to each room member
+        for (const memberId of members) {
+          if (memberId === senderId) continue;
+          io.to(memberId).emit('message', broadcastPayload);
+        }
+        console.log(`🎉 send_message transactional flow completed successfully!`);
+
+      } catch (err) {
+        console.error('❌ Error handling send_message socket event:', err.stack);
+        if (mongoDoc) {
+          console.warn(`⚠️ Supabase sync failed. Rolling back MongoDB message: ${mongoDoc._id}`);
+          try {
+            await deleteMessage(mongoDoc._id);
+            console.log(`✅ Rollback successful. Message deleted from MongoDB.`);
+          } catch (rollbackErr) {
+            console.error(`❌ Critical Rollback Failure for message ${mongoDoc._id}: ${rollbackErr.message}`);
+          }
+        }
+        if (typeof ack === 'function') {
+          ack({ success: false, error: err.message });
+        }
+        socket.emit('message_ack', { success: false, clientMessageId, error: err.message });
+      }
+    });
 
     socket.on('typing', async ({ roomId, isTyping }) => {
       const members = await getRoomMembers(roomId);
@@ -650,7 +829,10 @@ async function startServer() {
     });
 
     socket.on('disconnect', async () => {
-      const sessionCount = await redisRest.decr(`sessions:${userId}`);
+      console.log(`🔄 Removing socket ${socket.id} from sessions Set for user: ${userId}`);
+      await redisRest.srem(`sessions:${userId}`, socket.id);
+      const sessionCount = await redisRest.scard(`sessions:${userId}`);
+      console.log(`ℹ️ Session count for user ${userId} after disconnect is now ${sessionCount}`);
       if (sessionCount <= 0) {
         await redisRest.del(`presence:${userId}`);
         const now = Math.floor(Date.now() / 1000);
@@ -828,3 +1010,4 @@ async function startServer() {
 
 // Auto-run if executed directly
 startServer();
+export default app;

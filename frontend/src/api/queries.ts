@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useChatStore } from '../store/chatStore';
 import { Message, Room } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || "https://ekam-backend-3b2w.onrender.com";
 
 export const apiClient = axios.create({
   baseURL: API_URL,
@@ -29,7 +29,7 @@ export function useRoomsQuery() {
       // Format as Room objects
       return data.rooms.map((roomId) => ({
         id: roomId,
-        name: roomId === 'general' ? 'Global Stream' : roomId,
+        name: roomId === 'general' || roomId === 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' ? 'Global Stream' : roomId,
         type: 'public',
       }));
     },

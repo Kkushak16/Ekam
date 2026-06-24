@@ -22,18 +22,31 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ error: 'email, password, and displayName required' });
   }
   try {
-    const { data: user, error } = await supabaseAdmin.auth.signUp({
+    const { data: { user }, error } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      options: { data: { display_name: displayName } }
+      email_confirm: true,
+      user_metadata: { display_name: displayName }
     });
     if (error) return res.status(400).json({ error: error.message });
+    // Add newly registered user to the default General room membership
+    try {
+      await supabaseAdmin.from('room_members').insert({
+        room_id: 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a',
+        user_id: user.id,
+        role: 'member'
+      });
+    } catch (memberErr) {
+      console.error('Failed to add user to default room membership:', memberErr.message);
+    }
+    
     // Auto‑login after registration
     const payload = { sub: user.id, email: user.email };
     const accessToken = signAccessToken(payload);
     const refreshToken = signRefreshToken(payload);
     const hashed = await hashToken(refreshToken);
     await insertRefreshToken(user.id, hashed, new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)); // 30d
+    
     // Set HttpOnly cookie for refresh token
     res.cookie('refreshToken', refreshToken, cookieOptions);
     return res.json({ accessToken });
@@ -48,7 +61,7 @@ router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'email and password required' });
   try {
-    const { data: user, error: authErr } = await supabaseAdmin.auth.signInWithPassword({ email, password });
+    const { data: { user }, error: authErr } = await supabaseAdmin.auth.signInWithPassword({ email, password });
     if (authErr || !user) return res.status(401).json({ error: authErr?.message || 'Invalid credentials' });
     const payload = { sub: user.id, email: user.email };
     const accessToken = signAccessToken(payload);

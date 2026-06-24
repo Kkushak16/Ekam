@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { useChatStore } from "../store/chatStore.ts";
+import { useChatStore } from "../store/chatStore";
 
-const API_URL = import.meta.env.VITE_API_URL || "https://ekam-backend-3b2w.onrender.com";
+const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || "https://ekam-backend-3b2w.onrender.com";
 
 export function LoginForm() {
   const setToken = useChatStore((state) => state.setToken);
@@ -22,17 +22,18 @@ export function LoginForm() {
 
     try {
       // Determine backend endpoints dynamically based on mode
-      const endpoint = isSignUp ? `${API_URL}/api/auth/register` : `${API_URL}/api/auth/login`;
+      const endpoint = isSignUp ? `${API_URL}/auth/register` : `${API_URL}/auth/login`;
       
       const payload = isSignUp 
-        ? { email, password, username } 
+        ? { email, password, displayName: username } 
         : { email, password };
 
       const response = await axios.post(endpoint, payload);
+      const token = response.data?.accessToken || response.data?.token;
 
-      if (response.data && response.data.token) {
+      if (token) {
         // Feed token to Zustand to transition App.jsx past the login wall
-        setToken(response.data.token);
+        setToken(token);
       } else if (isSignUp) {
         // If registration succeeded but didn't auto-login, redirect to login mode
         alert("Account created successfully! Please log in.");
