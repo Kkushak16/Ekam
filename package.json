@@ -5,8 +5,9 @@
   "main": "seed.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "push:worker": "node workers/pushWorker.js"
+    "start": "NODE_ENV=production node server.js",
+    "dev": "nodemon server.js",
+    "worker": "node worker.js"
   },
   "dependencies": {
     "@socket.io/redis-adapter": "^8.2.0",
@@ -26,6 +27,7 @@
     "mongodb": "^7.3.0",
     "multer": "^2.2.0",
     "node-fetch": "^3.3.2",
+    "pusher": "^5.3.4",
     "redis": "^5.0.0",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
