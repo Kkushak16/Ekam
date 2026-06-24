@@ -35,5 +35,8 @@
     "web-push": "^3.5.0",
     "ws": "^8.21.0",
     "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }

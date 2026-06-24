@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import multer from 'multer';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import dotenv from 'dotenv';
 import Pusher from 'pusher';
 import { v2 as cloudinary } from 'cloudinary';
@@ -65,7 +65,12 @@ app.use(cookieParser());
 
 // Simple memory store fallback for rate-limiting on stateless instances
 const ipUploadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
-const userUploadLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 50, keyGenerator: (req) => req.user?.id || req.ip });
+const userUploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 50,
+  // Use the built‑in ipKeyGenerator for IPv6 safety; fall back to user ID when authenticated
+  keyGenerator: (req) => req.user?.id || ipKeyGenerator(req)
+});
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -178,103 +183,9 @@ app.post('/api/messages', requireAuth, async (req, res) => {
 
 // CRITICAL FOR VERCEL DEPLOYMENT: Export the plain app instance without calling server.listen()
 export default app;
-import cors from 'cors';
-import cookieParser from 'cookie-parser';
-import dotenv from 'dotenv';
-import { v2 as cloudinary } from 'cloudinary';
-import authRouter from './auth/controller.js';
-import { requireAuth } from './auth/middleware.js'; // Verify this import path is accurate
-import { connectToDatabase, insertMessage } from './db/mongodb.js';
-import { supabaseAdmin, createSupabaseUserClient } from './db/supabase.js';
 
-dotenv.config();
-
-// Initialize Cloudinary
-if (process.env.CLOUDINARY_CLOUD_NAME) {
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET
-  });
+// Start the server only in non‑production (local dev) environments
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`🚀 Server listening on http://localhost:${PORT}`));
 }
-
-const app = express();
-
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://localhost:8080',
-  process.env.FRONTEND_URL?.trim().replace(/\/$/, '')
-].filter(Boolean);
-
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    const cleanOrigin = origin.trim().replace(/\/$/, '');
-    const isAllowed = allowedOrigins.some(allowed => cleanOrigin === allowed || cleanOrigin.startsWith(allowed)) ||
-                      cleanOrigin.startsWith('http://localhost:') ||
-                      cleanOrigin.endsWith('.vercel.app') ||
-                      cleanOrigin.endsWith('.netlify.app') ||
-                      cleanOrigin.endsWith('.onrender.com');
-    if (isAllowed) return callback(null, true);
-    return callback(new Error('Blocked by CORS'), false);
-  },
-  credentials: true
-}));
-
-app.use(express.json());
-app.use(cookieParser());
-
-// Base API Routes
-app.get('/health', (req, res) => res.status(200).json({ status: 'OK' }));
-app.use('/auth', authRouter);
-
-// Sync Messages Endpoint
-app.get('/messages', requireAuth, async (req, res) => {
-  let { room_id, before, limit } = req.query;
-  if (!room_id) return res.status(400).json({ error: 'room_id parameter required' });
-  if (room_id === 'general') room_id = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
-  
-  try {
-    const lim = parseInt(limit, 10) || 50;
-    const { db } = await connectToDatabase();
-    const query = { room_id };
-    if (before) query._id = { $lt: before };
-    
-    const msgs = await db.collection('messages').find(query).sort({ _id: -1 }).limit(lim).toArray();
-    msgs.reverse();
-    return res.json({ messages: msgs, nextCursor: msgs.length ? msgs[0]._id : null });
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
-});
-
-// Transactional Post Message Flow
-app.post('/api/messages', requireAuth, async (req, res) => {
-  let { room_id, body, media_url, media_type } = req.body;
-  if (!room_id || !body) return res.status(400).json({ error: 'Missing required payload entry strings' });
-  if (room_id === 'general') room_id = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
-
-  const sender_id = req.user.id;
-  try {
-    const mongoDoc = await insertMessage({ room_id, sender_id, body, media_url, media_type, status: 'sent' });
-
-    const userSupabaseClient = createSupabaseUserClient(req.token);
-    const { data: supabaseMessage, error: supabaseError } = await userSupabaseClient
-      .from('messages')
-      .insert({ room_id, sender_id, content: body, media_url: media_url || null, media_type: media_type || null })
-      .select('id').single();
-
-    if (supabaseError || !supabaseMessage) throw new Error(supabaseError?.message || 'Supabase integration failed');
-
-    const { db } = await connectToDatabase();
-    await db.collection('messages').updateOne({ _id: mongoDoc._id }, { $set: { supabase_id: supabaseMessage.id } });
-
-    return res.status(201).json({ ...mongoDoc, supabase_id: supabaseMessage.id });
-  } catch (err) {
-    return res.status(500).json({ error: 'Stateless transaction process aborted: ' + err.message });
-  }
-});
-
-// CRITICAL FOR VERCEL: Export default app instance directly (No server.listen() or WebSocket wrappers here)
-export default app;

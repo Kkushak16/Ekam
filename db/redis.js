@@ -8,63 +8,69 @@ const restUrl = process.env.UPSTASH_REDIS_REST_URL?.trim();
 const restToken = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
 let rawUrl = process.env.REDIS_URL?.trim();
 
-if (!rawUrl) {
-  console.error("❌ Environment Validation Error: Missing REDIS_URL variable.");
-  process.exit(1);
+if (!rawUrl && !(restUrl && restToken)) {
+  console.warn('⚠️ Neither REDIS_URL nor Upstash REST credentials provided. Redis functionality will be disabled.');
+  // Do not exit; allow the app to start without Redis.
+}
+// Optional TCP Redis client – only initialize if REDIS_URL is provided
+let redisTcpSubscriber;
+if (rawUrl) {
+  // 1. Clean up potential wrap quotes from environmental strings
+  rawUrl = rawUrl.replace(/^['"]|['"]$/g, '');
+
+  // 2. Extract cleanly if a copy-paste CLI string exists
+  if (rawUrl.includes('redis-cli')) {
+    const match = rawUrl.match(/(rediss?:\/\/[^\s'"]+)/);
+    if (match) rawUrl = match[1];
+  }
+
+  // 3. Parse Redis connection string
+  let parsed;
+  try {
+    const processingUrl = rawUrl.includes('://') ? rawUrl : `redis://${rawUrl}`;
+    parsed = new URL(processingUrl);
+  } catch (e) {
+    console.error(`❌ Failed to parse REDIS_URL structure.`);
+    process.exit(1);
+  }
+
+  // Check if TLS protocol is required (e.g. rediss://)
+  const isTls = parsed.protocol === 'rediss:';
+
+  // Standard TCP/TLS client
+  redisTcpSubscriber = createClient({
+    socket: {
+      host: parsed.hostname,
+      port: parseInt(parsed.port || '6379', 10),
+      ...(isTls ? { tls: true, rejectUnauthorized: false } : {}),
+      keepAlive: 5000,
+      reconnectStrategy: (retries) => Math.min(retries * 50, 1000),
+    },
+    username: parsed.username || undefined,
+    password: parsed.password || undefined,
+    pingInterval: 15000,
+  });
+
+  redisTcpSubscriber.on('error', (err) => {
+    console.error('❌ Redis TCP Subscriber Connection Error:', err.message);
+  });
+
+  redisTcpSubscriber.on('ready', () => {
+    console.log('✅ Redis TCP Subscriber: Connection Ready!');
+  });
+} else {
+  console.log('ℹ️ REDIS_URL not provided; skipping TCP Redis client initialization.');
 }
 
-// 1. Clean up potential wrap quotes from environmental strings
-rawUrl = rawUrl.replace(/^['"]|['"]$/g, '');
-
-// 2. Extract cleanly if a copy-paste CLI string exists
-if (rawUrl.includes('redis-cli')) {
-  const match = rawUrl.match(/(rediss?:\/\/[^\s'"]+)/);
-  if (match) rawUrl = match[1];
-}
-
-// 3. Parse Redis connection string
-let parsed;
-try {
-  const processingUrl = rawUrl.includes('://') ? rawUrl : `redis://${rawUrl}`;
-  parsed = new URL(processingUrl);
-} catch (e) {
-  console.error(`❌ Failed to parse REDIS_URL structure.`);
-  process.exit(1);
-}
-
-// Check if TLS protocol is required (e.g. rediss://)
-const isTls = parsed.protocol === 'rediss:';
-
-// Standard TCP/TLS client
-export const redisTcpSubscriber = createClient({
-  socket: {
-    host: parsed.hostname,
-    port: parseInt(parsed.port || '6379', 10),
-    ...(isTls ? { tls: true, rejectUnauthorized: false } : {}),
-    keepAlive: 5000,
-    reconnectStrategy: (retries) => Math.min(retries * 50, 1000)
-  },
-  username: parsed.username || undefined,
-  password: parsed.password || undefined,
-  pingInterval: 15000
-});
-
-redisTcpSubscriber.on('error', (err) => {
-  console.error('❌ Redis TCP Subscriber Connection Error:', err.message);
-});
-
-redisTcpSubscriber.on('ready', () => {
-  console.log('✅ Redis TCP Subscriber: Connection Ready!');
-});
 
 export async function connectRedis() {
-  if (!redisTcpSubscriber.isOpen) {
+  if (redisTcpSubscriber && !redisTcpSubscriber.isOpen) {
     await redisTcpSubscriber.connect();
   }
 }
 
 export async function closeRedis() {
-  if (redisTcpSubscriber.isOpen) {
+  if (redisTcpSubscriber && redisTcpSubscriber.isOpen) {
     await redisTcpSubscriber.disconnect();
   }
 }
