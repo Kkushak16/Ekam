@@ -9,10 +9,12 @@ dotenv.config();
 // TTL: MongoDB is a permanent message store, no auto-expiry policy.
 
 // Strict environment variable validation on startup
-if (!process.env.MONGODB_URI) {
-  console.error("❌ Environment Validation Error: MONGODB_URI is not defined in your .env file.");
+const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
+if (!mongoUri) {
+  console.error("❌ Environment Validation Error: MONGODB_URI or MONGO_URI is not defined.");
   process.exit(1);
 }
+
 
 let client = null;
 let db = null;
@@ -59,7 +61,7 @@ async function resolveSrvUri(srvUri) {
 export async function connectToDatabase() {
   if (db) return { client, db };
 
-  const uri = process.env.MONGODB_URI;
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
   try {
     client = new MongoClient(uri);
     await client.connect();

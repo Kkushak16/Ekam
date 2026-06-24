@@ -4,8 +4,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-if (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET) {
-  console.error('❌ Missing JWT secrets in .env');
+const jwtSecret = process.env.JWT_SECRET;
+const accessSecret = process.env.JWT_ACCESS_SECRET || jwtSecret;
+const refreshSecret = process.env.JWT_REFRESH_SECRET || jwtSecret;
+
+if (!accessSecret || !refreshSecret) {
+  console.error('❌ Missing JWT secrets. Set JWT_ACCESS_SECRET and JWT_REFRESH_SECRET, or a single fallback JWT_SECRET.');
   process.exit(1);
 }
 
@@ -14,22 +18,22 @@ if (!process.env.JWT_ACCESS_SECRET || !process.env.JWT_REFRESH_SECRET) {
  * Payload should contain at least `sub` (user id) and optional claims.
  */
 export function signAccessToken(payload) {
-  return jwt.sign(payload, process.env.JWT_ACCESS_SECRET, { expiresIn: '15m' });
+  return jwt.sign(payload, accessSecret, { expiresIn: '15m' });
 }
 
 /**
  * Sign a refresh token (long‑lived).
  */
 export function signRefreshToken(payload) {
-  return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, { expiresIn: '30d' });
+  return jwt.sign(payload, refreshSecret, { expiresIn: '30d' });
 }
 
 /** Verify access token */
 export function verifyAccessToken(token) {
-  return jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+  return jwt.verify(token, accessSecret);
 }
 
 /** Verify refresh token */
 export function verifyRefreshToken(token) {
-  return jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+  return jwt.verify(token, refreshSecret);
 }
