@@ -62,9 +62,11 @@ export async function connectToDatabase() {
   if (db) return { client, db };
 
   const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
-  
+  const hasTlsOption = uri.includes('tlsInsecure') || uri.includes('tlsAllowInvalidCertificates');
+  const mongoOptions = hasTlsOption ? {} : { tlsAllowInvalidCertificates: true };
+
   try {
-    client = new MongoClient(uri, { tlsAllowInvalidCertificates: true });
+    client = new MongoClient(uri, mongoOptions);
     await client.connect();
     db = client.db();
     return { client, db };
@@ -73,7 +75,9 @@ export async function connectToDatabase() {
       console.warn("⚠️ DNS SRV query failed. Attempting standard connection string fallback...");
       try {
         const fallbackUri = await resolveSrvUri(uri);
-        client = new MongoClient(fallbackUri, { tlsAllowInvalidCertificates: true });
+        const hasFallbackTlsOption = fallbackUri.includes('tlsInsecure') || fallbackUri.includes('tlsAllowInvalidCertificates');
+        const fallbackOptions = hasFallbackTlsOption ? {} : { tlsAllowInvalidCertificates: true };
+        client = new MongoClient(fallbackUri, fallbackOptions);
         await client.connect();
         db = client.db();
         return { client, db };
