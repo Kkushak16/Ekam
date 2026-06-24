@@ -1,5 +1,5 @@
 // auth/utils/hash.js
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 const SALT_ROUNDS = 12;
 
 export async function hashToken(token) {
