@@ -7,6 +7,14 @@ import { insertRefreshToken, deleteRefreshToken, findRefreshToken } from '../db/
 
 const router = express.Router();
 
+const isProd = process.env.NODE_ENV === 'production';
+const cookieOptions = {
+  httpOnly: true,
+  sameSite: isProd ? 'none' : 'lax',
+  secure: true,
+  maxAge: 30 * 24 * 60 * 60 * 1000
+};
+
 // Register new user
 router.post('/register', async (req, res) => {
   const { email, password, displayName } = req.body;
@@ -27,7 +35,7 @@ router.post('/register', async (req, res) => {
     const hashed = await hashToken(refreshToken);
     await insertRefreshToken(user.id, hashed, new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)); // 30d
     // Set HttpOnly cookie for refresh token
-    res.cookie('refreshToken', refreshToken, { httpOnly: true, sameSite: 'strict', secure: true, maxAge: 30 * 24 * 60 * 60 * 1000 });
+    res.cookie('refreshToken', refreshToken, cookieOptions);
     return res.json({ accessToken });
   } catch (e) {
     console.error('Register error:', e);
@@ -47,7 +55,7 @@ router.post('/login', async (req, res) => {
     const refreshToken = signRefreshToken(payload);
     const hashed = await hashToken(refreshToken);
     await insertRefreshToken(user.id, hashed, new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
-    res.cookie('refreshToken', refreshToken, { httpOnly: true, sameSite: 'strict', secure: true, maxAge: 30 * 24 * 60 * 60 * 1000 });
+    res.cookie('refreshToken', refreshToken, cookieOptions);
     return res.json({ accessToken });
   } catch (e) {
     console.error('Login error:', e);
@@ -83,7 +91,7 @@ router.post('/logout', async (req, res) => {
       await deleteRefreshToken(decoded.sub);
     } catch (_) {}
   }
-  res.clearCookie('refreshToken');
+  res.clearCookie('refreshToken', cookieOptions);
   return res.json({ success: true });
 });
 

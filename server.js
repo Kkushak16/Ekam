@@ -34,7 +34,33 @@ cloudinary.config({
 });
 
 const app = express();
-app.use(cors());
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:8080',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000',
+  process.env.FRONTEND_URL?.trim().replace(/\/$/, '')
+].filter(Boolean);
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    const cleanOrigin = origin.trim().replace(/\/$/, '');
+    const isAllowed = allowedOrigins.some(allowed => {
+      return cleanOrigin === allowed || cleanOrigin.startsWith(allowed);
+    }) || cleanOrigin.endsWith('.vercel.app') || cleanOrigin.endsWith('.netlify.app') || cleanOrigin.endsWith('.onrender.com');
+
+    if (isAllowed) {
+      return callback(null, true);
+    } else {
+      console.warn(`⚠️ CORS blocked access from origin: ${origin}`);
+      return callback(new Error('Not allowed by CORS'), false);
+    }
+  },
+  credentials: true
+}));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -549,7 +575,24 @@ async function startServer() {
   //  NEW / UNIFIED WEBSOCKET AUTHENTICATION
   const PORT = process.env.PORT !== undefined ? parseInt(process.env.PORT, 10) : 3001;
   const server = http.createServer(app);
-  const io = new SocketIOServer(server, { cors: { origin: "*" } });
+  const io = new SocketIOServer(server, { 
+    cors: { 
+      origin: function (origin, callback) {
+        if (!origin) return callback(null, true);
+        const cleanOrigin = origin.trim().replace(/\/$/, '');
+        const isAllowed = allowedOrigins.some(allowed => {
+          return cleanOrigin === allowed || cleanOrigin.startsWith(allowed);
+        }) || cleanOrigin.endsWith('.vercel.app') || cleanOrigin.endsWith('.netlify.app') || cleanOrigin.endsWith('.onrender.com');
+
+        if (isAllowed) {
+          return callback(null, true);
+        } else {
+          return callback(new Error('Not allowed by CORS'), false);
+        }
+      },
+      credentials: true
+    } 
+  });
   
   // Store reference for Pub/Sub handlers
   ioInstance = io;
