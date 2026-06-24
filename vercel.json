@@ -31,8 +31,6 @@
       "dest": "/frontend/assets/$1"
     },
     {
-      "src": "/(.*)",
-      "dest": "/frontend/$1",
       "handle": "filesystem"
     },
     {

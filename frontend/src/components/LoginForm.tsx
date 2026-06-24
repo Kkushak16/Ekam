@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { useChatStore } from "../store/chatStore";
 
-const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || "https://ekam-backend-3b2w.onrender.com";
+const API_URL = import.meta.env.DEV ? (import.meta.env.VITE_API_URL || 'http://localhost:3000') : window.location.origin;
 
 export function LoginForm() {
   const setToken = useChatStore((state) => state.setToken);
