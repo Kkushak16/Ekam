@@ -98,6 +98,32 @@ export async function requireAuth(req, res, next) {
 app.get('/health', (req, res) => res.status(200).json({ status: 'OK' }));
 app.use('/auth', authRouter);
 
+// Pusher Channel Authentication Endpoint
+app.post('/api/pusher/auth', requireAuth, (req, res) => {
+  const socketId = req.body.socket_id;
+  const channel = req.body.channel_name;
+  
+  if (!socketId || !channel) {
+    return res.status(400).send('Missing socket_id or channel_name');
+  }
+
+  // Presence channel extra info
+  const presenceData = {
+    user_id: req.user.id,
+    user_info: {
+      email: req.user.email
+    }
+  };
+  
+  try {
+    const authResponse = pusher.authorizeChannel(socketId, channel, presenceData);
+    return res.json(authResponse);
+  } catch (err) {
+    console.error('Pusher Auth error:', err.message);
+    return res.status(403).send('Forbidden: ' + err.message);
+  }
+});
+
 // Sync/Fetch Messages via REST HTTP
 app.get('/messages', requireAuth, async (req, res) => {
   let { room_id, before, limit } = req.query;

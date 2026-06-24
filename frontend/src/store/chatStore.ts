@@ -1,19 +1,18 @@
 import { create } from 'zustand';
 import { devtools, persist, createJSONStorage } from 'zustand/middleware';
-import { io, Socket } from 'socket.io-client';
+import Pusher from 'pusher-js';
 import axios from 'axios';
 import { Message, PresenceMap } from '../types';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || "https://ekam-backend-3b2w.onrender.com";
 const API_URL = BACKEND_URL.replace(/\/$/, '');
-const WS_URL = import.meta.env.VITE_WS_URL || API_URL.replace(/^http/, 'ws');
 
 export interface ChatState {
   token: string | null;
   setToken: (token: string | null) => void;
   clearAuth: () => void;
 
-  socket: Socket | null;
+  socket: any | null;
   connectionStatus: 'disconnected' | 'connecting' | 'connected';
   initializeSocket: (jwt: string) => void;
   disconnectSocket: () => void;
@@ -50,80 +49,120 @@ export const useChatStore = create<ChatState>()(
           set({ token: null, messages: [], presence: {}, typing: {} });
         },
 
-        // ----- Socket -----
+        // ----- Socket (Pusher) -----
         socket: null,
         connectionStatus: 'disconnected',
         initializeSocket: (jwt) => {
           if (get().socket) return;
 
           set({ connectionStatus: 'connecting' });
-          const socket = io(WS_URL, {
-            auth: { token: jwt },
-            transports: ['websocket'],
-            reconnectionAttempts: 5,
+
+          const pusherKey = import.meta.env.VITE_PUSHER_KEY || 'ced54b716030c616146d';
+          const pusherCluster = import.meta.env.VITE_PUSHER_CLUSTER || 'ap2';
+
+          const pusher = new Pusher(pusherKey, {
+            cluster: pusherCluster,
+            forceTLS: true,
+            authEndpoint: `${API_URL}/api/pusher/auth`,
+            auth: {
+              headers: {
+                Authorization: `Bearer ${jwt}`,
+              },
+            },
           });
 
-          socket.on('connect', () => {
-            set({ connectionStatus: 'connected', socket });
-            socket.emit('join_room', { roomId: 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' });
+          pusher.connection.bind('state_change', (states: { current: string }) => {
+            if (states.current === 'connected') {
+              set({ connectionStatus: 'connected' });
+            } else if (states.current === 'connecting') {
+              set({ connectionStatus: 'connecting' });
+            } else {
+              set({ connectionStatus: 'disconnected' });
+            }
           });
 
-          socket.on('disconnect', () => {
-            set({ connectionStatus: 'disconnected', socket: null });
-          });
+          const roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
 
-          socket.on('connect_error', () => {
-            set({ connectionStatus: 'disconnected', socket: null });
-          });
+          // 1. Subscribe to public channel for message broadcasts
+          const msgChannel = pusher.subscribe(`room-${roomId}`);
 
-          socket.on('message', (msg: Message) => {
+          msgChannel.bind('new-message', (data: any) => {
+            const msg: Message = {
+              id: data._id,
+              clientMessageId: data.clientMessageId || data._id,
+              roomId: data.room_id,
+              senderId: data.sender_id,
+              body: data.body,
+              status: 'sent',
+              ts: data.ts || Date.now(),
+              mediaUrl: data.media_url,
+              mediaType: data.media_type,
+            };
             get().addMessage(msg);
           });
 
-          socket.on('message_ack', ({ clientMessageId, status }: { clientMessageId: string; status: Message['status'] }) => {
-            get().updateMessageStatus(clientMessageId, status);
-          });
+          // 2. Subscribe to presence channel for online users list and typing events
+          const presenceChannel = pusher.subscribe(`presence-room-${roomId}`);
 
-          socket.on('presence.snapshot', ({ onlineUsers }: { onlineUsers: Array<{ userId: string; status: string }> }) => {
+          presenceChannel.bind('pusher:subscription_succeeded', () => {
             const initialPresence: PresenceMap = {};
-            if (Array.isArray(onlineUsers)) {
-              onlineUsers.forEach((u) => {
-                initialPresence[u.userId] = { online: u.status === 'online' };
-              });
-            }
+            presenceChannel.members.each((member: any) => {
+              initialPresence[member.id] = { online: true };
+            });
             set({ presence: initialPresence });
           });
 
-          socket.on('presence.changed', ({ userId, status }: { userId: string; status: string }) => {
+          presenceChannel.bind('pusher:member_added', (member: any) => {
             set((state) => ({
               presence: {
                 ...state.presence,
-                [userId]: { online: status === 'online' },
+                [member.id]: { online: true },
               },
             }));
           });
 
-          socket.on('typing.changed', ({ roomId, userId, isTyping }: { roomId: string; userId: string; isTyping: boolean }) => {
-            if (isTyping) {
-              get().addTypingUser(roomId, userId);
+          presenceChannel.bind('pusher:member_removed', (member: any) => {
+            set((state) => ({
+              presence: {
+                ...state.presence,
+                [member.id]: { online: false },
+              },
+            }));
+          });
+
+          // Listen for client-typing events
+          presenceChannel.bind('client-typing', (data: { userId: string; isTyping: boolean }) => {
+            if (data.isTyping) {
+              get().addTypingUser(roomId, data.userId);
             } else {
-              get().removeTypingUser(roomId, userId);
+              get().removeTypingUser(roomId, data.userId);
             }
           });
 
-          socket.on('typing_start', ({ roomId, userId }: { roomId: string; userId: string }) => {
-            get().addTypingUser(roomId, userId);
-          });
+          // Create a mock socket interface for backward compatibility in components
+          const mockSocket = {
+            emit: (event: string, data: any) => {
+              if (event === 'typing') {
+                presenceChannel.trigger('client-typing', {
+                  userId: data.userId || '',
+                  isTyping: data.isTyping,
+                });
+              }
+            },
+            disconnect: () => {
+              pusher.disconnect();
+            }
+          };
 
-          socket.on('typing_stop', ({ roomId, userId }: { roomId: string; userId: string }) => {
-            get().removeTypingUser(roomId, userId);
-          });
+          set({ socket: mockSocket });
         },
 
         disconnectSocket: () => {
           const { socket } = get();
           if (socket) {
-            socket.disconnect();
+            if (typeof socket.disconnect === 'function') {
+              socket.disconnect();
+            }
             set({ socket: null, connectionStatus: 'disconnected' });
           }
         },

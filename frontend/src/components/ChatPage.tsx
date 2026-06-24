@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useChatStore } from '../store/chatStore';
-import { useUploadMutation } from '../api/queries';
+import { useUploadMutation, apiClient } from '../api/queries';
 import MessageList from './MessageList';
 import TypingIndicator from './TypingIndicator';
 import Header from './Header';
@@ -57,27 +57,38 @@ export function ChatPage() {
     useChatStore.getState().addMessage(message);
     setInput('');
 
-    // Emit via Socket.IO with callback acknowledgment
-    socket.emit('send_message', message, (ack: { success: boolean }) => {
-      if (ack?.success) {
-        // Status will be updated via 'message_ack' listener or server broadcast
-      } else {
-        // Fallback: If socket ack fails, send via HTTP fallback or mark failed
-        useChatStore.getState().updateMessageStatus(clientMessageId, 'failed');
+    try {
+      const { data } = await apiClient.post('/api/messages', {
+        room_id: roomId,
+        body: message.body,
+        media_url: mediaUrl,
+        media_type: mediaType,
+      });
+
+      if (data) {
+        useChatStore.getState().addMessage({
+          ...message,
+          id: data._id,
+          status: 'sent',
+          supabaseId: data.supabase_id,
+        });
       }
-    });
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      useChatStore.getState().updateMessageStatus(clientMessageId, 'failed');
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
     if (!isTyping) {
       setIsTyping(true);
-      socket?.emit('typing', { roomId, isTyping: true });
+      socket?.emit('typing', { roomId, isTyping: true, userId });
     }
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      socket?.emit('typing', { roomId, isTyping: false });
+      socket?.emit('typing', { roomId, isTyping: false, userId });
     }, 1500);
   };
 
