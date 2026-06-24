@@ -30,34 +30,37 @@ if (rawUrl) {
     const processingUrl = rawUrl.includes('://') ? rawUrl : `redis://${rawUrl}`;
     parsed = new URL(processingUrl);
   } catch (e) {
-    console.error(`❌ Failed to parse REDIS_URL structure.`);
-    process.exit(1);
+    console.warn(`⚠️ Failed to parse REDIS_URL structure. Skipping Redis TCP client.`);
+    rawUrl = null; // prevent further initialization
   }
 
-  // Check if TLS protocol is required (e.g. rediss://)
-  const isTls = parsed.protocol === 'rediss:';
+  // Only proceed if URL was parsed successfully
+  if (rawUrl && parsed) {
+    // Check if TLS protocol is required (e.g. rediss://)
+    const isTls = parsed.protocol === 'rediss:';
 
-  // Standard TCP/TLS client
-  redisTcpSubscriber = createClient({
-    socket: {
-      host: parsed.hostname,
-      port: parseInt(parsed.port || '6379', 10),
-      ...(isTls ? { tls: true, rejectUnauthorized: false } : {}),
-      keepAlive: 5000,
-      reconnectStrategy: (retries) => Math.min(retries * 50, 1000),
-    },
-    username: parsed.username || undefined,
-    password: parsed.password || undefined,
-    pingInterval: 15000,
-  });
+    // Standard TCP/TLS client
+    redisTcpSubscriber = createClient({
+      socket: {
+        host: parsed.hostname,
+        port: parseInt(parsed.port || '6379', 10),
+        ...(isTls ? { tls: true, rejectUnauthorized: false } : {}),
+        keepAlive: 5000,
+        reconnectStrategy: (retries) => Math.min(retries * 50, 1000),
+      },
+      username: parsed.username || undefined,
+      password: parsed.password || undefined,
+      pingInterval: 15000,
+    });
 
-  redisTcpSubscriber.on('error', (err) => {
-    console.error('❌ Redis TCP Subscriber Connection Error:', err.message);
-  });
+    redisTcpSubscriber.on('error', (err) => {
+      console.error('❌ Redis TCP Subscriber Connection Error:', err.message);
+    });
 
-  redisTcpSubscriber.on('ready', () => {
-    console.log('✅ Redis TCP Subscriber: Connection Ready!');
-  });
+    redisTcpSubscriber.on('ready', () => {
+      console.log('✅ Redis TCP Subscriber: Connection Ready!');
+    });
+  }
 } else {
   console.log('ℹ️ REDIS_URL not provided; skipping TCP Redis client initialization.');
 }

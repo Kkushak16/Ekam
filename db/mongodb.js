@@ -11,8 +11,8 @@ dotenv.config();
 // Strict environment variable validation on startup
 const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
 if (!mongoUri) {
-  console.error("❌ Environment Validation Error: MONGODB_URI or MONGO_URI is not defined.");
-  process.exit(1);
+  console.warn("⚠️ MONGODB_URI or MONGO_URI is not defined. MongoDB-dependent routes will fail.");
+  // Do NOT process.exit — let non-MongoDB routes (e.g. /health) work.
 }
 
 

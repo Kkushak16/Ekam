@@ -20,21 +20,26 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseServiceRoleKey || !supabaseAnonKey) {
-  console.error("❌ Environment Validation Error: SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY must be defined in your .env file.");
-  console.error('Current values:', { supabaseUrl, supabaseServiceRoleKey, supabaseAnonKey });
-  process.exit(1);
+  console.warn("⚠️ SUPABASE_URL, SUPABASE_ANON_KEY, and/or SUPABASE_SERVICE_ROLE_KEY are missing.");
+  console.warn("   Supabase-dependent routes will fail, but the app will still start.");
+  // Do NOT process.exit — let non-Supabase routes (e.g. /health) work.
 }
 
 // 1. Admin Client (Bypasses RLS - used for token validation and seeds)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
+export const supabaseAdmin = (supabaseUrl && supabaseServiceRoleKey)
+  ? createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : null;
 
 // 2. Dynamic User Client (Respects RLS - used for user-authenticated operations)
 export function createSupabaseUserClient(userJwt) {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Supabase is not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY.");
+  }
   if (typeof userJwt !== 'string' || !userJwt) {
     throw new Error("Security Exception: User token must be a non-empty string.");
   }
