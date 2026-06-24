@@ -1,0 +1,37 @@
+{
+  "name": "ekam-backend",
+  "version": "1.0.0",
+  "description": "Supabase Backend Schema, Auth & Seed Script for Chat Application",
+  "main": "seed.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "push:worker": "node workers/pushWorker.js"
+  },
+  "dependencies": {
+    "@socket.io/redis-adapter": "^8.2.0",
+    "@supabase/supabase-js": "^2.43.4",
+    "@upstash/redis": "^1.38.0",
+    "axios": "^1.7.2",
+    "bcrypt": "^6.0.0",
+    "bullmq": "^5.2.0",
+    "cloudinary": "^2.10.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "form-data": "^4.0.6",
+    "jsonwebtoken": "^9.0.0",
+    "mongodb": "^7.3.0",
+    "multer": "^2.2.0",
+    "node-fetch": "^3.3.2",
+    "redis": "^4.6.13",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "ulid": "^3.0.2",
+    "web-push": "^3.5.0",
+    "ws": "^8.21.0",
+    "zod": "^3.22.4"
+  }
+}

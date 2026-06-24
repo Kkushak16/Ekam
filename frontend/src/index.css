@@ -1,0 +1,120 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg-app: #f1f5f9;
+  --bg-surface: rgba(255, 255, 255, 0.8);
+  --bg-sidebar: #ffffff;
+  --bg-bubble-me: #4f46e5;
+  --bg-bubble-them: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-me: #ffffff;
+  --text-them: #334155;
+  --border-color: #e2e8f0;
+  --accent-glow: rgba(79, 70, 229, 0.1);
+  --radius-main: 24px;
+  --radius-bubble: 16px;
+  --shadow-premium: 0 10px 30px -10px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="dark"] {
+  --bg-app: #090d16;
+  --bg-surface: rgba(21, 27, 44, 0.7);
+  --bg-sidebar: #111827;
+  --bg-bubble-me: #6366f1;
+  --bg-bubble-them: #1f2937;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-me: #ffffff;
+  --text-them: #e2e8f0;
+  --border-color: #1f2937;
+  --accent-glow: rgba(99, 102, 241, 0.2);
+  --shadow-premium: 0 10px 30px -10px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Glassmorphism Layout Panels */
+.app-layout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--bg-app);
+}
+
+.sidebar {
+  width: 320px;
+  background-color: var(--bg-sidebar);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  transition: all 0.3s ease;
+}
+
+.main-chat-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 32px;
+  position: relative;
+}
+
+.chat-window {
+  flex: 1;
+  background: var(--bg-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-main);
+  box-shadow: var(--shadow-premium);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Scrollbar Engineering */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 10px;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

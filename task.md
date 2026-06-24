@@ -1,0 +1,7 @@
+- [ ] Create remaining UI components (MessageList, MessageItem, TypingIndicator, Header, PresenceBadge)
+- [ ] Add CSS design tokens and premium styling (index.css, component-specific CSS)
+- [ ] Install frontend dependencies (npm install in frontend folder)
+- [ ] Run dev server (npm run dev) and verify connection to backend
+- [ ] Test message send/ack flow, typing indicator, presence badges
+- [ ] Add micro‑animations and dark‑mode toggle
+- [ ] Update README with setup instructions

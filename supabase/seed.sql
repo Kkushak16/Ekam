@@ -1,0 +1,14 @@
+-- NOTE ON DATABASE SEEDING
+-- 
+-- Standard SQL seeding (e.g. inserting into auth.users directly via insert statements)
+-- is discouraged in Supabase. Supabase Auth handles password hashing, salt creation,
+-- and identity generation through GoTrue's internal business logic (written in Go).
+-- Direct SQL injection into the auth schema bypasses encryption and leaves the auth state
+-- in an unstable or unusable condition.
+-- 
+-- Therefore, we use a Node.js-based seed script (`seed.js`) at the root of the workspace.
+-- The seed script leverages the Supabase Admin API (`supabase.auth.admin.createUser`)
+-- with the service_role key to safely, securely, and correctly create verified users.
+-- 
+-- To seed the database, run:
+--   npm run seed
