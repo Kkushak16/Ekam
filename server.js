@@ -513,21 +513,25 @@ async function startServer() {
   console.log("🔗 Verifying external service connections...");
   try {
     // 1. Check MongoDB
+    console.log("⏳ [1/4] Verifying MongoDB connection...");
     const { db } = await connectToDatabase();
     await db.command({ ping: 1 });
     console.log("   ✅ MongoDB connection: OK");
 
     // 2. Check Cloudinary
+    console.log("⏳ [2/4] Verifying Cloudinary connection...");
     const pingResult = await cloudinary.api.ping();
     if (pingResult.status !== 'ok') throw new Error("Cloudinary status not OK");
     console.log("   ✅ Cloudinary connection: OK");
 
     // 3. Check Supabase
+    console.log("⏳ [3/4] Verifying Supabase connection...");
     const { error: pgError } = await supabaseAdmin.from('users').select('id').limit(1);
     if (pgError) throw new Error(pgError.message);
     console.log("   ✅ Supabase connection: OK");
 
     // 4. Check Redis
+    console.log("⏳ [4/4] Verifying Redis connection...");
     await connectRedis();
     const redisPing = await redisRest.ping();
     if (redisPing !== 'PONG' && redisPing !== 'ok' && redisPing !== 'OK') throw new Error("Redis REST ping failed");
