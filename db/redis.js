@@ -4,51 +4,60 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const restUrl = process.env.UPSTASH_REDIS_REST_URL;
-const restToken = process.env.UPSTASH_REDIS_REST_TOKEN;
-let redisUrl = process.env.REDIS_URL;
+const restUrl = process.env.UPSTASH_REDIS_REST_URL?.trim();
+const restToken = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+let rawUrl = process.env.REDIS_URL?.trim();
 
-if (!restUrl || !restToken || !redisUrl) {
-  console.error("❌ Environment Validation Error: UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN, and REDIS_URL must be defined in your .env file.");
+if (!restUrl || !restToken || !rawUrl) {
+  console.error("❌ Environment Validation Error: Missing Upstash/Redis variables.");
   process.exit(1);
 }
 
-// Auto-sanitize REDIS_URL if it contains redis-cli commands
-if (redisUrl.includes('redis-cli')) {
-  const match = redisUrl.match(/(rediss?:\/\/[^\s]+)/);
-  if (match) {
-    let extracted = match[1];
-    if (extracted.startsWith('redis://') && redisUrl.includes('--tls')) {
-      extracted = extracted.replace('redis://', 'rediss://');
-    }
-    redisUrl = extracted;
-  }
+// 1. Clean up potential wrap quotes from environmental strings
+rawUrl = rawUrl.replace(/^['"]|['"]$/g, '');
+
+// 2. Extract cleanly if a copy-paste CLI string exists
+if (rawUrl.includes('redis-cli')) {
+  const match = rawUrl.match(/(rediss?:\/\/[^\s'"]+)/);
+  if (match) rawUrl = match[1];
 }
 
-// 1. Upstash HTTP/REST client for stateless command execution (SET, GET, DEL, etc.)
+// 3. Fallback Parse: Build structured connection details directly to bypass the library string check
+let parsed;
+try {
+  // If the string doesn't have a protocol prefix at all, give it a placeholder to allow URL processing
+  const processingUrl = rawUrl.includes('://') ? rawUrl : `redis://${rawUrl}`;
+  parsed = new URL(processingUrl);
+} catch (e) {
+  console.error(`❌ Failed to parse REDIS_URL structure.`);
+  process.exit(1);
+}
+
+// Upstash HTTP/REST client
 export const redisRest = new Redis({
   url: restUrl,
   token: restToken,
 });
 
-// 2. Standard TCP/TLS client with cloud-resilient keep-alives
+// Standard TCP/TLS client
 export const redisTcpSubscriber = createClient({
-  url: redisUrl,
+  // CRITICAL BYPASS: Do NOT provide the "url" property string.
+  // By breaking the string down into raw socket properties, node-redis skips the validation check that caused the crash.
   socket: {
-    tls: true,
-    rejectUnauthorized: false, // Prevents local Windows CA certificate handshake drops
-    keepAlive: 5000,           // Keeps the underlying TCP socket active
+    host: parsed.hostname,
+    port: parseInt(parsed.port || '6379', 10),
+    tls: true, // Forces absolute compliance with Upstash SSL/TLS requirements
+    rejectUnauthorized: false,
+    keepAlive: 5000,
     reconnectStrategy: (retries) => Math.min(retries * 50, 1000)
   },
-  pingInterval: 15000          // Fires a background ping every 15 seconds to keep the serverless pipeline open
+  username: parsed.username || undefined,
+  password: parsed.password || undefined,
+  pingInterval: 15000
 });
 
 redisTcpSubscriber.on('error', (err) => {
   console.error('❌ Redis TCP Subscriber Connection Error:', err.message);
-});
-
-redisTcpSubscriber.on('reconnecting', () => {
-  console.log('🔄 Redis TCP Subscriber: Reconnecting...');
 });
 
 redisTcpSubscriber.on('ready', () => {
@@ -65,4 +74,4 @@ export async function closeRedis() {
   if (redisTcpSubscriber.isOpen) {
     await redisTcpSubscriber.disconnect();
   }
-}
+}// Last Build Force: 24-06-2026 20:46:24
