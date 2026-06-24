@@ -45,6 +45,7 @@ export const useChatStore = create<ChatState>()(
         clearAuth: () => {
           const { disconnectSocket } = get();
           disconnectSocket();
+          // Safe initialization ensuring collections remain structural arrays/objects
           set({ token: null, messages: [], presence: {}, typing: {} });
         },
 
@@ -52,7 +53,6 @@ export const useChatStore = create<ChatState>()(
         socket: null,
         connectionStatus: 'disconnected',
         initializeSocket: (jwt) => {
-          // If already connected/connecting, avoid duplicate connection
           if (get().socket) return;
 
           set({ connectionStatus: 'connecting' });
@@ -76,7 +76,6 @@ export const useChatStore = create<ChatState>()(
             set({ connectionStatus: 'disconnected', socket: null });
           });
 
-          // Message events
           socket.on('message', (msg: Message) => {
             get().addMessage(msg);
           });
@@ -85,12 +84,13 @@ export const useChatStore = create<ChatState>()(
             get().updateMessageStatus(clientMessageId, status);
           });
 
-          // Presence events
           socket.on('presence.snapshot', ({ onlineUsers }: { onlineUsers: Array<{ userId: string; status: string }> }) => {
             const initialPresence: PresenceMap = {};
-            onlineUsers.forEach((u) => {
-              initialPresence[u.userId] = { online: u.status === 'online' };
-            });
+            if (Array.isArray(onlineUsers)) {
+              onlineUsers.forEach((u) => {
+                initialPresence[u.userId] = { online: u.status === 'online' };
+              });
+            }
             set({ presence: initialPresence });
           });
 
@@ -103,7 +103,6 @@ export const useChatStore = create<ChatState>()(
             }));
           });
 
-          // Typing events
           socket.on('typing.changed', ({ roomId, userId, isTyping }: { roomId: string; userId: string; isTyping: boolean }) => {
             if (isTyping) {
               get().addTypingUser(roomId, userId);
@@ -112,7 +111,6 @@ export const useChatStore = create<ChatState>()(
             }
           });
 
-          // Fallback legacy typing events if any
           socket.on('typing_start', ({ roomId, userId }: { roomId: string; userId: string }) => {
             get().addTypingUser(roomId, userId);
           });
@@ -135,29 +133,32 @@ export const useChatStore = create<ChatState>()(
         loadingOlder: false,
         setLoadingOlder: (status) => set({ loadingOlder: status }),
         addMessage: (msg) => {
-          // Avoid duplicate messages
           set((state) => {
-            const exists = state.messages.some(
+            const safeMessages = Array.isArray(state.messages) ? state.messages : [];
+            const exists = safeMessages.some(
               (m) =>
                 m.clientMessageId === msg.clientMessageId ||
                 (m.id && msg.id && m.id === msg.id)
             );
             if (exists) {
               return {
-                messages: state.messages.map((m) =>
+                messages: safeMessages.map((m) =>
                   m.clientMessageId === msg.clientMessageId ? { ...m, ...msg } : m
                 ),
               };
             }
-            return { messages: [...state.messages, msg] };
+            return { messages: [...safeMessages, msg] };
           });
         },
         updateMessageStatus: (clientMessageId, status) => {
-          set((state) => ({
-            messages: state.messages.map((m) =>
-              m.clientMessageId === clientMessageId ? { ...m, status } : m
-            ),
-          }));
+          set((state) => {
+            const safeMessages = Array.isArray(state.messages) ? state.messages : [];
+            return {
+              messages: safeMessages.map((m) =>
+                m.clientMessageId === clientMessageId ? { ...m, status } : m
+              ),
+            };
+          });
         },
         loadOlderMessages: async (roomId, beforeId) => {
           set({ loadingOlder: true });
@@ -167,27 +168,37 @@ export const useChatStore = create<ChatState>()(
               params: { room_id: roomId, before: beforeId, limit: 20 },
               headers: { Authorization: `Bearer ${token}` },
             });
+            
             set((state) => {
-              // Merge lists avoiding duplicates
-              const currentIds = new Set(state.messages.map((m) => m.clientMessageId));
-              const filteredNew = resp.data.filter((m: Message) => !currentIds.has(m.clientMessageId));
-              return { messages: [...filteredNew, ...state.messages] };
+              const incomingMessages = Array.isArray(resp.data) ? resp.data : [];
+              const safeMessages = Array.isArray(state.messages) ? state.messages : [];
+              const currentIds = new Set(safeMessages.map((m) => m.clientMessageId));
+              const filteredNew = incomingMessages.filter((m: Message) => !currentIds.has(m.clientMessageId));
+              return { messages: [...filteredNew, ...safeMessages] };
             });
+          } catch (error) {
+            console.error("Failed to load messages pipeline:", error);
           } finally {
             set({ loadingOlder: false });
           }
         },
         syncMissingMessages: async (roomId, lastSeenId) => {
-          const token = get().token;
-          const resp = await axios.get(`${API_URL}/messages/sync`, {
-            params: { roomId, after: lastSeenId },
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          set((state) => {
-            const currentIds = new Set(state.messages.map((m) => m.clientMessageId));
-            const filteredNew = resp.data.filter((m: Message) => !currentIds.has(m.clientMessageId));
-            return { messages: [...state.messages, ...filteredNew] };
-          });
+          try {
+            const token = get().token;
+            const resp = await axios.get(`${API_URL}/messages/sync`, {
+              params: { roomId, after: lastSeenId },
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            set((state) => {
+              const incomingMessages = Array.isArray(resp.data) ? resp.data : [];
+              const safeMessages = Array.isArray(state.messages) ? state.messages : [];
+              const currentIds = new Set(safeMessages.map((m) => m.clientMessageId));
+              const filteredNew = incomingMessages.filter((m: Message) => !currentIds.has(m.clientMessageId));
+              return { messages: [...safeMessages, ...filteredNew] };
+            });
+          } catch (error) {
+            console.error("Failed to sync missing messages pipeline:", error);
+          }
         },
 
         // ----- Presence -----
@@ -198,18 +209,20 @@ export const useChatStore = create<ChatState>()(
         typing: {},
         addTypingUser: (roomId, userId) => {
           set((state) => {
-            const current = state.typing[roomId] || new Set<string>();
-            const updated = new Set<string>(current);
+            const safeTyping = state.typing && typeof state.typing === 'object' ? state.typing : {};
+            const current = safeTyping[roomId];
+            const updated = current instanceof Set ? new Set<string>(current) : new Set<string>();
             updated.add(userId);
-            return { typing: { ...state.typing, [roomId]: updated } };
+            return { typing: { ...safeTyping, [roomId]: updated } };
           });
         },
         removeTypingUser: (roomId, userId) => {
           set((state) => {
-            const current = state.typing[roomId] || new Set<string>();
-            const updated = new Set<string>(current);
+            const safeTyping = state.typing && typeof state.typing === 'object' ? state.typing : {};
+            const current = safeTyping[roomId];
+            const updated = current instanceof Set ? new Set<string>(current) : new Set<string>();
             updated.delete(userId);
-            return { typing: { ...state.typing, [roomId]: updated } };
+            return { typing: { ...safeTyping, [roomId]: updated } };
           });
         },
 
@@ -233,7 +246,7 @@ export const useChatStore = create<ChatState>()(
       {
         name: 'ekam-chat-store',
         storage: createJSONStorage(() => sessionStorage),
-        partialize: (state) => ({ token: state.token }), // Only persist JWT token
+        partialize: (state) => ({ token: state.token }),
       }
     )
   )

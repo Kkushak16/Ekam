@@ -1,168 +1,189 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import { useMutation } from '@tanstack/react-query';
-import { useChatStore } from '../store/chatStore';
+import React, { useState } from "react";
+import axios from "axios";
+import { useChatStore } from "../store/chatStore.ts";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || "https://ekam-backend-3b2w.onrender.com";
 
 export function LoginForm() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const setToken = useChatStore((state) => state.setToken);
+  
+  // State management for form data and toggle states
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState(""); // Used during signup
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const loginMutation = useMutation({
-    mutationFn: async () => {
-      const resp = await axios.post(`${API_URL}/auth/login`, {
-        email,
-        password,
-      });
-      return resp.data as { token: string };
-    },
-    onSuccess: (data) => {
-      setToken(data.token);
-      setErrorMsg(null);
-    },
-    onError: (err: any) => {
-      setErrorMsg(err.response?.data?.message || err.response?.data?.error || 'Login failed');
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    loginMutation.mutate();
+    setError("");
+    setLoading(true);
+
+    try {
+      // Determine backend endpoints dynamically based on mode
+      const endpoint = isSignUp ? `${API_URL}/api/auth/register` : `${API_URL}/api/auth/login`;
+      
+      const payload = isSignUp 
+        ? { email, password, username } 
+        : { email, password };
+
+      const response = await axios.post(endpoint, payload);
+
+      if (response.data && response.data.token) {
+        // Feed token to Zustand to transition App.jsx past the login wall
+        setToken(response.data.token);
+      } else if (isSignUp) {
+        // If registration succeeded but didn't auto-login, redirect to login mode
+        alert("Account created successfully! Please log in.");
+        setIsSignUp(false);
+        setPassword("");
+      }
+    } catch (err: any) {
+      console.error("Authentication Error:", err);
+      setError(
+        err.response?.data?.message || 
+        "Authentication failed. Please verify network configuration and try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div 
-      className="login-container"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        width: '100vw',
-        background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-        padding: '24px'
-      }}
-    >
-      <div 
-        className="login-card"
-        style={{
-          width: '100%',
-          maxWidth: '420px',
-          background: 'rgba(255, 255, 255, 0.1)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          borderRadius: '24px',
-          padding: '40px',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
-          color: '#ffffff',
-          animation: 'fadeInUp 0.6s ease'
-        }}
-      >
-        <h2 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '8px', textAlign: 'center', letterSpacing: '-0.5px' }}>
-          Ekam Hub
+    <div style={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      minHeight: "100vh",
+      backgroundColor: "var(--bg-app, #0f172a)",
+      fontFamily: "inherit"
+    }}>
+      <div style={{
+        width: "100%",
+        maxWidth: "400px",
+        padding: "40px",
+        borderRadius: "16px",
+        backgroundColor: "var(--bg-sidebar, #1e293b)",
+        border: "1px solid var(--border-color, #334155)",
+        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3)",
+        boxSizing: "border-box"
+      }}>
+        <h2 style={{
+          fontSize: "24px",
+          fontWeight: "700",
+          textAlign: "center",
+          color: "var(--text-primary, #f8fafc)",
+          marginBottom: "8px"
+        }}>
+          {isSignUp ? "Create an Account" : "Welcome Back"}
         </h2>
-        <p style={{ fontSize: '14px', opacity: 0.8, marginBottom: '32px', textAlign: 'center' }}>
-          Secure, real-time message stream gateway
+        <p style={{
+          fontSize: "14px",
+          color: "var(--text-secondary, #94a3b8)",
+          textAlign: "center",
+          marginBottom: "24px"
+        }}>
+          {isSignUp ? "Sign up to join the Ekam workspace" : "Log in to access your dashboard"}
         </p>
 
-        {errorMsg && (
-          <div 
-            style={{ 
-              padding: '12px 16px', 
-              background: 'rgba(239, 68, 68, 0.2)', 
-              border: '1px solid rgba(239, 68, 68, 0.4)', 
-              borderRadius: '12px', 
-              color: '#fca5a5', 
-              fontSize: '14px', 
-              marginBottom: '20px',
-              textAlign: 'center'
-            }}
-          >
-            {errorMsg}
+        {error && (
+          <div style={{
+            padding: "12px",
+            borderRadius: "8px",
+            backgroundColor: "rgba(239, 68, 68, 0.1)",
+            border: "1px solid rgba(239, 68, 68, 0.2)",
+            color: "#f87171",
+            fontSize: "13px",
+            marginBottom: "16px",
+            textAlign: "center"
+          }}>
+            {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '12px', fontWeight: '600', opacity: 0.9 }}>EMAIL ADDRESS</label>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          {isSignUp && (
+            <div>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "var(--text-secondary, #94a3b8)", marginBottom: "6px", letterSpacing: "0.5px" }}>USERNAME</label>
+              <input
+                type="text"
+                required
+                placeholder="ekam_user"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                style={{ width: "100%", padding: "12px", borderRadius: "8px", background: "var(--bg-app, #0f172a)", border: "1px solid var(--border-color, #334155)", color: "var(--text-primary, #f8fafc)", outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+          )}
+
+          <div>
+            <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "var(--text-secondary, #94a3b8)", marginBottom: "6px", letterSpacing: "0.5px" }}>EMAIL ADDRESS</label>
             <input
               type="email"
-              placeholder="name@company.com"
+              required
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={loginMutation.isPending}
-              style={{
-                padding: '14px 16px',
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '12px',
-                color: '#ffffff',
-                fontSize: '15px',
-                outline: 'none',
-                transition: 'border-color 0.2s ease',
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#ffffff'}
-              onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)'}
+              style={{ width: "100%", padding: "12px", borderRadius: "8px", background: "var(--bg-app, #0f172a)", border: "1px solid var(--border-color, #334155)", color: "var(--text-primary, #f8fafc)", outline: "none", boxSizing: "border-box" }}
             />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '12px', fontWeight: '600', opacity: 0.9 }}>PASSWORD</label>
+          <div>
+            <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "var(--text-secondary, #94a3b8)", marginBottom: "6px", letterSpacing: "0.5px" }}>PASSWORD</label>
             <input
               type="password"
+              required
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={loginMutation.isPending}
-              style={{
-                padding: '14px 16px',
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '12px',
-                color: '#ffffff',
-                fontSize: '15px',
-                outline: 'none',
-                transition: 'border-color 0.2s ease',
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#ffffff'}
-              onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)'}
+              style={{ width: "100%", padding: "12px", borderRadius: "8px", background: "var(--bg-app, #0f172a)", border: "1px solid var(--border-color, #334155)", color: "var(--text-primary, #f8fafc)", outline: "none", boxSizing: "border-box" }}
             />
           </div>
 
           <button
             type="submit"
-            disabled={loginMutation.isPending}
+            disabled={loading}
             style={{
-              marginTop: '10px',
-              padding: '14px',
-              background: '#ffffff',
-              color: '#4f46e5',
-              border: 'none',
-              borderRadius: '12px',
-              fontWeight: '700',
-              fontSize: '16px',
-              cursor: loginMutation.isPending ? 'not-allowed' : 'pointer',
-              transition: 'transform 0.2s ease, opacity 0.2s ease',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-            }}
-            onMouseEnter={(e) => {
-              if (!loginMutation.isPending) {
-                e.currentTarget.style.transform = 'scale(1.02)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
+              padding: "14px",
+              background: "var(--bg-bubble-me, #3b82f6)",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "8px",
+              fontWeight: "600",
+              fontSize: "14px",
+              cursor: "pointer",
+              transition: "transform 0.1s ease",
+              marginTop: "8px"
             }}
           >
-            {loginMutation.isPending ? 'Authenticating...' : 'Sign In'}
+            {loading ? "Processing..." : isSignUp ? "Sign Up" : "Log In"}
           </button>
         </form>
+
+        <div style={{ marginTop: "24px", textAlign: "center", fontSize: "14px" }}>
+          <span style={{ color: "var(--text-secondary, #94a3b8)" }}>
+            {isSignUp ? "Already have an account? " : "Don't have an account? "}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setIsSignUp(!isSignUp);
+              setError("");
+            }}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#3b82f6",
+              fontWeight: "600",
+              cursor: "pointer",
+              padding: "0",
+              textDecoration: "underline"
+            }}
+          >
+            {isSignUp ? "Log In" : "Sign Up"}
+          </button>
+        </div>
       </div>
     </div>
   );

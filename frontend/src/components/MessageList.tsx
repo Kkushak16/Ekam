@@ -8,9 +8,13 @@ interface MessageListProps {
 }
 
 export function MessageList({ roomId }: MessageListProps) {
-  const messages = useChatStore(state => state.messages);
+  const messagesFromStore = useChatStore(state => state.messages);
   const token = useChatStore(state => state.token);
   const parentRef = useRef<HTMLDivElement>(null);
+
+  // 🛡️ CRITICAL SAFETEY FALLBACK FILTER:
+  // If state.messages is polluted by an error number (1) or null, fallback to a clean empty array []
+  const messages = Array.isArray(messagesFromStore) ? messagesFromStore : [];
 
   // Extract current user ID safely
   let userId = '';
@@ -21,7 +25,7 @@ export function MessageList({ roomId }: MessageListProps) {
     } catch (e) {}
   }
 
-  // Use react-virtual v3 to render only visible rows
+  // Use react-virtual v3 to render only visible rows safely against the array wrapper length
   const rowVirtualizer = useVirtualizer({
     count: messages.length,
     getScrollElement: () => parentRef.current,
@@ -31,7 +35,7 @@ export function MessageList({ roomId }: MessageListProps) {
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
-    if (parentRef.current) {
+    if (parentRef.current && messages.length > 0) {
       parentRef.current.scrollTop = parentRef.current.scrollHeight;
     }
   }, [messages.length]);
@@ -59,6 +63,10 @@ export function MessageList({ roomId }: MessageListProps) {
       >
         {rowVirtualizer.getVirtualItems().map(virtualRow => {
           const message = messages[virtualRow.index];
+          
+          // Double-check element availability to avoid undefined reads during fast scroll updates
+          if (!message) return null;
+
           return (
             <div
               key={message.clientMessageId || message.id || virtualRow.index}

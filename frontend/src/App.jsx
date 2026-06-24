@@ -4,18 +4,20 @@ import ChatPage from './components/ChatPage';
 import SettingsPage from './pages/SettingsPage';
 import DirectMessages from './pages/DirectMessages';
 import LoginForm from './components/LoginForm';
-import { useChatStore } from './store/chatStore';
+import { useChatStore } from './store/chatStore.ts'; // Explicit typescript mapping link
 
 export function App() {
+  // 🛡️ Single-property atomic selector execution mapping to isolate your values:
   const token = useChatStore((state) => state.token);
   const initializeSocket = useChatStore((state) => state.initializeSocket);
   const disconnectSocket = useChatStore((state) => state.disconnectSocket);
   const connectionStatus = useChatStore((state) => state.connectionStatus);
 
-  const [activeTab, setActiveTab] = useState<'chat' | 'dm' | 'settings'>('chat');
+  const [activeTab, setActiveTab] = useState('chat');
 
   useEffect(() => {
-    if (token) {
+    // Confirm token layout properties match string structures safely
+    if (token && typeof token === 'string' && token.trim().length > 0) {
       initializeSocket(token);
     } else {
       disconnectSocket();
@@ -66,8 +68,7 @@ export function App() {
               cursor: 'pointer', 
               width: '100%',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'between'
+              alignItems: 'center'
             }}
           >
             <span># global-stream</span>
