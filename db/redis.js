@@ -4,50 +4,48 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// --- ABSOLUTE PROTOCOL FORCE INTERCEPT ---
-if (process.env.REDIS_URL) {
-  let cleanedUrl = process.env.REDIS_URL.trim().replace(/^['"]|['"]$/g, '');
-  
-  // Extract out of copy-pasted redis-cli strings if necessary
-  if (cleanedUrl.includes('redis-cli')) {
-    const match = cleanedUrl.match(/(rediss?:\/\/[^\s'"]+)/);
-    if (match) cleanedUrl = match[1];
-  }
-
-  // Force the text to use secure protocol prefix
-  if (cleanedUrl.startsWith('redis://')) {
-    cleanedUrl = cleanedUrl.replace('redis://', 'rediss://');
-  }
-  
-  // Re-inject it directly into the global process environment
-  process.env.REDIS_URL = cleanedUrl;
-}
-// ───────────────────────────────────────────
-
 const restUrl = process.env.UPSTASH_REDIS_REST_URL?.trim();
 const restToken = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
-const finalRedisUrl = process.env.REDIS_URL;
+let rawUrl = process.env.REDIS_URL?.trim();
 
-if (!restUrl || !restToken || !finalRedisUrl) {
-  console.error("❌ Environment Validation Error: Missing Upstash/Redis variables.");
+if (!rawUrl) {
+  console.error("❌ Environment Validation Error: Missing REDIS_URL variable.");
   process.exit(1);
 }
 
-// Upstash HTTP/REST client
-export const redisRest = new Redis({
-  url: restUrl,
-  token: restToken,
-});
+// 1. Clean up potential wrap quotes from environmental strings
+rawUrl = rawUrl.replace(/^['"]|['"]$/g, '');
+
+// 2. Extract cleanly if a copy-paste CLI string exists
+if (rawUrl.includes('redis-cli')) {
+  const match = rawUrl.match(/(rediss?:\/\/[^\s'"]+)/);
+  if (match) rawUrl = match[1];
+}
+
+// 3. Parse Redis connection string
+let parsed;
+try {
+  const processingUrl = rawUrl.includes('://') ? rawUrl : `redis://${rawUrl}`;
+  parsed = new URL(processingUrl);
+} catch (e) {
+  console.error(`❌ Failed to parse REDIS_URL structure.`);
+  process.exit(1);
+}
+
+// Check if TLS protocol is required (e.g. rediss://)
+const isTls = parsed.protocol === 'rediss:';
 
 // Standard TCP/TLS client
 export const redisTcpSubscriber = createClient({
-  url: finalRedisUrl, // Now guaranteed to start with rediss://
   socket: {
-    tls: true,
-    rejectUnauthorized: false, // Prevents cloud/local CA handshake drops
+    host: parsed.hostname,
+    port: parseInt(parsed.port || '6379', 10),
+    ...(isTls ? { tls: true, rejectUnauthorized: false } : {}),
     keepAlive: 5000,
     reconnectStrategy: (retries) => Math.min(retries * 50, 1000)
   },
+  username: parsed.username || undefined,
+  password: parsed.password || undefined,
   pingInterval: 15000
 });
 
@@ -70,3 +68,90 @@ export async function closeRedis() {
     await redisTcpSubscriber.disconnect();
   }
 }
+
+// Build adapter or use Upstash client
+let redisRestInstance;
+if (restUrl && restToken) {
+  console.log("🚀 Initializing Upstash HTTP/REST Redis client.");
+  redisRestInstance = new Redis({
+    url: restUrl,
+    token: restToken,
+  });
+} else {
+  console.log("ℹ️ No Upstash REST variables provided. Using standard TCP Redis client wrapper.");
+  // Create an adapter that maps upstash commands to the standard TCP connection
+  redisRestInstance = {
+    async get(key) {
+      await connectRedis();
+      return await redisTcpSubscriber.get(key);
+    },
+    async set(key, value, options) {
+      await connectRedis();
+      const redisOptions = {};
+      if (options && options.ex) {
+        redisOptions.EX = options.ex;
+      }
+      return await redisTcpSubscriber.set(key, String(value), redisOptions);
+    },
+    async del(key) {
+      await connectRedis();
+      return await redisTcpSubscriber.del(key);
+    },
+    async sadd(key, ...members) {
+      await connectRedis();
+      const flat = members.flat();
+      return await redisTcpSubscriber.sAdd(key, flat);
+    },
+    async srem(key, ...members) {
+      await connectRedis();
+      const flat = members.flat();
+      return await redisTcpSubscriber.sRem(key, flat);
+    },
+    async smembers(key) {
+      await connectRedis();
+      return await redisTcpSubscriber.sMembers(key);
+    },
+    async scard(key) {
+      await connectRedis();
+      return await redisTcpSubscriber.sCard(key);
+    },
+    async incr(key) {
+      await connectRedis();
+      return await redisTcpSubscriber.incr(key);
+    },
+    async decr(key) {
+      await connectRedis();
+      return await redisTcpSubscriber.decr(key);
+    },
+    async mget(...keys) {
+      await connectRedis();
+      const flat = keys.flat();
+      return await redisTcpSubscriber.mGet(flat);
+    },
+    async expire(key, seconds) {
+      await connectRedis();
+      return await redisTcpSubscriber.expire(key, seconds);
+    },
+    async hgetall(key) {
+      await connectRedis();
+      const res = await redisTcpSubscriber.hGetAll(key);
+      if (Object.keys(res).length === 0) return null;
+      return res;
+    },
+    async hset(key, field, value) {
+      await connectRedis();
+      return await redisTcpSubscriber.hSet(key, field, value);
+    },
+    async hdel(key, field) {
+      await connectRedis();
+      return await redisTcpSubscriber.hDel(key, field);
+    },
+    async ping() {
+      await connectRedis();
+      return await redisTcpSubscriber.ping();
+    }
+  };
+}
+
+export const redisRest = redisRestInstance;
+// Last Build Force: 24-06-2026 20:46:24
