@@ -436,6 +436,67 @@ export function LoginForm() {
   };
 
   /* ── Google Sign-in ─────────────────────────────────────────────────── */
+
+  /** Fallback: Open a Google OAuth2 consent popup and exchange the auth code */
+  const handleGoogleOAuth2Redirect = () => {
+    const redirectUri = window.location.origin;
+    const scope = 'openid email profile';
+    const authUrl =
+      `https://accounts.google.com/o/oauth2/v2/auth?` +
+      `client_id=${encodeURIComponent(GOOGLE_CLIENT_ID)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&response_type=id_token` +
+      `&scope=${encodeURIComponent(scope)}` +
+      `&nonce=${crypto.randomUUID()}` +
+      `&prompt=select_account`;
+
+    // Open popup
+    const w = 480, h = 640;
+    const left = window.screenX + (window.outerWidth - w) / 2;
+    const top = window.screenY + (window.outerHeight - h) / 2;
+    const popup = window.open(authUrl, 'google-signin', `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`);
+
+    if (!popup) {
+      // Popup blocked — do full redirect instead
+      window.location.href = authUrl;
+      return;
+    }
+
+    // Poll popup for the id_token in the hash fragment
+    const pollTimer = setInterval(async () => {
+      try {
+        if (popup.closed) {
+          clearInterval(pollTimer);
+          setGoogleLoading(false);
+          return;
+        }
+        const popupUrl = popup.location.href;
+        if (popupUrl && popupUrl.startsWith(redirectUri)) {
+          clearInterval(pollTimer);
+          popup.close();
+          const hash = new URL(popupUrl).hash.substring(1);
+          const params = new URLSearchParams(hash);
+          const idToken = params.get('id_token');
+          if (idToken) {
+            try {
+              const { data } = await axios.post(`${API_URL}/auth/google`, { idToken });
+              const token = data?.accessToken || data?.token;
+              if (token) setToken(token);
+              else setError("Google sign-in succeeded but no token was returned.");
+            } catch (err: any) {
+              setError(err.response?.data?.error || "Google sign-in failed. Please try with email.");
+            }
+          } else {
+            setError("Google sign-in was cancelled.");
+          }
+          setGoogleLoading(false);
+        }
+      } catch {
+        // Cross-origin error — popup hasn't redirected yet, keep polling
+      }
+    }, 500);
+  };
+
   const handleGoogleSignIn = () => {
     if (!GOOGLE_CLIENT_ID) {
       setError("Google Sign-In is not yet configured. Please sign in with email.");
@@ -447,8 +508,8 @@ export function LoginForm() {
 
     // @ts-ignore – window.google injected by GSI script
     if (!window.google?.accounts?.id) {
-      setError("Google Sign-In failed to load. Please try refreshing the page.");
-      setGoogleLoading(false);
+      // GSI script not loaded — go straight to OAuth2 redirect
+      handleGoogleOAuth2Redirect();
       return;
     }
 
@@ -480,8 +541,8 @@ export function LoginForm() {
     // @ts-ignore
     window.google.accounts.id.prompt((notification: any) => {
       if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        setGoogleLoading(false);
-        setError("Google sign-in was blocked by your browser. Try email login instead.");
+        // One-Tap was blocked — fallback to OAuth2 popup/redirect
+        handleGoogleOAuth2Redirect();
       }
     });
   };

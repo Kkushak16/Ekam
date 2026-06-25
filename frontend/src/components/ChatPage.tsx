@@ -7,6 +7,100 @@ import Header from './Header';
 
 const ROOM_ID = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
 
+const S: Record<string, React.CSSProperties> = {
+  chatWindow: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+    width: '100%',
+    position: 'relative',
+    background: '#000',
+  },
+  bgGlow: {
+    position: 'absolute',
+    top: '-10%',
+    right: '5%',
+    width: 400,
+    height: 400,
+    background: 'rgba(173,198,255,0.05)',
+    borderRadius: '50%',
+    filter: 'blur(120px)',
+    pointerEvents: 'none',
+    zIndex: 0,
+  },
+  messagesArea: {
+    flex: 1,
+    minHeight: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    zIndex: 10,
+  },
+  inputBarWrapper: {
+    padding: '0 24px 20px',
+    zIndex: 10,
+    flexShrink: 0,
+  },
+  inputBar: {
+    background: 'rgba(19,19,19,0.4)',
+    backdropFilter: 'blur(24px)',
+    WebkitBackdropFilter: 'blur(24px)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: 16,
+    padding: '8px 8px 8px 20px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+  },
+  attachBtn: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: 0,
+    display: 'flex',
+    alignItems: 'center',
+    color: 'rgba(194,198,214,0.4)',
+    transition: 'all 0.2s ease',
+  },
+  textarea: {
+    flex: 1,
+    background: 'transparent',
+    border: 'none',
+    outline: 'none',
+    color: '#e2e2e2',
+    fontSize: 15,
+    fontFamily: "'Hanken Grotesk', sans-serif",
+    padding: '12px 0',
+    resize: 'none',
+    maxHeight: 120,
+    overflowY: 'auto',
+    lineHeight: 1.5,
+  },
+  emojiBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: '50%',
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'rgba(194,198,214,0.4)',
+    transition: 'all 0.2s ease',
+  },
+  materialIcon: {
+    fontFamily: "'Material Symbols Outlined'",
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    fontSize: 24,
+    lineHeight: 1,
+    display: 'inline-block',
+    userSelect: 'none',
+  },
+};
+
 export function ChatPage() {
   const token = useChatStore(state => state.token);
   const socket = useChatStore(state => state.socket);
@@ -97,15 +191,15 @@ export function ChatPage() {
   const hasInput = input.trim().length > 0;
 
   return (
-    <div className="chat-window flex flex-col h-full w-full relative bg-background">
+    <div style={S.chatWindow}>
       {/* Atmospheric background glow */}
-      <div className="absolute -top-[10%] right-[5%] w-[400px] h-[400px] bg-primary/5 rounded-full blur-[120px] pointer-events-none z-0" />
+      <div style={S.bgGlow} />
 
       {/* Floating Header */}
       <Header roomId={ROOM_ID} />
 
       {/* Messages Area */}
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden z-10">
+      <div style={S.messagesArea}>
         <MessageList roomId={ROOM_ID} />
       </div>
 
@@ -113,17 +207,19 @@ export function ChatPage() {
       <TypingIndicator roomId={ROOM_ID} />
 
       {/* Input Bar */}
-      <div className="px-6 pb-5 z-10 flex-shrink-0">
-        <div className="glass-surface border border-white/[0.08] rounded-2xl p-2 pl-5 flex items-center gap-3 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+      <div style={S.inputBarWrapper}>
+        <div style={S.inputBar}>
           {/* Attachment */}
           <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadMutation.isPending}
-            className="text-on-surface-variant/40 hover:text-primary transition-all hover:scale-110 cursor-pointer"
+            style={S.attachBtn}
             title="Attach file"
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#adc6ff'; (e.currentTarget as HTMLElement).style.transform = 'scale(1.1)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(194,198,214,0.4)'; (e.currentTarget as HTMLElement).style.transform = 'scale(1)'; }}
           >
-            <span className="material-symbols-outlined">
+            <span style={S.materialIcon}>
               {uploadMutation.isPending ? 'hourglass_empty' : 'add_circle'}
             </span>
           </button>
@@ -135,23 +231,42 @@ export function ChatPage() {
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             rows={1}
-            className="flex-1 bg-transparent border-none focus:ring-0 text-[15px] placeholder:text-on-surface-variant/30 py-3 resize-none outline-none text-on-surface leading-relaxed"
-            style={{ maxHeight: '120px', overflowY: 'auto' }}
+            style={S.textarea}
           />
 
           {/* Emoji */}
-          <button className="w-10 h-10 rounded-full hover:bg-white/5 transition-all text-on-surface-variant/40 flex items-center justify-center cursor-pointer">
-            <span className="material-symbols-outlined">mood</span>
+          <button
+            style={S.emojiBtn}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          >
+            <span style={S.materialIcon}>mood</span>
           </button>
 
           {/* Send */}
           <button
             onClick={() => sendMessage()}
-            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-95 cursor-pointer ${
-              hasInput ? 'bg-primary text-white shadow-[0_4px_16px_rgba(173,198,255,0.3)]' : 'bg-primary/10'
-            }`}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease',
+              cursor: 'pointer',
+              border: 'none',
+              background: hasInput ? '#4d8eff' : 'rgba(173,198,255,0.1)',
+              boxShadow: hasInput ? '0 4px 16px rgba(173,198,255,0.3)' : 'none',
+            }}
           >
-            <span className={`material-symbols-outlined text-[20px] ${hasInput ? 'text-white translate-x-0.5' : 'text-primary'} transition-transform`}>
+            <span style={{
+              ...S.materialIcon,
+              fontSize: 20,
+              color: hasInput ? '#fff' : '#adc6ff',
+              transform: hasInput ? 'translateX(1px)' : 'none',
+              transition: 'transform 0.2s ease',
+            }}>
               send
             </span>
           </button>

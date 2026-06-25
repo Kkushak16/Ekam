@@ -5,6 +5,152 @@ import DirectMessages from './pages/DirectMessages';
 import LoginForm from './components/LoginForm';
 import { useChatStore } from './store/chatStore';
 
+/* ─── Inline Styles ───────────────────────────────────────────────────────── */
+const S: Record<string, React.CSSProperties> = {
+  layout: {
+    display: 'flex',
+    height: '100vh',
+    width: '100vw',
+    background: '#000',
+    overflow: 'hidden',
+  },
+  sidebar: {
+    width: 280,
+    background: 'rgba(19,19,19,0.6)',
+    backdropFilter: 'blur(24px)',
+    WebkitBackdropFilter: 'blur(24px)',
+    borderRight: '1px solid rgba(255,255,255,0.05)',
+    display: 'flex',
+    flexDirection: 'column',
+    padding: 0,
+    flexShrink: 0,
+    height: '100vh',
+  },
+  brandHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    padding: '20px 20px',
+    borderBottom: '1px solid rgba(255,255,255,0.05)',
+  },
+  logoBox: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    background: '#4d8eff',
+    color: '#00285d',
+    boxShadow: '0 0 20px rgba(77,142,255,0.3)',
+  },
+  brandName: {
+    fontWeight: 800,
+    letterSpacing: '-0.02em',
+    color: '#e2e2e2',
+    fontSize: 18,
+  },
+  nav: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+    padding: '16px 12px',
+    flex: 1,
+    overflowY: 'auto',
+  },
+  navLabel: {
+    fontSize: 9,
+    fontWeight: 700,
+    letterSpacing: '0.3em',
+    color: 'rgba(194,198,214,0.4)',
+    textTransform: 'uppercase',
+    padding: '0 12px',
+    marginBottom: 8,
+  },
+  navBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 12,
+    fontSize: 14,
+    fontWeight: 600,
+    transition: 'all 0.2s ease',
+    textAlign: 'left',
+    cursor: 'pointer',
+    border: 'none',
+    fontFamily: 'inherit',
+  },
+  navBtnActive: {
+    background: 'rgba(173,198,255,0.1)',
+    color: '#adc6ff',
+    border: '1px solid rgba(173,198,255,0.2)',
+  },
+  navBtnInactive: {
+    background: 'transparent',
+    color: 'rgba(194,198,214,0.6)',
+    border: '1px solid transparent',
+  },
+  userFooter: {
+    padding: '12px 12px',
+    borderTop: '1px solid rgba(255,255,255,0.05)',
+  },
+  userCard: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    padding: '10px 12px',
+    borderRadius: 12,
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid rgba(255,255,255,0.05)',
+  },
+  userAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    background: 'rgba(77,142,255,0.2)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutBtn: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    color: 'rgba(194,198,214,0.3)',
+    padding: 0,
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'color 0.2s ease',
+  },
+  mainContent: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100vh',
+    position: 'relative',
+    overflow: 'hidden',
+    minWidth: 0,
+  },
+  activeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: '50%',
+    marginLeft: 'auto',
+    animation: 'pulse 2s ease-in-out infinite',
+  },
+  materialIcon: {
+    fontFamily: "'Material Symbols Outlined'",
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    fontSize: 18,
+    lineHeight: 1,
+    display: 'inline-block',
+    userSelect: 'none',
+  },
+};
+
 export function App() {
   const token = useChatStore((state) => state.token);
   const initializeSocket = useChatStore((state) => state.initializeSocket);
@@ -43,39 +189,62 @@ export function App() {
     { id: 'settings', icon: 'settings', label: 'Settings', prefix: '' },
   ];
 
+  const isConnected = connectionStatus === 'connected';
+
   return (
-    <div className="app-layout">
+    <div style={S.layout}>
       {/* Sidebar */}
-      <aside className="sidebar flex flex-col h-screen">
+      <aside style={S.sidebar}>
         {/* Brand Header */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-white/[0.05]">
-          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#4d8eff] text-[#00285d] shadow-[0_0_20px_rgba(77,142,255,0.3)]">
-            <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>diamond</span>
+        <div style={S.brandHeader}>
+          <div style={S.logoBox}>
+            <span style={{ ...S.materialIcon, fontVariationSettings: "'FILL' 1" }}>diamond</span>
           </div>
-          <span className="font-extrabold tracking-tight text-[#e2e2e2] text-lg">Ekam</span>
+          <span style={S.brandName}>Ekam</span>
           {/* Connection dot */}
-          <div className={`ml-auto w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-[#adc6ff] shadow-[0_0_8px_rgba(173,198,255,0.6)]' : 'bg-[#424754]'}`} title={connectionStatus} />
+          <div style={{
+            marginLeft: 'auto',
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            background: isConnected ? '#adc6ff' : '#424754',
+            boxShadow: isConnected ? '0 0 8px rgba(173,198,255,0.6)' : 'none',
+          }} title={connectionStatus} />
         </div>
 
         {/* Nav */}
-        <nav className="flex flex-col gap-1 px-3 py-4 flex-1 overflow-y-auto">
-          <p className="text-[9px] font-bold tracking-[0.3em] text-[#c2c6d6]/40 uppercase px-3 mb-2">Channels</p>
+        <nav style={S.nav}>
+          <p style={S.navLabel}>Channels</p>
           {navItems.map(item => {
             const isActive = activeTab === item.id;
             return (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left cursor-pointer ${
-                  isActive
-                    ? 'bg-[#adc6ff]/10 text-[#adc6ff] border border-[#adc6ff]/20'
-                    : 'text-[#c2c6d6]/60 hover:text-[#e2e2e2] hover:bg-white/[0.05]'
-                }`}
+                style={{
+                  ...S.navBtn,
+                  ...(isActive ? S.navBtnActive : S.navBtnInactive),
+                }}
+                onMouseEnter={e => {
+                  if (!isActive) {
+                    (e.currentTarget as HTMLElement).style.color = '#e2e2e2';
+                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!isActive) {
+                    (e.currentTarget as HTMLElement).style.color = 'rgba(194,198,214,0.6)';
+                    (e.currentTarget as HTMLElement).style.background = 'transparent';
+                  }
+                }}
               >
-                <span className="material-symbols-outlined text-[18px]">{item.icon}</span>
+                <span style={S.materialIcon}>{item.icon}</span>
                 <span>{item.prefix}{item.label}</span>
-                {isActive && connectionStatus === 'connected' && (
-                  <span className="ml-auto w-1.5 h-1.5 bg-[#adc6ff] rounded-full animate-pulse" />
+                {isActive && isConnected && (
+                  <span style={{
+                    ...S.activeDot,
+                    background: '#adc6ff',
+                  }} />
                 )}
               </button>
             );
@@ -83,28 +252,30 @@ export function App() {
         </nav>
 
         {/* User footer */}
-        <div className="px-3 py-4 border-t border-white/[0.05]">
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.05]">
-            <div className="w-7 h-7 rounded-lg bg-[#4d8eff]/20 flex items-center justify-center">
-              <span className="material-symbols-outlined text-[#adc6ff] text-[14px]">person</span>
+        <div style={S.userFooter}>
+          <div style={S.userCard}>
+            <div style={S.userAvatar}>
+              <span style={{ ...S.materialIcon, color: '#adc6ff', fontSize: 14 }}>person</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-semibold text-[#e2e2e2] truncate">You</p>
-              <p className="text-[10px] text-[#c2c6d6]/40">{connectionStatus}</p>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: '#e2e2e2', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>You</p>
+              <p style={{ fontSize: 10, color: 'rgba(194,198,214,0.4)' }}>{connectionStatus}</p>
             </div>
             <button
               onClick={() => setToken('')}
-              className="text-[#c2c6d6]/30 hover:text-[#adc6ff] transition-colors cursor-pointer"
+              style={S.logoutBtn}
               title="Sign out"
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#adc6ff'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(194,198,214,0.3)'; }}
             >
-              <span className="material-symbols-outlined text-[16px]">logout</span>
+              <span style={{ ...S.materialIcon, fontSize: 16 }}>logout</span>
             </button>
           </div>
         </div>
       </aside>
 
       {/* Main content */}
-      <main className="main-chat-container">
+      <main style={S.mainContent}>
         {renderMainContent()}
       </main>
     </div>
