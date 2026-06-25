@@ -94,7 +94,8 @@ module.exports = {
         "label-sm": ["12px", {"lineHeight": "1.4", "letterSpacing": "0.05em", "fontWeight": "600"}],
         "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
         "label-mono": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
-        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
       }
     },
   },

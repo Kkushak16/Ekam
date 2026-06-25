@@ -1,217 +1,703 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useChatStore } from "../store/chatStore";
 import { useToast } from "./ToastProvider";
 
-const API_URL = import.meta.env.DEV ? (import.meta.env.VITE_API_URL || 'http://localhost:3001') : window.location.origin;
+const API_URL = import.meta.env.DEV
+  ? ""   // Vite proxy handles /auth/* → backend in dev
+  : (import.meta.env.VITE_API_URL || window.location.origin);
 
+// Google OAuth Client ID — set in Supabase dashboard under Auth → Providers → Google
+// If not configured, Google button shows a "coming soon" toast
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+
+/* ─── Inline Styles ───────────────────────────────────────────────────────── */
+const S: Record<string, React.CSSProperties> = {
+  page: {
+    minHeight: "100vh",
+    width: "100%",
+    background: "#000",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontFamily: "'Hanken Grotesk', sans-serif",
+    color: "#e2e2e2",
+    position: "relative",
+    overflow: "hidden",
+    padding: "40px 24px",
+    boxSizing: "border-box",
+  },
+  glowTopLeft: {
+    position: "absolute",
+    top: "-15%",
+    left: "-10%",
+    width: "45%",
+    height: "45%",
+    borderRadius: "50%",
+    background: "radial-gradient(circle, rgba(77,142,255,0.12) 0%, transparent 70%)",
+    filter: "blur(60px)",
+    pointerEvents: "none",
+    animation: "pulseGlow 5s ease-in-out infinite",
+  },
+  glowBottomRight: {
+    position: "absolute",
+    bottom: "-10%",
+    right: "-5%",
+    width: "40%",
+    height: "40%",
+    borderRadius: "50%",
+    background: "radial-gradient(circle, rgba(173,198,255,0.06) 0%, transparent 70%)",
+    filter: "blur(80px)",
+    pointerEvents: "none",
+  },
+  inner: {
+    display: "flex",
+    alignItems: "center",
+    gap: 64,
+    width: "100%",
+    maxWidth: 1060,
+    position: "relative",
+    zIndex: 1,
+  },
+  left: {
+    flex: "0 0 460px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 20,
+  },
+  badge: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "6px 14px",
+    borderRadius: 999,
+    background: "rgba(42,42,42,0.6)",
+    border: "1px solid rgba(66,71,84,0.7)",
+    backdropFilter: "blur(12px)",
+    color: "#adc6ff",
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "0.2em",
+    textTransform: "uppercase",
+    alignSelf: "flex-start",
+  },
+  heroHeading: {
+    margin: 0,
+    fontWeight: 800,
+    lineHeight: 0.95,
+    letterSpacing: "-0.04em",
+    color: "#e2e2e2",
+  },
+  gradientSpan: {
+    background: "linear-gradient(135deg, #adc6ff 0%, #4d8eff 50%, #adc6ff 100%)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    backgroundClip: "text",
+  },
+  heroSub: {
+    fontSize: 16,
+    color: "rgba(194,198,214,0.8)",
+    lineHeight: 1.7,
+    maxWidth: 440,
+    margin: 0,
+  },
+  featurePills: {
+    display: "flex",
+    gap: 12,
+    flexWrap: "wrap",
+    marginTop: 6,
+  },
+  featurePill: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "10px 16px",
+    borderRadius: 12,
+    background: "rgba(31,31,31,0.6)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    fontSize: 13,
+    fontWeight: 600,
+    color: "#e2e2e2",
+  },
+  materialIcon: {
+    fontFamily: "'Material Symbols Outlined'",
+    fontWeight: "normal",
+    fontStyle: "normal",
+    fontSize: 20,
+    lineHeight: 1,
+    display: "inline-block",
+    color: "#adc6ff",
+    userSelect: "none",
+  },
+  // Card
+  card: {
+    flex: "0 0 420px",
+    background: "rgba(12,12,12,0.75)",
+    backdropFilter: "blur(30px)",
+    WebkitBackdropFilter: "blur(30px)",
+    border: "1px solid rgba(77,142,255,0.18)",
+    borderRadius: 32,
+    padding: "36px 32px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 22,
+    boxShadow:
+      "0 30px 80px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 40px -10px rgba(77,142,255,0.12)",
+  },
+  cardTitle: {
+    fontSize: 26,
+    fontWeight: 700,
+    letterSpacing: "-0.02em",
+    color: "#e2e2e2",
+    margin: 0,
+  },
+  cardSub: {
+    display: "block",
+    fontSize: 13,
+    color: "rgba(194,198,214,0.6)",
+    marginTop: 4,
+  },
+  form: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 14,
+  },
+  fieldGroup: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 5,
+  },
+  labelRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  fieldLabel: {
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: "0.2em",
+    textTransform: "uppercase",
+    color: "rgba(194,198,214,0.5)",
+  },
+  forgotBtn: {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: "0.15em",
+    textTransform: "uppercase" as const,
+    color: "#adc6ff",
+    padding: 0,
+    fontFamily: "inherit",
+  },
+  inputPill: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "12px 16px",
+    borderRadius: 13,
+    background: "rgba(255,255,255,0.03)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    transition: "all 0.2s ease",
+  },
+  inputPillFocused: {
+    background: "rgba(77,142,255,0.05)",
+    border: "1px solid rgba(77,142,255,0.45)",
+    boxShadow: "0 0 0 3px rgba(77,142,255,0.08)",
+  },
+  input: {
+    flex: 1,
+    background: "transparent",
+    border: "none",
+    outline: "none",
+    color: "#e2e2e2",
+    fontSize: 15,
+    fontFamily: "inherit",
+  },
+  iconBtn: {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    padding: 0,
+    display: "flex",
+    alignItems: "center",
+    lineHeight: 0,
+  },
+  errorBox: {
+    background: "rgba(255,180,171,0.07)",
+    border: "1px solid rgba(255,180,171,0.2)",
+    borderRadius: 10,
+    padding: "10px 14px",
+    fontSize: 13,
+    color: "#ffb4ab",
+    lineHeight: 1.5,
+  },
+  successBox: {
+    background: "rgba(173,198,255,0.07)",
+    border: "1px solid rgba(173,198,255,0.2)",
+    borderRadius: 10,
+    padding: "10px 14px",
+    fontSize: 13,
+    color: "#adc6ff",
+    lineHeight: 1.5,
+  },
+  btnPrimary: {
+    width: "100%",
+    padding: "14px 24px",
+    borderRadius: 13,
+    background: "#4d8eff",
+    color: "#002e6a",
+    fontFamily: "inherit",
+    fontSize: 15,
+    fontWeight: 700,
+    border: "none",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    boxShadow: "0 8px 24px rgba(77,142,255,0.3)",
+    transition: "all 0.2s ease",
+  },
+  btnSecondary: {
+    width: "100%",
+    padding: "12px 24px",
+    borderRadius: 13,
+    background: "rgba(40,40,40,0.6)",
+    color: "#e2e2e2",
+    fontFamily: "inherit",
+    fontSize: 15,
+    fontWeight: 600,
+    border: "1px solid rgba(255,255,255,0.07)",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    transition: "all 0.2s ease",
+  },
+  divider: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    background: "rgba(255,255,255,0.05)",
+  },
+  dividerLabel: {
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: "0.2em",
+    color: "rgba(194,198,214,0.4)",
+    textTransform: "uppercase" as const,
+  },
+  googleBtn: {
+    width: "100%",
+    padding: "12px 24px",
+    borderRadius: 13,
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    color: "#e2e2e2",
+    fontFamily: "inherit",
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    transition: "all 0.2s ease",
+  },
+  tosText: {
+    fontSize: 11,
+    color: "rgba(194,198,214,0.3)",
+    textAlign: "center",
+    margin: 0,
+    lineHeight: 1.6,
+  },
+  tosLink: {
+    color: "rgba(194,198,214,0.55)",
+    textDecoration: "underline",
+    cursor: "pointer",
+  },
+};
+
+/* ─── Google "G" SVG icon ─────────────────────────────────────────────────── */
+const GoogleIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+    <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.616z" fill="#4285F4"/>
+    <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+    <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+    <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+  </svg>
+);
+
+/* ─── Component ───────────────────────────────────────────────────────────── */
 export function LoginForm() {
-  const setToken = useChatStore((state) => state.setToken);
-  const toast = useToast();
+  const setToken = useChatStore((s) => s.setToken);
+  const toast = useToast?.();
 
   const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");   // email or username
   const [password, setPassword] = useState("");
-  const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [showPw, setShowPw] = useState(false);
 
+  // Focus states
+  const [idFocus, setIdFocus] = useState(false);
+  const [pwFocus, setPwFocus] = useState(false);
+  const [dnFocus, setDnFocus] = useState(false);
+
+  // Responsive
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 820);
+  useEffect(() => {
+    const h = () => setIsMobile(window.innerWidth < 820);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
+
+  // Load Google Identity Services script
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+    if (document.getElementById("google-gsi-script")) return;
+    const script = document.createElement("script");
+    script.id = "google-gsi-script";
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+  }, []);
+
+  /* ── Submit ─────────────────────────────────────────────────────────── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
+    setInfo("");
 
+    // Basic validation
+    if (isSignUp && !displayName.trim()) {
+      setError("Display name is required.");
+      return;
+    }
+    if (!identifier.trim()) {
+      setError("Please enter your email or username.");
+      return;
+    }
+    if (!password) {
+      setError("Password is required.");
+      return;
+    }
+    if (isSignUp && password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
+    setLoading(true);
     try {
       const endpoint = isSignUp ? `${API_URL}/auth/register` : `${API_URL}/auth/login`;
+      const payload = isSignUp
+        ? { email: identifier.trim(), password, displayName: displayName.trim() }
+        : { email: identifier.trim(), password };
 
-      const payload = isSignUp 
-        ? { email, password, displayName: username } 
-        : { email, password };
-
-      const response = await axios.post(endpoint, payload);
-      const token = response.data?.accessToken || response.data?.token;
-
+      const { data } = await axios.post(endpoint, payload);
+      const token = data?.accessToken || data?.token;
       if (token) {
         setToken(token);
       } else if (isSignUp) {
-        toast("Account created successfully! Please log in.", "success");
+        setInfo("Account created! You can now sign in.");
         setIsSignUp(false);
         setPassword("");
+        setIdentifier("");
       }
     } catch (err: any) {
-      console.error("Authentication Error:", err);
-      setError(
-        err.response?.data?.error || 
-        err.response?.data?.message || 
-        "Authentication failed. Please verify network configuration and try again."
-      );
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "Something went wrong. Please try again.";
+
+      // Auto-switch to login if duplicate email
+      if (err.response?.status === 409) {
+        setError(msg + " Switched to Sign In.");
+        setIsSignUp(false);
+        setPassword("");
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  /* ── Google Sign-in ─────────────────────────────────────────────────── */
+  const handleGoogleSignIn = () => {
+    if (!GOOGLE_CLIENT_ID) {
+      setError("Google Sign-In is not yet configured. Please sign in with email.");
+      return;
+    }
+
+    setGoogleLoading(true);
+    setError("");
+
+    // @ts-ignore – window.google injected by GSI script
+    if (!window.google?.accounts?.id) {
+      setError("Google Sign-In failed to load. Please try refreshing the page.");
+      setGoogleLoading(false);
+      return;
+    }
+
+    // @ts-ignore
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: async (response: any) => {
+        if (!response?.credential) {
+          setError("Google authentication was cancelled or failed.");
+          setGoogleLoading(false);
+          return;
+        }
+        try {
+          const { data } = await axios.post(`${API_URL}/auth/google`, {
+            idToken: response.credential,
+          });
+          const token = data?.accessToken || data?.token;
+          if (token) setToken(token);
+        } catch (err: any) {
+          setError(
+            err.response?.data?.error || "Google sign-in failed. Please try with email."
+          );
+        } finally {
+          setGoogleLoading(false);
+        }
+      },
+    });
+
+    // @ts-ignore
+    window.google.accounts.id.prompt((notification: any) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        setGoogleLoading(false);
+        setError("Google sign-in was blocked by your browser. Try email login instead.");
+      }
+    });
+  };
+
+  /* ── Derived ─────────────────────────────────────────────────────────── */
+  const canSubmit = !loading && identifier.trim() && password;
+  const heroSize = isMobile ? 42 : 68;
+
+  const innerStyle: React.CSSProperties = {
+    ...S.inner,
+    flexDirection: isMobile ? "column" : "row",
+    gap: isMobile ? 28 : 64,
+    alignItems: isMobile ? "stretch" : "center",
+  };
+
   return (
-    <div className="min-h-screen bg-black text-on-surface antialiased font-body-md relative flex flex-col md:flex-row items-center justify-center p-gutter md:p-margin-desktop gap-xl overflow-x-hidden">
-      {/* Hero Background Animation */}
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/10 blur-[120px] animate-pulse"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-primary-container/5 blur-[150px]"></div>
-      </div>
+    <div style={S.page}>
+      {/* Background glows */}
+      <div style={S.glowTopLeft} />
+      <div style={S.glowBottomRight} />
 
-      {/* Typography Section */}
-      <div className="w-full md:w-1/2 flex flex-col items-center md:items-start text-center md:text-left space-y-md z-10">
-        <div className="inline-flex items-center space-x-xs px-sm py-base rounded-full bg-surface-container-high/50 border border-outline-variant/30 text-primary animate-float">
-          <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
-          <span className="font-label-caps text-[10px] tracking-[0.25em] uppercase font-bold">Ekam Evolution</span>
-        </div>
-        <div className="space-y-base">
-          <h1 className="font-display-lg text-[56px] md:text-[92px] leading-[0.95] font-extrabold tracking-[-0.04em] text-on-surface">
-            Welcome to <br className="hidden md:block"/>
-            <span className="text-gradient-sapphire">Ekam.</span>
+      <div style={innerStyle}>
+        {/* ── LEFT: Hero ── */}
+        <div style={{ ...S.left, flex: isMobile ? "unset" : "0 0 460px", alignItems: isMobile ? "center" : "flex-start", textAlign: isMobile ? "center" : "left" }}>
+          {/* Badge */}
+          <div style={S.badge}>
+            <span style={S.materialIcon}>auto_awesome</span>
+            Ekam Evolution
+          </div>
+
+          {/* Heading */}
+          <h1 style={{ ...S.heroHeading, fontSize: heroSize }}>
+            Welcome to
+            <br />
+            <span style={S.gradientSpan}>Ekam.</span>
           </h1>
-        </div>
-        <p className="font-body-lg text-on-surface-variant max-w-[480px] leading-relaxed opacity-90">
-          Experience the next frontier of secure, high-fidelity communication. Minimalist by design, powerful by nature.
-        </p>
-        <div className="hidden md:flex flex-wrap gap-sm mt-lg">
-          <div className="gem-badge px-md py-sm rounded-xl flex items-center gap-sm">
-            <span className="material-symbols-outlined text-primary text-[20px]">verified_user</span>
-            <span className="font-label-mono text-label-mono tracking-tight">End-to-end Encrypted</span>
-          </div>
-          <div className="gem-badge px-md py-sm rounded-xl flex items-center gap-sm">
-            <span className="material-symbols-outlined text-primary text-[20px]">bolt</span>
-            <span className="font-label-mono text-label-mono tracking-tight">Instant Delivery</span>
-          </div>
-        </div>
-      </div>
 
-      {/* Auth Form Section */}
-      <div className="w-full max-w-[440px] md:w-1/2 z-10">
-        <div className="glass-card-sapphire p-lg md:p-xl rounded-[2.5rem] flex flex-col gap-lg">
-          <div className="space-y-base">
-            <h2 className="font-headline-md text-headline-md tracking-tight text-on-surface">
-              {isSignUp ? "Create an Account" : "Secure Sign-in"}
-            </h2>
-            <p className="font-label-md text-on-surface-variant opacity-80">
-              {isSignUp ? "Register to start messaging." : "Access your encrypted workspace."}
-            </p>
-          </div>
+          <p style={S.heroSub}>
+            Experience the next frontier of secure, high-fidelity communication.
+            Minimalist by design, powerful by nature.
+          </p>
 
-          {error && (
-            <div className="inline-error">
-              {error}
+          {/* Feature pills */}
+          <div style={{ ...S.featurePills, justifyContent: isMobile ? "center" : "flex-start" }}>
+            <div style={S.featurePill}>
+              <span style={S.materialIcon}>verified_user</span>
+              End-to-end Encrypted
             </div>
-          )}
+            <div style={S.featurePill}>
+              <span style={S.materialIcon}>bolt</span>
+              Instant Delivery
+            </div>
+          </div>
+        </div>
 
-          <form className="flex flex-col gap-md" onSubmit={handleSubmit}>
+        {/* ── RIGHT: Auth Card ── */}
+        <div style={{ ...S.card, flex: isMobile ? "unset" : "0 0 420px" }}>
+          <div>
+            <h2 style={S.cardTitle}>
+              {isSignUp ? "Create Account" : "Secure Sign-in"}
+            </h2>
+            <span style={S.cardSub}>
+              {isSignUp
+                ? "Join Ekam and start messaging securely."
+                : "Access your encrypted workspace."}
+            </span>
+          </div>
+
+          {/* Error / Info banners */}
+          {error && <div style={S.errorBox}>{error}</div>}
+          {info && <div style={S.successBox}>{info}</div>}
+
+          <form style={S.form} onSubmit={handleSubmit} noValidate>
+            {/* Display Name (sign-up only) */}
             {isSignUp && (
-              <div className="space-y-xs">
-                <label className="font-label-caps text-[10px] tracking-widest text-on-surface-variant/70 ml-xs">DISPLAY NAME</label>
-                <div className="input-pill flex items-center px-md py-sm rounded-xl transition-all duration-300">
-                  <span className="material-symbols-outlined text-on-surface-variant/50 mr-sm">person</span>
-                  <input 
-                    className="bg-transparent border-none focus:ring-0 w-full text-on-surface placeholder:text-outline-variant/50 font-body-md outline-none"
-                    placeholder="Ekam User"
+              <div style={S.fieldGroup}>
+                <label style={S.fieldLabel}>Display Name</label>
+                <div style={{ ...S.inputPill, ...(dnFocus ? S.inputPillFocused : {}) }}>
+                  <span style={S.materialIcon}>person</span>
+                  <input
+                    style={S.input}
+                    placeholder="Your name"
                     type="text"
-                    required
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    autoComplete="name"
+                    value={displayName}
+                    onChange={e => setDisplayName(e.target.value)}
+                    onFocus={() => setDnFocus(true)}
+                    onBlur={() => setDnFocus(false)}
                   />
                 </div>
               </div>
             )}
 
-            <div className="space-y-xs">
-              <label className="font-label-caps text-[10px] tracking-widest text-on-surface-variant/70 ml-xs">
-                {isSignUp ? "EMAIL ADDRESS" : "IDENTIFIER"}
+            {/* Identifier — email or username */}
+            <div style={S.fieldGroup}>
+              <label style={S.fieldLabel}>
+                {isSignUp ? "Email Address" : "Email or Username"}
               </label>
-              <div className="input-pill flex items-center px-md py-sm rounded-xl transition-all duration-300">
-                <span className="material-symbols-outlined text-on-surface-variant/50 mr-sm">account_circle</span>
-                <input 
-                  className="bg-transparent border-none focus:ring-0 w-full text-on-surface placeholder:text-outline-variant/50 font-body-md outline-none"
-                  placeholder={isSignUp ? "you@example.com" : "Username or Email"} 
-                  type="email"
+              <div style={{ ...S.inputPill, ...(idFocus ? S.inputPillFocused : {}) }}>
+                <span style={S.materialIcon}>account_circle</span>
+                <input
+                  style={S.input}
+                  placeholder={isSignUp ? "you@gmail.com" : "Email or username"}
+                  type={isSignUp ? "email" : "text"}
+                  autoComplete={isSignUp ? "email" : "username"}
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={identifier}
+                  onChange={e => setIdentifier(e.target.value)}
+                  onFocus={() => setIdFocus(true)}
+                  onBlur={() => setIdFocus(false)}
                 />
               </div>
             </div>
 
-            <div className="space-y-xs">
-              <div className="flex justify-between items-center px-xs">
-                <label className="font-label-caps text-[10px] tracking-widest text-on-surface-variant/70">PASSWORD</label>
+            {/* Password */}
+            <div style={S.fieldGroup}>
+              <div style={S.labelRow}>
+                <label style={S.fieldLabel}>Password</label>
                 {!isSignUp && (
-                  <a className="font-label-caps text-[10px] tracking-widest text-primary hover:text-primary-container transition-colors" href="#">FORGOT?</a>
+                  <button type="button" style={S.forgotBtn}>Forgot?</button>
                 )}
               </div>
-              <div className="input-pill flex items-center px-md py-sm rounded-xl transition-all duration-300">
-                <span className="material-symbols-outlined text-on-surface-variant/50 mr-sm">lock_open</span>
-                <input 
-                  className="bg-transparent border-none focus:ring-0 w-full text-on-surface placeholder:text-outline-variant/50 font-body-md outline-none"
-                  placeholder="••••••••"
-                  type={showPassword ? "text" : "password"}
+              <div style={{ ...S.inputPill, ...(pwFocus ? S.inputPillFocused : {}) }}>
+                <span style={S.materialIcon}>lock</span>
+                <input
+                  style={S.input}
+                  placeholder={isSignUp ? "Min. 8 characters" : "••••••••"}
+                  type={showPw ? "text" : "password"}
+                  autoComplete={isSignUp ? "new-password" : "current-password"}
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={e => setPassword(e.target.value)}
+                  onFocus={() => setPwFocus(true)}
+                  onBlur={() => setPwFocus(false)}
                 />
-                <button 
-                  className="text-on-surface-variant/50 hover:text-on-surface transition-colors"
+                <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
+                  style={S.iconBtn}
+                  onClick={() => setShowPw(!showPw)}
+                  tabIndex={-1}
                 >
-                  <span className="material-symbols-outlined">{showPassword ? "visibility_off" : "visibility"}</span>
+                  <span style={{ ...S.materialIcon, color: showPw ? "#adc6ff" : "rgba(194,198,214,0.4)" }}>
+                    {showPw ? "visibility_off" : "visibility"}
+                  </span>
                 </button>
               </div>
             </div>
 
-            <div className="flex flex-col gap-sm mt-md">
-              {/* Primary Action Button */}
-              <button 
+            {/* Submit */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>
+              <button
                 type="submit"
-                disabled={loading}
-                className="w-full py-md px-lg bg-primary-container text-on-primary-container font-headline-sm rounded-xl hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-sm shadow-[0_8px_30px_rgba(77,142,255,0.2)] cursor-pointer"
+                disabled={!canSubmit}
+                style={{
+                  ...S.btnPrimary,
+                  opacity: canSubmit ? 1 : 0.55,
+                  cursor: canSubmit ? "pointer" : "not-allowed",
+                }}
+                onMouseEnter={e => { if (canSubmit) (e.currentTarget as HTMLElement).style.filter = "brightness(1.12)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.filter = "brightness(1)"; }}
               >
-                {loading ? "Processing..." : isSignUp ? "Create Account" : "Sign In"}
-                <span className="material-symbols-outlined">arrow_forward</span>
+                {loading ? (
+                  "Processing..."
+                ) : (
+                  <>
+                    {isSignUp ? "Create Account" : "Sign In"}
+                    <span style={{ ...S.materialIcon, color: "#002e6a", fontSize: 18 }}>arrow_forward</span>
+                  </>
+                )}
               </button>
 
-              {/* Toggle Mode Button */}
-              <button 
+              <button
                 type="button"
+                style={S.btnSecondary}
                 onClick={() => {
                   setIsSignUp(!isSignUp);
                   setError("");
+                  setInfo("");
+                  setPassword("");
                 }}
-                className="w-full py-md px-lg bg-surface-container-high/5 border border-white/5 text-on-surface font-headline-sm rounded-xl hover:bg-surface-variant active:scale-[0.98] transition-all flex items-center justify-center gap-sm cursor-pointer"
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(55,55,55,0.7)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(40,40,40,0.6)"; }}
               >
                 {isSignUp ? "Already have an account? Sign In" : "Create Account"}
               </button>
             </div>
           </form>
 
-          <div className="relative py-sm">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5"></div></div>
-            <div className="relative flex justify-center text-[10px] font-bold tracking-[0.2em]">
-              <span className="bg-surface-container-lowest/80 px-sm text-on-surface-variant/60">OR FEDERATED</span>
-            </div>
+          {/* Divider */}
+          <div style={S.divider}>
+            <div style={S.dividerLine} />
+            <span style={S.dividerLabel}>Or Federated</span>
+            <div style={S.dividerLine} />
           </div>
 
-          <div className="flex gap-md">
-            <button className="flex-1 py-sm bg-white/5 border border-white/5 rounded-xl hover:bg-white/10 transition-colors flex justify-center items-center gap-xs cursor-pointer">
-              <div className="w-5 h-5 bg-contain bg-no-repeat bg-center opacity-80" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDMA8BIdVay3NEeNo45g-FDlt0MA8moUT1-qcCti5H8BD_p_uDaSm0HGQjP7u2o8SCwbGTBirFgA5vElSWlplb21iVyBdwR11f7-p-7rz0Eq9L1dfP1X31GSP3bLkJ2CXKewikSUYeDhTaodiurbj3A8r_b_doz8zDPAG20p4e7KWCljkleUlDOx2XQs27kwb_xFdTYtj1RIrjIoajEfB6OVLz7pCCkny2CZxZtNHM6BrEcgITiupoiQskRQ7VenN2nyCAYAqDVR209')" }}></div>
-              <span className="font-label-mono text-[13px]">Google</span>
-            </button>
-            <button className="flex-1 py-sm bg-white/5 border border-white/5 rounded-xl hover:bg-white/10 transition-colors flex justify-center items-center gap-xs cursor-pointer">
-              <div className="w-5 h-5 bg-contain bg-no-repeat bg-center opacity-80" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuD8EW_HWRWCNdJPku659bW8Me5mSHCtP7hp4oNqcPV_xt_46YVQRH-ACq9bIQkpFgIy4bfSuC4n3Sp78ZSjgvc8TxBmUV9ooimTwLggbG83x5nL_KmS9p91G2LHN2e5s966ekbWs6Tt1Pc7WtmYVyi432nfSeC2irwJuUrw0NgzxlGZXJAwkzv4RS3oP3BjmycSiKlLeYxEpFEYoK5I_w-NY2GCBJbkkYm9gpOXVtzG_qLZROkGA8z4p7sNcu6_-wdPP46CeXsps6Hx')" }}></div>
-              <span className="font-label-mono text-[13px]">Apple</span>
-            </button>
-          </div>
+          {/* Google Sign-in */}
+          <button
+            type="button"
+            style={S.googleBtn}
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.08)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.14)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.08)"; }}
+          >
+            <GoogleIcon />
+            {googleLoading ? "Connecting to Google..." : "Continue with Google"}
+          </button>
+
+          {/* ToS */}
+          <p style={S.tosText}>
+            By signing in, you agree to our{" "}
+            <a href="#" style={S.tosLink}>Terms of Service</a>
+            {" "}and{" "}
+            <a href="#" style={S.tosLink}>Privacy Policy</a>.
+          </p>
         </div>
-        <p className="text-center mt-lg font-label-sm text-on-surface-variant/40">
-          By signing in, you agree to our <a className="underline hover:text-on-surface transition-colors" href="#">Terms of Service</a> and <a className="underline hover:text-on-surface transition-colors" href="#">Privacy Policy</a>.
-        </p>
       </div>
     </div>
   );

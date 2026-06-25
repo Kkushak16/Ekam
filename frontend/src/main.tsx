@@ -3,7 +3,9 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from 'react-error-boundary';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ToastProvider } from './components/ToastProvider';
 import './index.css';
+
 
 const queryClient = new QueryClient({
   defaultOptions: {

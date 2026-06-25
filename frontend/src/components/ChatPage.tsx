@@ -5,46 +5,39 @@ import MessageList from './MessageList';
 import TypingIndicator from './TypingIndicator';
 import Header from './Header';
 
+const ROOM_ID = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
+
 export function ChatPage() {
   const token = useChatStore(state => state.token);
   const socket = useChatStore(state => state.socket);
-  const roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a'; // Default public room ID
-  
+
   const userId = useChatStore(state => {
     if (!state.token) return '';
     try {
       const payload = state.parseJwt(state.token);
-      return payload.id || '';
-    } catch (e) {
-      return '';
-    }
+      return payload.id || payload.sub || '';
+    } catch { return ''; }
   });
 
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const uploadMutation = useUploadMutation();
 
-  // Load initial messages on mount
   useEffect(() => {
     if (socket && token) {
-      const fetchInitial = async () => {
-        const { loadOlderMessages } = useChatStore.getState();
-        await loadOlderMessages(roomId, null);
-      };
-      fetchInitial();
+      const { loadOlderMessages } = useChatStore.getState();
+      loadOlderMessages(ROOM_ID, null);
     }
   }, [socket, token]);
 
   const sendMessage = async (mediaUrl?: string, mediaType?: string) => {
     if ((!input.trim() && !mediaUrl) || !socket) return;
-
     const clientMessageId = crypto.randomUUID();
     const message = {
       clientMessageId,
-      roomId,
+      roomId: ROOM_ID,
       senderId: userId,
       body: input.trim(),
       ts: Date.now(),
@@ -52,29 +45,19 @@ export function ChatPage() {
       mediaUrl,
       mediaType,
     };
-
-    // Optimistic UI update
     useChatStore.getState().addMessage(message);
     setInput('');
-
     try {
       const { data } = await apiClient.post('/api/messages', {
-        room_id: roomId,
+        room_id: ROOM_ID,
         body: message.body,
         media_url: mediaUrl,
         media_type: mediaType,
       });
-
       if (data) {
-        useChatStore.getState().addMessage({
-          ...message,
-          id: data._id,
-          status: 'sent',
-          supabaseId: data.supabase_id,
-        });
+        useChatStore.getState().addMessage({ ...message, id: data._id, status: 'sent', supabaseId: data.supabase_id });
       }
     } catch (err) {
-      console.error('Failed to send message:', err);
       useChatStore.getState().updateMessageStatus(clientMessageId, 'failed');
     }
   };
@@ -83,12 +66,12 @@ export function ChatPage() {
     setInput(e.target.value);
     if (!isTyping) {
       setIsTyping(true);
-      socket?.emit('typing', { roomId, isTyping: true, userId });
+      socket?.emit('typing', { roomId: ROOM_ID, isTyping: true, userId });
     }
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      socket?.emit('typing', { roomId, isTyping: false, userId });
+      socket?.emit('typing', { roomId: ROOM_ID, isTyping: false, userId });
     }, 1500);
   };
 
@@ -102,125 +85,75 @@ export function ChatPage() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     try {
       const res = await uploadMutation.mutateAsync(file);
-      // Send the message immediately with the uploaded attachment
       await sendMessage(res.secure_url, file.type);
-    } catch (err) {
-      alert('Failed to upload file. Please verify file type and size constraint (under 10MB).');
+    } catch {
+      alert('Failed to upload file. Max 10MB.');
     }
+    e.target.value = '';
   };
 
-  const triggerFileSelect = () => {
-    fileInputRef.current?.click();
-  };
+  const hasInput = input.trim().length > 0;
 
   return (
-    <div 
-      className="chat-window" 
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        width: '100%',
-        position: 'relative'
-      }}
-    >
-      <Header roomId={roomId} />
-      
-      {/* Messages Scroll Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <MessageList roomId={roomId} />
+    <div className="chat-window flex flex-col h-full w-full relative bg-background">
+      {/* Atmospheric background glow */}
+      <div className="absolute -top-[10%] right-[5%] w-[400px] h-[400px] bg-primary/5 rounded-full blur-[120px] pointer-events-none z-0" />
+
+      {/* Floating Header */}
+      <Header roomId={ROOM_ID} />
+
+      {/* Messages Area */}
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden z-10">
+        <MessageList roomId={ROOM_ID} />
       </div>
 
-      <TypingIndicator roomId={roomId} />
+      {/* Typing Indicator */}
+      <TypingIndicator roomId={ROOM_ID} />
 
-      {/* Input Form Bar */}
-      <div 
-        className="input-bar" 
-        style={{
-          padding: '16px 24px',
-          backgroundColor: 'var(--bg-sidebar)',
-          borderTop: '1px solid var(--border-color)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {/* File Input and trigger */}
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileChange} 
-            style={{ display: 'none' }} 
-          />
+      {/* Input Bar */}
+      <div className="px-6 pb-5 z-10 flex-shrink-0">
+        <div className="glass-surface border border-white/[0.08] rounded-2xl p-2 pl-5 flex items-center gap-3 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+          {/* Attachment */}
+          <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
           <button
-            onClick={triggerFileSelect}
+            onClick={() => fileInputRef.current?.click()}
             disabled={uploadMutation.isPending}
-            style={{
-              background: 'var(--bg-app)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '12px',
-              width: '44px',
-              height: '44px',
-              cursor: 'pointer',
-              fontSize: '18px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'transform 0.15s ease'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            className="text-on-surface-variant/40 hover:text-primary transition-all hover:scale-110 cursor-pointer"
+            title="Attach file"
           >
-            {uploadMutation.isPending ? '⏳' : '📎'}
+            <span className="material-symbols-outlined">
+              {uploadMutation.isPending ? 'hourglass_empty' : 'add_circle'}
+            </span>
           </button>
 
-          {/* Text Area Input */}
-          <div style={{ flex: 1, position: 'relative' }}>
-            <textarea
-              placeholder="Type your message..."
-              value={input}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              rows={1}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                paddingRight: '60px',
-                background: 'var(--bg-app)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '14px',
-                color: 'var(--text-primary)',
-                fontSize: '15px',
-                fontFamily: 'inherit',
-                outline: 'none',
-                resize: 'none',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
+          {/* Text input */}
+          <textarea
+            placeholder="Type a message..."
+            value={input}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            rows={1}
+            className="flex-1 bg-transparent border-none focus:ring-0 text-[15px] placeholder:text-on-surface-variant/30 py-3 resize-none outline-none text-on-surface leading-relaxed"
+            style={{ maxHeight: '120px', overflowY: 'auto' }}
+          />
 
-          {/* Send Button */}
+          {/* Emoji */}
+          <button className="w-10 h-10 rounded-full hover:bg-white/5 transition-all text-on-surface-variant/40 flex items-center justify-center cursor-pointer">
+            <span className="material-symbols-outlined">mood</span>
+          </button>
+
+          {/* Send */}
           <button
             onClick={() => sendMessage()}
-            style={{
-              padding: '12px 24px',
-              background: 'var(--bg-bubble-me)',
-              color: 'var(--text-me)',
-              border: 'none',
-              borderRadius: '14px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px var(--accent-glow)',
-              transition: 'transform 0.15s ease'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.03)'}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-95 cursor-pointer ${
+              hasInput ? 'bg-primary text-white shadow-[0_4px_16px_rgba(173,198,255,0.3)]' : 'bg-primary/10'
+            }`}
           >
-            Send
+            <span className={`material-symbols-outlined text-[20px] ${hasInput ? 'text-white translate-x-0.5' : 'text-primary'} transition-transform`}>
+              send
+            </span>
           </button>
         </div>
       </div>
