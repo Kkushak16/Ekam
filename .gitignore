@@ -1,12 +1,13 @@
 node_modules/
-# .env
-# .env*.local
+.env
+.env*.local
 .DS_Store
 dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-
 .vercel
-# .env*
+
+# Allow frontend .env (only has public keys like VITE_GOOGLE_CLIENT_ID)
+!frontend/.env
