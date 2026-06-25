@@ -1,5 +1,6 @@
 // auth/controller.js
 import express from 'express';
+import crypto from 'crypto';
 import { supabaseAdmin } from '../db/supabase.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken, verifyAccessToken } from './utils/jwt.js';
 import { hashToken, compareToken } from './utils/hash.js';
