@@ -1,6 +1,6 @@
 node_modules/
-.env
-.env*.local
+# .env
+# .env*.local
 .DS_Store
 dist/
 npm-debug.log*
@@ -9,4 +9,4 @@ yarn-error.log*
 .pnpm-debug.log*
 
 .vercel
-.env*
+# .env*
