@@ -29,6 +29,10 @@ export interface Message {
 export interface PresenceEntry {
   online: boolean;
   version?: number;
+  info?: {
+    email: string;
+    displayName?: string;
+  };
 }
 
 export type PresenceMap = Record<string, PresenceEntry>;

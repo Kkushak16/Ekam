@@ -1,7 +1,7 @@
 // auth/controller.js
 import express from 'express';
 import { supabaseAdmin, createSupabaseUserClient } from '../db/supabase.js';
-import { signAccessToken, signRefreshToken, verifyRefreshToken } from './utils/jwt.js';
+import { signAccessToken, signRefreshToken, verifyRefreshToken, verifyAccessToken } from './utils/jwt.js';
 import { hashToken, compareToken } from './utils/hash.js';
 import { insertRefreshToken, deleteRefreshToken, findRefreshToken } from '../db/refreshTokens.js';
 
@@ -41,7 +41,7 @@ router.post('/register', async (req, res) => {
     }
     
     // Auto‑login after registration
-    const payload = { sub: user.id, email: user.email };
+    const payload = { sub: user.id, email: user.email, displayName: displayName };
     const accessToken = signAccessToken(payload);
     const refreshToken = signRefreshToken(payload);
     const hashed = await hashToken(refreshToken);
@@ -63,7 +63,11 @@ router.post('/login', async (req, res) => {
   try {
     const { data: { user }, error: authErr } = await supabaseAdmin.auth.signInWithPassword({ email, password });
     if (authErr || !user) return res.status(401).json({ error: authErr?.message || 'Invalid credentials' });
-    const payload = { sub: user.id, email: user.email };
+    const payload = { 
+      sub: user.id, 
+      email: user.email, 
+      displayName: user.user_metadata?.display_name || user.email.split('@')[0] 
+    };
     const accessToken = signAccessToken(payload);
     const refreshToken = signRefreshToken(payload);
     const hashed = await hashToken(refreshToken);
@@ -87,7 +91,11 @@ router.post('/refresh', async (req, res) => {
     const match = await compareToken(refreshToken, stored.tokenHash);
     if (!match) return res.status(401).json({ error: 'Invalid refresh token' });
     // Issue new access token (keep same payload)
-    const newAccess = signAccessToken({ sub: decoded.sub, email: decoded.email });
+    const newAccess = signAccessToken({ 
+      sub: decoded.sub, 
+      email: decoded.email, 
+      displayName: decoded.displayName || decoded.email.split('@')[0] 
+    });
     return res.json({ accessToken: newAccess });
   } catch (e) {
     console.error('Refresh error:', e);
@@ -114,7 +122,7 @@ router.get('/me', async (req, res) => {
   if (!authHeader || !authHeader.startsWith('Bearer ')) return res.status(401).json({ error: 'Missing token' });
   const token = authHeader.split(' ')[1];
   try {
-    const payload = verifyRefreshToken(token); // using access token verify would also work
+    const payload = verifyAccessToken(token);
     const { data: user, error } = await supabaseAdmin.from('users').select('*').eq('id', payload.sub).single();
     if (error) throw error;
     return res.json({ user });

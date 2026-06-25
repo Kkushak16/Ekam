@@ -3,6 +3,16 @@ import { useChatStore } from '../store/chatStore';
 
 export function SettingsPage() {
   const clearAuth = useChatStore((state) => state.clearAuth);
+  const token = useChatStore((state) => state.token);
+  const parseJwt = useChatStore((state) => state.parseJwt);
+  
+  let displayName = 'devuser';
+  if (token) {
+    try {
+      const payload = parseJwt(token);
+      displayName = payload.displayName || payload.email?.split('@')[0] || 'devuser';
+    } catch (e) {}
+  }
   
   return (
     <div style={{ padding: '32px', color: 'var(--text-primary)' }}>
@@ -15,8 +25,9 @@ export function SettingsPage() {
           <label style={{ display: 'block', fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px' }}>Display Username</label>
           <input 
             type="text" 
-            defaultValue="devuser" 
-            style={{ background: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '10px', borderRadius: '8px', width: '100%', maxWidth: '300px', outline: 'none' }} 
+            value={displayName} 
+            disabled
+            style={{ background: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '10px', borderRadius: '8px', width: '100%', maxWidth: '300px', outline: 'none', opacity: 0.8 }} 
           />
         </div>
 

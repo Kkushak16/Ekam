@@ -106,7 +106,7 @@ export const useChatStore = create<ChatState>()(
           presenceChannel.bind('pusher:subscription_succeeded', () => {
             const initialPresence: PresenceMap = {};
             presenceChannel.members.each((member: any) => {
-              initialPresence[member.id] = { online: true };
+              initialPresence[member.id] = { online: true, info: member.info };
             });
             set({ presence: initialPresence });
           });
@@ -115,7 +115,7 @@ export const useChatStore = create<ChatState>()(
             set((state) => ({
               presence: {
                 ...state.presence,
-                [member.id]: { online: true },
+                [member.id]: { online: true, info: member.info },
               },
             }));
           });
@@ -124,7 +124,7 @@ export const useChatStore = create<ChatState>()(
             set((state) => ({
               presence: {
                 ...state.presence,
-                [member.id]: { online: false },
+                [member.id]: { online: false, info: member.info },
               },
             }));
           });

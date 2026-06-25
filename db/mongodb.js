@@ -2,6 +2,10 @@ import { MongoClient } from 'mongodb';
 import { ulid } from 'ulid';
 import dns from 'dns/promises';
 import dotenv from 'dotenv';
+import { exec } from 'child_process';
+import util from 'util';
+
+const execAsync = util.promisify(exec);
 
 // Load environment variables immediately on module load
 dotenv.config();
@@ -19,6 +23,56 @@ if (!mongoUri) {
 let client = null;
 let db = null;
 
+// Fallback SRV resolution using nslookup (handles Windows Node.js c-ares DNS resolution issues)
+async function resolveSrvNslookup(host) {
+  try {
+    const { stdout } = await execAsync(`nslookup -type=SRV _mongodb._tcp.${host}`);
+    const hostnames = [];
+    const lines = stdout.split('\n');
+    let currentHost = null;
+    let currentPort = null;
+    
+    for (const line of lines) {
+      const hostMatch = line.match(/svr hostname\s*=\s*([^\s\r\n]+)/i);
+      const portMatch = line.match(/port\s*=\s*(\d+)/i);
+      
+      if (hostMatch) {
+        currentHost = hostMatch[1].replace(/\.$/, '');
+      }
+      if (portMatch) {
+        currentPort = portMatch[1];
+      }
+      
+      if (currentHost && currentPort) {
+        hostnames.push({ name: currentHost, port: parseInt(currentPort) });
+        currentHost = null;
+        currentPort = null;
+      }
+    }
+    return hostnames;
+  } catch (err) {
+    console.warn("⚠️ nslookup SRV fallback failed:", err.message);
+    return [];
+  }
+}
+
+// Fallback TXT resolution using nslookup
+async function resolveTxtNslookup(host) {
+  try {
+    const { stdout } = await execAsync(`nslookup -type=TXT ${host}`);
+    const lines = stdout.split('\n');
+    for (const line of lines) {
+      const match = line.match(/"([^"]+)"/);
+      if (match) {
+        return match[1];
+      }
+    }
+  } catch (err) {
+    console.warn("⚠️ nslookup TXT fallback failed:", err.message);
+  }
+  return "";
+}
+
 // Resolve a mongodb+srv:// URI to a standard replica-set mongodb:// connection string
 async function resolveSrvUri(srvUri) {
   if (!srvUri.startsWith('mongodb+srv://')) return srvUri;
@@ -29,9 +83,20 @@ async function resolveSrvUri(srvUri) {
     
     const [_, username, password, host, database, optionsStr] = match;
     
-    console.log(`ℹ️ Node.js querySrv failed. Attempting manual DNS SRV resolution for: ${host}...`);
+    console.log(`ℹ️ Bypassing node DNS. Attempting manual DNS SRV resolution for: ${host}...`);
     
-    const srvRecords = await dns.resolveSrv(`_mongodb._tcp.${host}`);
+    let srvRecords = [];
+    try {
+      srvRecords = await dns.resolveSrv(`_mongodb._tcp.${host}`);
+    } catch (dnsErr) {
+      console.warn(`⚠️ Node.js dns.resolveSrv failed: ${dnsErr.message}. Trying nslookup fallback...`);
+      srvRecords = await resolveSrvNslookup(host);
+    }
+    
+    if (!srvRecords || srvRecords.length === 0) {
+      throw new Error(`Could not resolve SRV records for host: ${host}`);
+    }
+    
     const hostList = srvRecords.map(r => `${r.name}:${r.port}`).join(',');
     
     let txtOptions = "";
@@ -41,7 +106,8 @@ async function resolveSrvUri(srvUri) {
         txtOptions = txtRecords[0].join('&');
       }
     } catch (e) {
-      console.warn("⚠️ Failed to resolve DNS TXT records:", e.message);
+      console.warn(`⚠️ Failed to resolve DNS TXT records via Node.js dns: ${e.message}. Trying nslookup fallback...`);
+      txtOptions = await resolveTxtNslookup(host);
     }
     
     let finalOptions = "ssl=true";

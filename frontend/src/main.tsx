@@ -33,7 +33,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <QueryClientProvider client={queryClient}>
+        <ToastProvider>
         <App />
+      </ToastProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   </React.StrictMode>

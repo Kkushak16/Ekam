@@ -44,25 +44,28 @@ export function Header({ roomId }: HeaderProps) {
           <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>No other users online</span>
         ) : (
           <div style={{ display: 'flex', gap: '8px' }}>
-            {participants.map((uid) => (
-              <div 
-                key={uid} 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '4px',
-                  padding: '4px 8px',
-                  borderRadius: '12px',
-                  backgroundColor: 'var(--bg-app)',
-                  border: '1px solid var(--border-color)'
-                }}
-              >
-                <span style={{ fontSize: '12px', color: 'var(--text-primary)', maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {uid.slice(0, 6)}...
-                </span>
-                <PresenceBadge userId={uid} presenceMap={presenceMap} />
-              </div>
-            ))}
+            {participants.map((uid) => {
+              const userDisplayName = presenceMap[uid]?.info?.displayName || presenceMap[uid]?.info?.email?.split('@')[0] || `${uid.slice(0, 6)}...`;
+              return (
+                <div 
+                  key={uid} 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '4px',
+                    padding: '4px 8px',
+                    borderRadius: '12px',
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1px solid var(--border-color)'
+                  }}
+                >
+                  <span style={{ fontSize: '12px', color: 'var(--text-primary)', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {userDisplayName}
+                  </span>
+                  <PresenceBadge userId={uid} presenceMap={presenceMap} />
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

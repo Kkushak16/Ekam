@@ -162,5 +162,35 @@ if (restUrl && restToken) {
   };
 }
 
-export const redisRest = redisRestInstance;
+let commandCount = 0;
+
+export function getRedisCommandCount() {
+  return commandCount;
+}
+
+export function resetRedisCommandCount() {
+  commandCount = 0;
+}
+
+const redisRestProxy = new Proxy(redisRestInstance, {
+  get(target, prop) {
+    const value = target[prop];
+    if (typeof value === 'function') {
+      return async function (...args) {
+        commandCount++;
+        if (commandCount === 8000) {
+          console.warn(`⚠️ [Upstash Monitor] Redis command count has reached ${commandCount}. Daily limit is 10,000!`);
+        } else if (commandCount === 10000) {
+          console.error(`🚨 [Upstash Monitor] Redis command count has reached the 10,000 daily limit!`);
+        } else if (commandCount % 100 === 0) {
+          console.log(`📊 [Upstash Monitor] Redis commands executed in current run: ${commandCount}`);
+        }
+        return value.apply(target, args);
+      };
+    }
+    return value;
+  }
+});
+
+export const redisRest = redisRestProxy;
 // Last Build Force: 24-06-2026 20:46:24

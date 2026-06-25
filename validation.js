@@ -19,3 +19,20 @@ export const ackSchema = z.object({
 export const readSchema = z.object({
   messageId: z.string()
 });
+
+export const typingSchema = z.object({
+  roomId: z.string().min(1),
+  isTyping: z.boolean()
+});
+
+export const socketSendMessageSchema = z.object({
+  roomId: z.string().min(1),
+  body: z.string().min(1),
+  clientMessageId: z.string().optional(),
+  mediaUrl: z.string().url().or(z.literal('')).nullable().optional(),
+  mediaType: z.string().nullable().optional()
+});
+
+export const rawWsMessageSchema = z.object({
+  type: z.string().min(1)
+});
