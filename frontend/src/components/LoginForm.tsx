@@ -1,15 +1,12 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useChatStore } from "../store/chatStore";
 import { useToast } from "./ToastProvider";
+import PhoneLogin from "./PhoneLogin";
 
 const API_URL = import.meta.env.DEV
   ? ""   // Vite proxy handles /auth/* → backend in dev
   : (import.meta.env.VITE_API_URL || window.location.origin);
-
-// Google OAuth Client ID — set in Supabase dashboard under Auth → Providers → Google
-// If not configured, Google button shows a "coming soon" toast
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
 /* ─── Inline Styles ───────────────────────────────────────────────────────── */
 const S: Record<string, React.CSSProperties> = {
@@ -294,7 +291,7 @@ const S: Record<string, React.CSSProperties> = {
     color: "rgba(194,198,214,0.4)",
     textTransform: "uppercase" as const,
   },
-  googleBtn: {
+  phoneBtn: {
     width: "100%",
     padding: "12px 24px",
     borderRadius: 13,
@@ -325,29 +322,19 @@ const S: Record<string, React.CSSProperties> = {
   },
 };
 
-/* ─── Google "G" SVG icon ─────────────────────────────────────────────────── */
-const GoogleIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-    <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.616z" fill="#4285F4"/>
-    <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
-    <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-    <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
-  </svg>
-);
-
 /* ─── Component ───────────────────────────────────────────────────────────── */
 export function LoginForm() {
   const setToken = useChatStore((s) => s.setToken);
   const toast = useToast?.();
 
   const [isSignUp, setIsSignUp] = useState(false);
+  const [showPhoneLogin, setShowPhoneLogin] = useState(false);
   const [identifier, setIdentifier] = useState("");   // email or username
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
 
   // Focus states
@@ -361,18 +348,6 @@ export function LoginForm() {
     const h = () => setIsMobile(window.innerWidth < 820);
     window.addEventListener("resize", h);
     return () => window.removeEventListener("resize", h);
-  }, []);
-
-  // Load Google Identity Services script
-  useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) return;
-    if (document.getElementById("google-gsi-script")) return;
-    const script = document.createElement("script");
-    script.id = "google-gsi-script";
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
   }, []);
 
   /* ── Submit ─────────────────────────────────────────────────────────── */
@@ -435,118 +410,6 @@ export function LoginForm() {
     }
   };
 
-  /* ── Google Sign-in ─────────────────────────────────────────────────── */
-
-  /** Fallback: Open a Google OAuth2 consent popup and exchange the auth code */
-  const handleGoogleOAuth2Redirect = () => {
-    const redirectUri = window.location.origin;
-    const scope = 'openid email profile';
-    const authUrl =
-      `https://accounts.google.com/o/oauth2/v2/auth?` +
-      `client_id=${encodeURIComponent(GOOGLE_CLIENT_ID)}` +
-      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      `&response_type=id_token` +
-      `&scope=${encodeURIComponent(scope)}` +
-      `&nonce=${crypto.randomUUID()}` +
-      `&prompt=select_account`;
-
-    // Open popup
-    const w = 480, h = 640;
-    const left = window.screenX + (window.outerWidth - w) / 2;
-    const top = window.screenY + (window.outerHeight - h) / 2;
-    const popup = window.open(authUrl, 'google-signin', `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`);
-
-    if (!popup) {
-      // Popup blocked — do full redirect instead
-      window.location.href = authUrl;
-      return;
-    }
-
-    // Poll popup for the id_token in the hash fragment
-    const pollTimer = setInterval(async () => {
-      try {
-        if (popup.closed) {
-          clearInterval(pollTimer);
-          setGoogleLoading(false);
-          return;
-        }
-        const popupUrl = popup.location.href;
-        if (popupUrl && popupUrl.startsWith(redirectUri)) {
-          clearInterval(pollTimer);
-          popup.close();
-          const hash = new URL(popupUrl).hash.substring(1);
-          const params = new URLSearchParams(hash);
-          const idToken = params.get('id_token');
-          if (idToken) {
-            try {
-              const { data } = await axios.post(`${API_URL}/auth/google`, { idToken });
-              const token = data?.accessToken || data?.token;
-              if (token) setToken(token);
-              else setError("Google sign-in succeeded but no token was returned.");
-            } catch (err: any) {
-              setError(err.response?.data?.error || "Google sign-in failed. Please try with email.");
-            }
-          } else {
-            setError("Google sign-in was cancelled.");
-          }
-          setGoogleLoading(false);
-        }
-      } catch {
-        // Cross-origin error — popup hasn't redirected yet, keep polling
-      }
-    }, 500);
-  };
-
-  const handleGoogleSignIn = () => {
-    if (!GOOGLE_CLIENT_ID) {
-      setError("Google Sign-In is not yet configured. Please sign in with email.");
-      return;
-    }
-
-    setGoogleLoading(true);
-    setError("");
-
-    // @ts-ignore – window.google injected by GSI script
-    if (!window.google?.accounts?.id) {
-      // GSI script not loaded — go straight to OAuth2 redirect
-      handleGoogleOAuth2Redirect();
-      return;
-    }
-
-    // @ts-ignore
-    window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: async (response: any) => {
-        if (!response?.credential) {
-          setError("Google authentication was cancelled or failed.");
-          setGoogleLoading(false);
-          return;
-        }
-        try {
-          const { data } = await axios.post(`${API_URL}/auth/google`, {
-            idToken: response.credential,
-          });
-          const token = data?.accessToken || data?.token;
-          if (token) setToken(token);
-        } catch (err: any) {
-          setError(
-            err.response?.data?.error || "Google sign-in failed. Please try with email."
-          );
-        } finally {
-          setGoogleLoading(false);
-        }
-      },
-    });
-
-    // @ts-ignore
-    window.google.accounts.id.prompt((notification: any) => {
-      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        // One-Tap was blocked — fallback to OAuth2 popup/redirect
-        handleGoogleOAuth2Redirect();
-      }
-    });
-  };
-
   /* ── Derived ─────────────────────────────────────────────────────────── */
   const canSubmit = !loading && identifier.trim() && password;
   const heroSize = isMobile ? 42 : 68;
@@ -600,164 +463,179 @@ export function LoginForm() {
 
         {/* ── RIGHT: Auth Card ── */}
         <div style={{ ...S.card, flex: isMobile ? "unset" : "0 0 420px" }}>
-          <div>
-            <h2 style={S.cardTitle}>
-              {isSignUp ? "Create Account" : "Secure Sign-in"}
-            </h2>
-            <span style={S.cardSub}>
-              {isSignUp
-                ? "Join Ekam and start messaging securely."
-                : "Access your encrypted workspace."}
-            </span>
-          </div>
 
-          {/* Error / Info banners */}
-          {error && <div style={S.errorBox}>{error}</div>}
-          {info && <div style={S.successBox}>{info}</div>}
+          {showPhoneLogin ? (
+            /* ── Phone Login View ── */
+            <PhoneLogin
+              onBack={() => setShowPhoneLogin(false)}
+              onLoginSuccess={(token: string) => setToken(token)}
+            />
+          ) : (
+            /* ── Email/Password Login View ── */
+            <>
+              <div>
+                <h2 style={S.cardTitle}>
+                  {isSignUp ? "Create Account" : "Secure Sign-in"}
+                </h2>
+                <span style={S.cardSub}>
+                  {isSignUp
+                    ? "Join Ekam and start messaging securely."
+                    : "Access your encrypted workspace."}
+                </span>
+              </div>
 
-          <form style={S.form} onSubmit={handleSubmit} noValidate>
-            {/* Display Name (sign-up only) */}
-            {isSignUp && (
-              <div style={S.fieldGroup}>
-                <label style={S.fieldLabel}>Display Name</label>
-                <div style={{ ...S.inputPill, ...(dnFocus ? S.inputPillFocused : {}) }}>
-                  <span style={S.materialIcon}>person</span>
-                  <input
-                    style={S.input}
-                    placeholder="Your name"
-                    type="text"
-                    autoComplete="name"
-                    value={displayName}
-                    onChange={e => setDisplayName(e.target.value)}
-                    onFocus={() => setDnFocus(true)}
-                    onBlur={() => setDnFocus(false)}
-                  />
+              {/* Error / Info banners */}
+              {error && <div style={S.errorBox}>{error}</div>}
+              {info && <div style={S.successBox}>{info}</div>}
+
+              <form style={S.form} onSubmit={handleSubmit} noValidate>
+                {/* Display Name (sign-up only) */}
+                {isSignUp && (
+                  <div style={S.fieldGroup}>
+                    <label style={S.fieldLabel}>Display Name</label>
+                    <div style={{ ...S.inputPill, ...(dnFocus ? S.inputPillFocused : {}) }}>
+                      <span style={S.materialIcon}>person</span>
+                      <input
+                        style={S.input}
+                        placeholder="Your name"
+                        type="text"
+                        autoComplete="name"
+                        value={displayName}
+                        onChange={e => setDisplayName(e.target.value)}
+                        onFocus={() => setDnFocus(true)}
+                        onBlur={() => setDnFocus(false)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Identifier — email or username */}
+                <div style={S.fieldGroup}>
+                  <label style={S.fieldLabel}>
+                    {isSignUp ? "Email Address" : "Email or Username"}
+                  </label>
+                  <div style={{ ...S.inputPill, ...(idFocus ? S.inputPillFocused : {}) }}>
+                    <span style={S.materialIcon}>account_circle</span>
+                    <input
+                      style={S.input}
+                      placeholder={isSignUp ? "you@email.com" : "Email or username"}
+                      type={isSignUp ? "email" : "text"}
+                      autoComplete={isSignUp ? "email" : "username"}
+                      required
+                      value={identifier}
+                      onChange={e => setIdentifier(e.target.value)}
+                      onFocus={() => setIdFocus(true)}
+                      onBlur={() => setIdFocus(false)}
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
 
-            {/* Identifier — email or username */}
-            <div style={S.fieldGroup}>
-              <label style={S.fieldLabel}>
-                {isSignUp ? "Email Address" : "Email or Username"}
-              </label>
-              <div style={{ ...S.inputPill, ...(idFocus ? S.inputPillFocused : {}) }}>
-                <span style={S.materialIcon}>account_circle</span>
-                <input
-                  style={S.input}
-                  placeholder={isSignUp ? "you@gmail.com" : "Email or username"}
-                  type={isSignUp ? "email" : "text"}
-                  autoComplete={isSignUp ? "email" : "username"}
-                  required
-                  value={identifier}
-                  onChange={e => setIdentifier(e.target.value)}
-                  onFocus={() => setIdFocus(true)}
-                  onBlur={() => setIdFocus(false)}
-                />
-              </div>
-            </div>
+                {/* Password */}
+                <div style={S.fieldGroup}>
+                  <div style={S.labelRow}>
+                    <label style={S.fieldLabel}>Password</label>
+                    {!isSignUp && (
+                      <button type="button" style={S.forgotBtn}>Forgot?</button>
+                    )}
+                  </div>
+                  <div style={{ ...S.inputPill, ...(pwFocus ? S.inputPillFocused : {}) }}>
+                    <span style={S.materialIcon}>lock</span>
+                    <input
+                      style={S.input}
+                      placeholder={isSignUp ? "Min. 8 characters" : "••••••••"}
+                      type={showPw ? "text" : "password"}
+                      autoComplete={isSignUp ? "new-password" : "current-password"}
+                      required
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      onFocus={() => setPwFocus(true)}
+                      onBlur={() => setPwFocus(false)}
+                    />
+                    <button
+                      type="button"
+                      style={S.iconBtn}
+                      onClick={() => setShowPw(!showPw)}
+                      tabIndex={-1}
+                    >
+                      <span style={{ ...S.materialIcon, color: showPw ? "#adc6ff" : "rgba(194,198,214,0.4)" }}>
+                        {showPw ? "visibility_off" : "visibility"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
 
-            {/* Password */}
-            <div style={S.fieldGroup}>
-              <div style={S.labelRow}>
-                <label style={S.fieldLabel}>Password</label>
-                {!isSignUp && (
-                  <button type="button" style={S.forgotBtn}>Forgot?</button>
-                )}
-              </div>
-              <div style={{ ...S.inputPill, ...(pwFocus ? S.inputPillFocused : {}) }}>
-                <span style={S.materialIcon}>lock</span>
-                <input
-                  style={S.input}
-                  placeholder={isSignUp ? "Min. 8 characters" : "••••••••"}
-                  type={showPw ? "text" : "password"}
-                  autoComplete={isSignUp ? "new-password" : "current-password"}
-                  required
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  onFocus={() => setPwFocus(true)}
-                  onBlur={() => setPwFocus(false)}
-                />
-                <button
-                  type="button"
-                  style={S.iconBtn}
-                  onClick={() => setShowPw(!showPw)}
-                  tabIndex={-1}
-                >
-                  <span style={{ ...S.materialIcon, color: showPw ? "#adc6ff" : "rgba(194,198,214,0.4)" }}>
-                    {showPw ? "visibility_off" : "visibility"}
-                  </span>
-                </button>
-              </div>
-            </div>
+                {/* Submit */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>
+                  <button
+                    type="submit"
+                    disabled={!canSubmit}
+                    style={{
+                      ...S.btnPrimary,
+                      opacity: canSubmit ? 1 : 0.55,
+                      cursor: canSubmit ? "pointer" : "not-allowed",
+                    }}
+                    onMouseEnter={e => { if (canSubmit) (e.currentTarget as HTMLElement).style.filter = "brightness(1.12)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.filter = "brightness(1)"; }}
+                  >
+                    {loading ? (
+                      "Processing..."
+                    ) : (
+                      <>
+                        {isSignUp ? "Create Account" : "Sign In"}
+                        <span style={{ ...S.materialIcon, color: "#002e6a", fontSize: 18 }}>arrow_forward</span>
+                      </>
+                    )}
+                  </button>
 
-            {/* Submit */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>
-              <button
-                type="submit"
-                disabled={!canSubmit}
-                style={{
-                  ...S.btnPrimary,
-                  opacity: canSubmit ? 1 : 0.55,
-                  cursor: canSubmit ? "pointer" : "not-allowed",
-                }}
-                onMouseEnter={e => { if (canSubmit) (e.currentTarget as HTMLElement).style.filter = "brightness(1.12)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.filter = "brightness(1)"; }}
-              >
-                {loading ? (
-                  "Processing..."
-                ) : (
-                  <>
-                    {isSignUp ? "Create Account" : "Sign In"}
-                    <span style={{ ...S.materialIcon, color: "#002e6a", fontSize: 18 }}>arrow_forward</span>
-                  </>
-                )}
-              </button>
+                  <button
+                    type="button"
+                    style={S.btnSecondary}
+                    onClick={() => {
+                      setIsSignUp(!isSignUp);
+                      setError("");
+                      setInfo("");
+                      setPassword("");
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(55,55,55,0.7)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(40,40,40,0.6)"; }}
+                  >
+                    {isSignUp ? "Already have an account? Sign In" : "Create Account"}
+                  </button>
+                </div>
+              </form>
 
+              {/* Divider */}
+              <div style={S.divider}>
+                <div style={S.dividerLine} />
+                <span style={S.dividerLabel}>Or continue with</span>
+                <div style={S.dividerLine} />
+              </div>
+
+              {/* Phone Sign-in */}
               <button
                 type="button"
-                style={S.btnSecondary}
+                style={S.phoneBtn}
                 onClick={() => {
-                  setIsSignUp(!isSignUp);
+                  setShowPhoneLogin(true);
                   setError("");
                   setInfo("");
-                  setPassword("");
                 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(55,55,55,0.7)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(40,40,40,0.6)"; }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.08)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.14)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.08)"; }}
               >
-                {isSignUp ? "Already have an account? Sign In" : "Create Account"}
+                <span style={{ ...S.materialIcon, fontSize: 20 }}>smartphone</span>
+                Continue with Phone Number
               </button>
-            </div>
-          </form>
 
-          {/* Divider */}
-          <div style={S.divider}>
-            <div style={S.dividerLine} />
-            <span style={S.dividerLabel}>Or Federated</span>
-            <div style={S.dividerLine} />
-          </div>
-
-          {/* Google Sign-in */}
-          <button
-            type="button"
-            style={S.googleBtn}
-            onClick={handleGoogleSignIn}
-            disabled={googleLoading}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.08)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.14)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.08)"; }}
-          >
-            <GoogleIcon />
-            {googleLoading ? "Connecting to Google..." : "Continue with Google"}
-          </button>
-
-          {/* ToS */}
-          <p style={S.tosText}>
-            By signing in, you agree to our{" "}
-            <a href="#" style={S.tosLink}>Terms of Service</a>
-            {" "}and{" "}
-            <a href="#" style={S.tosLink}>Privacy Policy</a>.
-          </p>
+              {/* ToS */}
+              <p style={S.tosText}>
+                By signing in, you agree to our{" "}
+                <a href="#" style={S.tosLink}>Terms of Service</a>
+                {" "}and{" "}
+                <a href="#" style={S.tosLink}>Privacy Policy</a>.
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>
