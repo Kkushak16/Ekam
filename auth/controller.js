@@ -31,6 +31,12 @@ function isEmail(str) {
 async function resolveIdentifierToEmail(identifier) {
   if (isEmail(identifier)) return identifier;
 
+  // Map phone numbers (e.g. +919876543210 or 9876543210) to their pseudo-email
+  const cleanId = identifier.trim();
+  if (/^\+?[0-9\s\-()]{7,}$/.test(cleanId)) {
+    return cleanId.replace(/[^0-9]/g, '') + '@phone.ekam.app';
+  }
+
   // Search users by username stored in metadata
   // We use listUsers with a small page size, then scan for matching username
   let page = 1;
@@ -69,37 +75,51 @@ async function issueTokens(res, user, displayName) {
 // ── Register ───────────────────────────────────────────────────────────────
 
 router.post('/register', async (req, res) => {
-  const { email, password, displayName, username } = req.body;
-  if (!email || !password || !displayName) {
-    return res.status(400).json({ error: 'email, password, and displayName are required' });
+  // Support registration via phone number or email
+  const { email, phone, password, displayName, username } = req.body;
+  if (!password || !displayName) {
+    return res.status(400).json({ error: 'phone/email, password, and displayName are required' });
   }
 
-  // Basic email format check
-  if (!isEmail(email)) {
-    return res.status(400).json({ error: 'Please enter a valid email address (e.g. you@gmail.com)' });
+  let userEmail = email;
+  if (phone) {
+    // Convert phone to pseudo‑email for Supabase (e.g. 919876543210@phone.ekam.app)
+    const phoneEmail = phone.replace(/[^0-9]/g, '') + '@phone.ekam.app';
+    userEmail = phoneEmail;
   }
 
-  // Derive username from displayName if not provided (lowercase, no spaces)
-  const derivedUsername = (username || displayName).toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+  if (!userEmail) {
+    return res.status(400).json({ error: 'Phone number or email is required' });
+  }
+
+  // Basic email format validation (covers pseudo‑email for phone)
+  if (!isEmail(userEmail)) {
+    return res.status(400).json({ error: 'Invalid identifier format' });
+  }
+
+  // Derive username if not supplied: use displayName or phone base
+  const baseForUsername = username || displayName || (phone ? phone.replace(/[^0-9]/g, '') : undefined);
+  const derivedUsername = baseForUsername ? baseForUsername.toString().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') : undefined;
 
   try {
     const { data: { user }, error } = await supabaseAdmin.auth.admin.createUser({
-      email,
+      email: userEmail,
       password,
       email_confirm: true,
       user_metadata: {
         display_name: displayName,
         username: derivedUsername,
+        ...(phone ? { phone_number: phone } : {}),
       }
     });
 
     if (error) {
-      // Friendly duplicate-email message
+      // Duplicate handling – includes pseudo‑email collisions
       if (error.message?.toLowerCase().includes('already registered') ||
           error.message?.toLowerCase().includes('already exists') ||
           error.message?.toLowerCase().includes('unique') ||
           error.code === '23505') {
-        return res.status(409).json({ error: 'An account with this email already exists. Please sign in instead.' });
+        return res.status(409).json({ error: 'An account with this identifier already exists. Please sign in instead.' });
       }
       return res.status(400).json({ error: error.message });
     }
@@ -126,7 +146,8 @@ router.post('/register', async (req, res) => {
 // ── Login (email OR username) ──────────────────────────────────────────────
 
 router.post('/login', async (req, res) => {
-  const { email: identifier, password } = req.body;   // field named "email" in body but may be username
+  const identifier = req.body.email || req.body.identifier;
+  const { password } = req.body;
   if (!identifier || !password) {
     return res.status(400).json({ error: 'Identifier (email or username) and password are required' });
   }

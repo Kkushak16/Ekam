@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useChatStore } from "../store/chatStore";
 import { useToast } from "./ToastProvider";
-import PhoneLogin from "./PhoneLogin";
+// Removed PhoneLogin import as phone login handled in this form
 
 const API_URL = import.meta.env.DEV
   ? ""   // Vite proxy handles /auth/* → backend in dev
@@ -328,10 +328,10 @@ export function LoginForm() {
   const toast = useToast?.();
 
   const [isSignUp, setIsSignUp] = useState(false);
-  const [showPhoneLogin, setShowPhoneLogin] = useState(false);
-  const [identifier, setIdentifier] = useState("");   // email or username
+  const [identifier, setIdentifier] = useState("");   // phone number or username
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
@@ -341,6 +341,7 @@ export function LoginForm() {
   const [idFocus, setIdFocus] = useState(false);
   const [pwFocus, setPwFocus] = useState(false);
   const [dnFocus, setDnFocus] = useState(false);
+  const [unFocus, setUnFocus] = useState(false);
 
   // Responsive
   const [isMobile, setIsMobile] = useState(window.innerWidth < 820);
@@ -361,6 +362,10 @@ export function LoginForm() {
       setError("Display name is required.");
       return;
     }
+    if (isSignUp && !username.trim()) {
+      setError("Username is required.");
+      return;
+    }
     if (!identifier.trim()) {
       setError("Please enter your email or username.");
       return;
@@ -376,10 +381,13 @@ export function LoginForm() {
 
     setLoading(true);
     try {
+      const isEmail = identifier.includes('@');
       const endpoint = isSignUp ? `${API_URL}/auth/register` : `${API_URL}/auth/login`;
       const payload = isSignUp
-        ? { email: identifier.trim(), password, displayName: displayName.trim() }
-        : { email: identifier.trim(), password };
+        ? (isEmail 
+            ? { email: identifier.trim(), password, displayName: displayName.trim(), username: username.trim() }
+            : { phone: identifier.trim(), password, displayName: displayName.trim(), username: username.trim() })
+        : { identifier: identifier.trim(), password };
 
       const { data } = await axios.post(endpoint, payload);
       const token = data?.accessToken || data?.token;
@@ -390,6 +398,7 @@ export function LoginForm() {
         setIsSignUp(false);
         setPassword("");
         setIdentifier("");
+        setUsername("");
       }
     } catch (err: any) {
       const msg =
@@ -464,13 +473,7 @@ export function LoginForm() {
         {/* ── RIGHT: Auth Card ── */}
         <div style={{ ...S.card, flex: isMobile ? "unset" : "0 0 420px" }}>
 
-          {showPhoneLogin ? (
-            /* ── Phone Login View ── */
-            <PhoneLogin
-              onBack={() => setShowPhoneLogin(false)}
-              onLoginSuccess={(token: string) => setToken(token)}
-            />
-          ) : (
+          {/* Direct form handles both sign‑up and sign‑in */}
             /* ── Email/Password Login View ── */
             <>
               <div>
@@ -504,6 +507,26 @@ export function LoginForm() {
                         onChange={e => setDisplayName(e.target.value)}
                         onFocus={() => setDnFocus(true)}
                         onBlur={() => setDnFocus(false)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Username (sign-up only) */}
+                {isSignUp && (
+                  <div style={S.fieldGroup}>
+                    <label style={S.fieldLabel}>Username</label>
+                    <div style={{ ...S.inputPill, ...(unFocus ? S.inputPillFocused : {}) }}>
+                      <span style={S.materialIcon}>alternate_email</span>
+                      <input
+                        style={S.input}
+                        placeholder="Choose a unique username"
+                        type="text"
+                        autoComplete="username"
+                        value={username}
+                        onChange={e => setUsername(e.target.value)}
+                        onFocus={() => setUnFocus(true)}
+                        onBlur={() => setUnFocus(false)}
                       />
                     </div>
                   </div>
@@ -604,28 +627,7 @@ export function LoginForm() {
                 </div>
               </form>
 
-              {/* Divider */}
-              <div style={S.divider}>
-                <div style={S.dividerLine} />
-                <span style={S.dividerLabel}>Or continue with</span>
-                <div style={S.dividerLine} />
-              </div>
 
-              {/* Phone Sign-in */}
-              <button
-                type="button"
-                style={S.phoneBtn}
-                onClick={() => {
-                  setShowPhoneLogin(true);
-                  setError("");
-                  setInfo("");
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.08)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.14)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.08)"; }}
-              >
-                <span style={{ ...S.materialIcon, fontSize: 20 }}>smartphone</span>
-                Continue with Phone Number
-              </button>
 
               {/* ToS */}
               <p style={S.tosText}>
@@ -635,7 +637,7 @@ export function LoginForm() {
                 <a href="#" style={S.tosLink}>Privacy Policy</a>.
               </p>
             </>
-          )}
+
         </div>
       </div>
     </div>

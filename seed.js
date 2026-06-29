@@ -41,21 +41,24 @@ async function runSeed() {
     console.log("👥 Upserting test users in Auth...");
     const usersToCreate = [
       {
-        email: 'alice@example.com',
+        email: 'alice@gmail.com',
+        username: 'alice',
         password: 'password123',
         displayName: 'Alice Liddell',
         avatarUrl: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Alice',
         status: 'online'
       },
       {
-        email: 'bob@example.com',
+        email: 'bob@gmail.com',
+        username: 'bob',
         password: 'password123',
         displayName: 'Bob Builder',
         avatarUrl: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Bob',
         status: 'online'
       },
       {
-        email: 'charlie@example.com',
+        email: 'charlie@gmail.com',
+        username: 'charlie',
         password: 'password123',
         displayName: 'Charlie Bucket',
         avatarUrl: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Charlie',
@@ -69,7 +72,7 @@ async function runSeed() {
       throw new Error(`Failed to list existing auth users: ${listUsersError.message}`);
     }
 
-    const emailsToKeep = ['alice@example.com', 'bob@example.com', 'charlie@example.com'];
+    const emailsToKeep = ['alice@gmail.com', 'bob@gmail.com', 'charlie@gmail.com'];
     for (const exUser of existingUsers) {
       if (!emailsToKeep.includes(exUser.email)) {
         console.log(`🧹 Deleting extra user from Auth and database: ${exUser.email} (${exUser.id})`);
@@ -93,6 +96,7 @@ async function runSeed() {
         const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
           user_metadata: {
             display_name: u.displayName,
+            username: u.username,
             avatar_url: u.avatarUrl
           }
         });
@@ -104,6 +108,7 @@ async function runSeed() {
           email_confirm: true,
           user_metadata: {
             display_name: u.displayName,
+            username: u.username,
             avatar_url: u.avatarUrl
           }
         });
@@ -119,6 +124,7 @@ async function runSeed() {
           id: userId,
           email: u.email,
           display_name: u.displayName,
+          username: u.username,
           avatar_url: u.avatarUrl,
           status: u.status
         });
@@ -133,10 +139,10 @@ async function runSeed() {
     // 3. Create rooms (group and dm types)
     console.log("🏠 Creating rooms...");
     const roomsToCreate = [
-      { id: 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a', name: 'General', created_by: createdUsers['alice@example.com'].id, type: 'group' },
-      { id: 'e8a36d7d-5a9e-4e4f-bbfb-dc874e4c278b', name: 'Random Chat', created_by: createdUsers['bob@example.com'].id, type: 'group' },
-      { id: 'f8a36d7d-5a9e-4e4f-bbfb-dc874e4c278c', name: 'Tech Talk', created_by: createdUsers['charlie@example.com'].id, type: 'group' },
-      { id: '08a36d7d-5a9e-4e4f-bbfb-dc874e4c278d', name: 'Alice & Bob DM', created_by: createdUsers['alice@example.com'].id, type: 'dm' }
+      { id: 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a', name: 'General', created_by: createdUsers['alice@gmail.com'].id, type: 'group' },
+      { id: 'e8a36d7d-5a9e-4e4f-bbfb-dc874e4c278b', name: 'Random Chat', created_by: createdUsers['bob@gmail.com'].id, type: 'group' },
+      { id: 'f8a36d7d-5a9e-4e4f-bbfb-dc874e4c278c', name: 'Tech Talk', created_by: createdUsers['charlie@gmail.com'].id, type: 'group' },
+      { id: '08a36d7d-5a9e-4e4f-bbfb-dc874e4c278d', name: 'Alice & Bob DM', created_by: createdUsers['alice@gmail.com'].id, type: 'dm' }
     ];
 
     const { data: createdRooms, error: roomsError } = await supabase
@@ -158,21 +164,21 @@ async function runSeed() {
     console.log("🔗 Creating room memberships...");
     const memberships = [
       // General Room: Alice (admin), Bob (member), Charlie (member)
-      { room_id: roomMap['General'].id, user_id: createdUsers['alice@example.com'].id, role: 'admin' },
-      { room_id: roomMap['General'].id, user_id: createdUsers['bob@example.com'].id, role: 'member' },
-      { room_id: roomMap['General'].id, user_id: createdUsers['charlie@example.com'].id, role: 'member' },
+      { room_id: roomMap['General'].id, user_id: createdUsers['alice@gmail.com'].id, role: 'admin' },
+      { room_id: roomMap['General'].id, user_id: createdUsers['bob@gmail.com'].id, role: 'member' },
+      { room_id: roomMap['General'].id, user_id: createdUsers['charlie@gmail.com'].id, role: 'member' },
 
       // Random Chat Room: Bob (admin), Alice (member)
-      { room_id: roomMap['Random Chat'].id, user_id: createdUsers['bob@example.com'].id, role: 'admin' },
-      { room_id: roomMap['Random Chat'].id, user_id: createdUsers['alice@example.com'].id, role: 'member' },
+      { room_id: roomMap['Random Chat'].id, user_id: createdUsers['bob@gmail.com'].id, role: 'admin' },
+      { room_id: roomMap['Random Chat'].id, user_id: createdUsers['alice@gmail.com'].id, role: 'member' },
 
       // Tech Talk Room: Charlie (admin), Alice (member)
-      { room_id: roomMap['Tech Talk'].id, user_id: createdUsers['charlie@example.com'].id, role: 'admin' },
-      { room_id: roomMap['Tech Talk'].id, user_id: createdUsers['alice@example.com'].id, role: 'member' },
+      { room_id: roomMap['Tech Talk'].id, user_id: createdUsers['charlie@gmail.com'].id, role: 'admin' },
+      { room_id: roomMap['Tech Talk'].id, user_id: createdUsers['alice@gmail.com'].id, role: 'member' },
 
       // DM Room: Alice (member), Bob (member)
-      { room_id: roomMap['Alice & Bob DM'].id, user_id: createdUsers['alice@example.com'].id, role: 'member' },
-      { room_id: roomMap['Alice & Bob DM'].id, user_id: createdUsers['bob@example.com'].id, role: 'member' }
+      { room_id: roomMap['Alice & Bob DM'].id, user_id: createdUsers['alice@gmail.com'].id, role: 'member' },
+      { room_id: roomMap['Alice & Bob DM'].id, user_id: createdUsers['bob@gmail.com'].id, role: 'member' }
     ];
 
     const { error: membersError } = await supabase
@@ -189,27 +195,27 @@ async function runSeed() {
     const messagesToCreate = [
       {
         room_id: roomMap['General'].id,
-        sender_id: createdUsers['alice@example.com'].id,
+        sender_id: createdUsers['alice@gmail.com'].id,
         content: "Welcome to General chat! Let's keep it friendly."
       },
       {
         room_id: roomMap['General'].id,
-        sender_id: createdUsers['bob@example.com'].id,
+        sender_id: createdUsers['bob@gmail.com'].id,
         content: "Hey Alice, thanks for setting this up!"
       },
       {
         room_id: roomMap['General'].id,
-        sender_id: createdUsers['charlie@example.com'].id,
+        sender_id: createdUsers['charlie@gmail.com'].id,
         content: "Hello world! Ready for some discussion."
       },
       {
         room_id: roomMap['Tech Talk'].id,
-        sender_id: createdUsers['charlie@example.com'].id,
+        sender_id: createdUsers['charlie@gmail.com'].id,
         content: "Has anyone tried the new Supabase Realtime Presence engine?"
       },
       {
         room_id: roomMap['Alice & Bob DM'].id,
-        sender_id: createdUsers['bob@example.com'].id,
+        sender_id: createdUsers['bob@gmail.com'].id,
         content: "Hey Alice, check out this blueprint image for the new dashboard!",
         media_url: "https://images.unsplash.com/photo-1518770660439-4636190af475",
         media_type: "image/jpeg"
@@ -230,22 +236,22 @@ async function runSeed() {
     console.log("🧾 Seeding message status receipts...");
     const receiptsToCreate = [
       // General Msg 1 (Alice): Read by Bob and Charlie
-      { message_id: createdMessages[0].id, user_id: createdUsers['bob@example.com'].id, status: 'read' },
-      { message_id: createdMessages[0].id, user_id: createdUsers['charlie@example.com'].id, status: 'read' },
+      { message_id: createdMessages[0].id, user_id: createdUsers['bob@gmail.com'].id, status: 'read' },
+      { message_id: createdMessages[0].id, user_id: createdUsers['charlie@gmail.com'].id, status: 'read' },
 
       // General Msg 2 (Bob): Read by Alice, Delivered to Charlie
-      { message_id: createdMessages[1].id, user_id: createdUsers['alice@example.com'].id, status: 'read' },
-      { message_id: createdMessages[1].id, user_id: createdUsers['charlie@example.com'].id, status: 'delivered' },
+      { message_id: createdMessages[1].id, user_id: createdUsers['alice@gmail.com'].id, status: 'read' },
+      { message_id: createdMessages[1].id, user_id: createdUsers['charlie@gmail.com'].id, status: 'delivered' },
 
       // General Msg 3 (Charlie): Read by Alice, Delivered to Bob
-      { message_id: createdMessages[2].id, user_id: createdUsers['alice@example.com'].id, status: 'read' },
-      { message_id: createdMessages[2].id, user_id: createdUsers['bob@example.com'].id, status: 'delivered' },
+      { message_id: createdMessages[2].id, user_id: createdUsers['alice@gmail.com'].id, status: 'read' },
+      { message_id: createdMessages[2].id, user_id: createdUsers['bob@gmail.com'].id, status: 'delivered' },
 
       // Tech Talk Msg 4 (Charlie): Read by Alice
-      { message_id: createdMessages[3].id, user_id: createdUsers['alice@example.com'].id, status: 'read' },
+      { message_id: createdMessages[3].id, user_id: createdUsers['alice@gmail.com'].id, status: 'read' },
 
       // DM Msg 5 (Bob): Read by Alice
-      { message_id: createdMessages[4].id, user_id: createdUsers['alice@example.com'].id, status: 'read' }
+      { message_id: createdMessages[4].id, user_id: createdUsers['alice@gmail.com'].id, status: 'read' }
     ];
 
     const { error: receiptsError } = await supabase

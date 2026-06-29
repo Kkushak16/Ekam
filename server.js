@@ -136,9 +136,220 @@ export async function requireAuth(req, res, next) {
   }
 }
 
+import crypto from 'crypto';
+
 // REST Endpoints
 app.get('/health', (req, res) => res.status(200).json({ status: 'OK' }));
 app.use('/auth', authRouter);
+
+// Search users in Supabase by display_name, email, or username
+app.get('/api/users/search', requireAuth, async (req, res) => {
+  const { q } = req.query;
+  if (!q || typeof q !== 'string' || !q.trim()) {
+    return res.json({ users: [] });
+  }
+
+  try {
+    const queryStr = q.trim();
+    
+    // 1. Try querying with the username column
+    try {
+      const { data: users, error } = await supabaseAdmin
+        .from('users')
+        .select('id, display_name, email, avatar_url, status, username')
+        .or(`display_name.ilike.%${queryStr}%,email.ilike.%${queryStr}%,username.ilike.%${queryStr}%`)
+        .neq('id', req.user.id)
+        .limit(20);
+
+      if (!error && users) {
+        return res.json({ users });
+      }
+      
+      if (error && !error.message.includes('column') && !error.message.includes('does not exist')) {
+        throw error;
+      }
+    } catch (dbErr) {
+      // Fall through to fallback
+    }
+
+    // 2. Fallback: query without username column, then fetch usernames from auth
+    const { data: users, error } = await supabaseAdmin
+      .from('users')
+      .select('id, display_name, email, avatar_url, status')
+      .or(`display_name.ilike.%${queryStr}%,email.ilike.%${queryStr}%`)
+      .neq('id', req.user.id)
+      .limit(20);
+
+    if (error) {
+      throw error;
+    }
+
+    // Fetch auth users to see if we can match by username metadata
+    const { data: authData } = await supabaseAdmin.auth.admin.listUsers();
+    const authUsers = authData?.users || [];
+
+    const queryLower = queryStr.toLowerCase();
+    const mergedUsers = (users || []).map(u => {
+      const au = authUsers.find(a => a.id === u.id);
+      return {
+        ...u,
+        username: au?.user_metadata?.username || u.email.split('@')[0]
+      };
+    });
+
+    // Also add any auth users that match by username but weren't in the DB search
+    for (const au of authUsers) {
+      if (au.id === req.user.id) continue;
+      const username = au.user_metadata?.username?.toLowerCase() || '';
+      if (username.includes(queryLower)) {
+        if (!mergedUsers.some(u => u.id === au.id)) {
+          mergedUsers.push({
+            id: au.id,
+            display_name: au.user_metadata?.display_name || au.email.split('@')[0],
+            email: au.email,
+            avatar_url: au.user_metadata?.avatar_url || null,
+            status: 'offline',
+            username: au.user_metadata?.username
+          });
+        }
+      }
+    }
+
+    return res.json({ users: mergedUsers.slice(0, 20) });
+  } catch (err) {
+    console.error('Error searching users:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Add a friend
+app.post('/api/friends', requireAuth, async (req, res) => {
+  const { friend_id } = req.body;
+  if (!friend_id) {
+    return res.status(400).json({ error: 'friend_id is required' });
+  }
+  if (friend_id === req.user.id) {
+    return res.status(400).json({ error: 'You cannot add yourself as a friend' });
+  }
+
+  try {
+    const { db } = await connectToDatabase();
+    
+    // Check if friendship already exists
+    const existing = await db.collection('friendships').findOne({
+      users: { $all: [req.user.id, friend_id] }
+    });
+
+    if (existing) {
+      return res.status(400).json({ error: 'You are already friends with this user' });
+    }
+
+    // Insert friendship
+    await db.collection('friendships').insertOne({
+      users: [req.user.id, friend_id],
+      created_at: new Date()
+    });
+
+    // Automatically create a DM room in Supabase for them so they can chat
+    const { data: friendUser } = await supabaseAdmin
+      .from('users')
+      .select('display_name')
+      .eq('id', friend_id)
+      .single();
+
+    const friendName = friendUser?.display_name || 'User';
+    const myName = req.user.displayName || 'User';
+    const roomName = `${myName} & ${friendName} DM`;
+
+    const roomId = crypto.randomUUID();
+    
+    // Insert room in Supabase
+    const { error: roomError } = await supabaseAdmin
+      .from('rooms')
+      .insert({
+        id: roomId,
+        name: roomName,
+        created_by: req.user.id,
+        type: 'dm'
+      });
+
+    if (!roomError) {
+      // Add memberships
+      await supabaseAdmin.from('room_members').insert([
+        { room_id: roomId, user_id: req.user.id, role: 'member' },
+        { room_id: roomId, user_id: friend_id, role: 'member' }
+      ]);
+    }
+
+    return res.status(201).json({ message: 'Friend added successfully', room_id: roomId });
+  } catch (err) {
+    console.error('Error adding friend:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Get all friends
+app.get('/api/friends', requireAuth, async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    
+    // Find all friendships for current user
+    const friendships = await db.collection('friendships').find({
+      users: req.user.id
+    }).toArray();
+
+    if (friendships.length === 0) {
+      return res.json({ friends: [] });
+    }
+
+    // Extract friend IDs
+    const friendIds = friendships.map(f => f.users.find(id => id !== req.user.id));
+
+    // Try fetching with username column first
+    try {
+      const { data: users, error } = await supabaseAdmin
+        .from('users')
+        .select('id, display_name, email, avatar_url, status, username')
+        .in('id', friendIds);
+
+      if (!error && users) {
+        return res.json({ friends: users });
+      }
+
+      if (error && !error.message.includes('column') && !error.message.includes('does not exist')) {
+        throw error;
+      }
+    } catch (dbErr) {
+      // Fall through to fallback
+    }
+
+    // Fallback: fetch without username, then merge from auth users
+    const { data: users, error } = await supabaseAdmin
+      .from('users')
+      .select('id, display_name, email, avatar_url, status')
+      .in('id', friendIds);
+
+    if (error) {
+      throw error;
+    }
+
+    const { data: authData } = await supabaseAdmin.auth.admin.listUsers();
+    const authUsers = authData?.users || [];
+
+    const mappedFriends = (users || []).map(u => {
+      const au = authUsers.find(a => a.id === u.id);
+      return {
+        ...u,
+        username: au?.user_metadata?.username || u.email.split('@')[0]
+      };
+    });
+
+    return res.json({ friends: mappedFriends });
+  } catch (err) {
+    console.error('Error getting friends:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
 
 // Pusher Channel Authentication Endpoint
 app.post('/api/pusher/auth', requireAuth, (req, res) => {
