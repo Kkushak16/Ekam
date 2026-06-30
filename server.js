@@ -422,13 +422,18 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
   try {
     const { data: user, error } = await supabaseAdmin
       .from('users')
-      .select('id, display_name, email, avatar_url, status, username, activity_description')
+      .select('id, display_name, email, avatar_url, status, username')
       .eq('id', req.user.id)
       .single();
 
     if (error || !user) {
       return res.status(404).json({ error: 'User profile not found' });
     }
+
+    // Fetch activity description from MongoDB
+    const { db } = await connectToDatabase();
+    const activityDoc = await db.collection('user_activities').findOne({ userId: req.user.id });
+    user.activity_description = activityDoc ? activityDoc.activity_description : null;
 
     return res.json({ user });
   } catch (err) {
@@ -445,14 +450,12 @@ app.put('/api/users/activity', requireAuth, async (req, res) => {
   }
 
   try {
-    const { error } = await supabaseAdmin
-      .from('users')
-      .update({ activity_description })
-      .eq('id', req.user.id);
-
-    if (error) {
-      throw error;
-    }
+    const { db } = await connectToDatabase();
+    await db.collection('user_activities').updateOne(
+      { userId: req.user.id },
+      { $set: { activity_description, updatedAt: new Date() } },
+      { upsert: true }
+    );
 
     return res.json({ message: 'Activity description updated successfully', activity_description });
   } catch (err) {
@@ -479,46 +482,62 @@ app.get('/api/friends', requireAuth, async (req, res) => {
     // Extract friend IDs
     const friendIds = friendships.map(f => f.users.find(id => id !== req.user.id));
 
+    let users = [];
     // Try fetching with username column first
     try {
-      const { data: users, error } = await supabaseAdmin
+      const { data, error } = await supabaseAdmin
         .from('users')
-        .select('id, display_name, email, avatar_url, status, username, activity_description')
+        .select('id, display_name, email, avatar_url, status, username')
         .in('id', friendIds);
 
-      if (!error && users) {
-        return res.json({ friends: users });
-      }
-
-      if (error && !error.message.includes('column') && !error.message.includes('does not exist')) {
-        throw error;
+      if (!error && data) {
+        users = data;
+      } else {
+        if (error && !error.message.includes('column') && !error.message.includes('does not exist')) {
+          throw error;
+        }
       }
     } catch (dbErr) {
       // Fall through to fallback
     }
 
-    // Fallback: fetch without username, then merge from auth users
-    const { data: users, error } = await supabaseAdmin
-      .from('users')
-      .select('id, display_name, email, avatar_url, status, activity_description')
-      .in('id', friendIds);
+    if (users.length === 0) {
+      // Fallback: fetch without username, then merge from auth users
+      const { data, error } = await supabaseAdmin
+        .from('users')
+        .select('id, display_name, email, avatar_url, status')
+        .in('id', friendIds);
 
-    if (error) {
-      throw error;
+      if (error) {
+        throw error;
+      }
+
+      const { data: authData } = await supabaseAdmin.auth.admin.listUsers();
+      const authUsers = authData?.users || [];
+
+      users = (data || []).map(u => {
+        const au = authUsers.find(a => a.id === u.id);
+        return {
+          ...u,
+          username: au?.user_metadata?.username || u.email.split('@')[0]
+        };
+      });
     }
 
-    const { data: authData } = await supabaseAdmin.auth.admin.listUsers();
-    const authUsers = authData?.users || [];
+    // Fetch activity descriptions from MongoDB for all these friends
+    const activities = await db.collection('user_activities').find({
+      userId: { $in: users.map(u => u.id) }
+    }).toArray();
 
-    const mappedFriends = (users || []).map(u => {
-      const au = authUsers.find(a => a.id === u.id);
+    const friendsWithActivity = users.map(u => {
+      const act = activities.find(a => a.userId === u.id);
       return {
         ...u,
-        username: au?.user_metadata?.username || u.email.split('@')[0]
+        activity_description: act ? act.activity_description : null
       };
     });
 
-    return res.json({ friends: mappedFriends });
+    return res.json({ friends: friendsWithActivity });
   } catch (err) {
     console.error('Error getting friends:', err.message);
     return res.status(500).json({ error: err.message });
