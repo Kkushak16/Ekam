@@ -883,9 +883,6 @@ app.post('/api/messages', requireAuth, async (req, res) => {
   }
 });
 
-// CRITICAL FOR VERCEL DEPLOYMENT: Export the plain app instance without calling server.listen()
-export default app;
-
 let ioInstance = null;
 
 async function checkDatabaseSize() {
