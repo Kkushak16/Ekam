@@ -490,8 +490,7 @@ export function LoginForm() {
         <div style={{ ...S.card, flex: isMobile ? "unset" : "0 0 420px" }}>
 
           {/* Direct form handles both sign‑up and sign‑in */}
-            /* ── Email/Password Login View ── */
-            <>
+          <>
               <div>
                 <h2 style={S.cardTitle}>
                   {isSignUp ? "Create Account" : "Secure Sign-in"}
