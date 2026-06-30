@@ -91,7 +91,11 @@ function PresenceGem({ status }: { status: string }) {
 }
 
 /* ─── Main Component ─────────────────────────────────────────────────────── */
-export function DirectMessages() {
+interface DirectMessagesProps {
+  onNavigateToChat?: () => void;
+}
+
+export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
   const username = useChatStore(state => state.username);
   const [searchQuery, setSearchQuery] = useState('');
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -100,6 +104,16 @@ export function DirectMessages() {
   const [searching, setSearching] = useState(false);
   const [addingFriendId, setAddingFriendId] = useState<string | null>(null);
   const [selectedUserProfile, setSelectedUserProfile] = useState<any | null>(null);
+
+  // Friend Request States
+  const [incomingRequests, setIncomingRequests] = useState<any[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(true);
+  const [requestingFriendUser, setRequestingFriendUser] = useState<any | null>(null);
+  const [oneTimeMessage, setOneTimeMessage] = useState('');
+  const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
+
+  // Refs
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
 
   const fetchFriends = async () => {
     try {
@@ -122,8 +136,20 @@ export function DirectMessages() {
     }
   };
 
+  const fetchIncomingRequests = async () => {
+    try {
+      const { data } = await apiClient.get('/api/friends/requests');
+      setIncomingRequests(data.requests || []);
+    } catch (err) {
+      console.error('Failed to fetch incoming requests:', err);
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
   useEffect(() => {
     fetchFriends();
+    fetchIncomingRequests();
   }, []);
 
   useEffect(() => {
@@ -147,18 +173,64 @@ export function DirectMessages() {
     return () => clearTimeout(delayDebounce);
   }, [searchQuery]);
 
-  const handleAddFriend = async (friendId: string) => {
-    setAddingFriendId(friendId);
+  const handleSendFriendRequest = async () => {
+    if (!requestingFriendUser) return;
+    setAddingFriendId(requestingFriendUser.id);
     try {
-      await apiClient.post('/api/friends', { friend_id: friendId });
+      const { data } = await apiClient.post('/api/friends', {
+        friend_id: requestingFriendUser.id,
+        message: oneTimeMessage.trim()
+      });
+      alert(data.message || 'Friend request sent!');
+      setRequestingFriendUser(null);
+      setOneTimeMessage('');
       await fetchFriends();
+      await fetchIncomingRequests();
       // Remove from search results
-      setSearchResults(prev => prev.filter(u => u.id !== friendId));
+      setSearchResults(prev => prev.filter(u => u.id !== requestingFriendUser.id));
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to add friend');
+      alert(err.response?.data?.error || 'Failed to send friend request');
     } finally {
       setAddingFriendId(null);
     }
+  };
+
+  const handleAcceptRequest = async (friendId: string) => {
+    try {
+      await apiClient.post('/api/friends/accept', { friend_id: friendId });
+      await fetchFriends();
+      await fetchIncomingRequests();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to accept request');
+    }
+  };
+
+  const handleDeclineRequest = async (friendId: string) => {
+    try {
+      await apiClient.post('/api/friends/decline', { friend_id: friendId });
+      await fetchIncomingRequests();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to decline request');
+    }
+  };
+
+  const handleChatWithFriend = async (friendId: string) => {
+    try {
+      const { data } = await apiClient.post('/api/rooms/dm', { friendId });
+      if (data.room_id) {
+        useChatStore.getState().setActiveRoomId(data.room_id);
+        setSelectedUserProfile(null);
+        if (onNavigateToChat) {
+          onNavigateToChat();
+        }
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to start chat with friend');
+    }
+  };
+
+  const handleFocusSearch = () => {
+    searchInputRef.current?.focus();
   };
 
   const hasFriends = friends.length > 0;
@@ -200,6 +272,7 @@ export function DirectMessages() {
             position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
           }}>search</span>
           <input
+            ref={searchInputRef}
             type="text"
             placeholder="Search friends or groups..."
             value={searchQuery}
@@ -220,19 +293,125 @@ export function DirectMessages() {
         </div>
 
         {/* Right icons */}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-          {['notifications', 'settings'].map(icon => (
-            <button key={icon} style={{
-              width: 36, height: 36, borderRadius: 10, border: 'none',
-              background: 'transparent', cursor: 'pointer', color: 'rgba(194,198,214,0.5)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'background 0.2s ease',
-              fontFamily: "'Material Symbols Outlined'", fontSize: 20,
-            }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-            >{icon}</button>
-          ))}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, position: 'relative' }}>
+          
+          {/* Notifications Button */}
+          <div style={{ position: 'relative' }}>
+            <button 
+              onClick={() => {
+                setIsNotificationPanelOpen(!isNotificationPanelOpen);
+              }}
+              style={{
+                width: 36, height: 36, borderRadius: 10, border: 'none',
+                background: isNotificationPanelOpen ? 'rgba(255,255,255,0.08)' : 'transparent', 
+                cursor: 'pointer', color: isNotificationPanelOpen ? '#adc6ff' : 'rgba(194,198,214,0.5)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'background 0.2s ease',
+                fontFamily: "'Material Symbols Outlined'", fontSize: 20,
+              }}
+              onMouseEnter={e => { if (!isNotificationPanelOpen) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; }}
+              onMouseLeave={e => { if (!isNotificationPanelOpen) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+            >
+              notifications
+            </button>
+            {incomingRequests.length > 0 && (
+              <span style={{
+                position: 'absolute', top: -2, right: -2,
+                background: '#4d8eff', color: '#00285d',
+                fontSize: 9, fontWeight: 800,
+                borderRadius: '50%', width: 15, height: 15,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 0 8px rgba(77,142,255,0.6)',
+                border: '1.5px solid #0a0a0a',
+                pointerEvents: 'none',
+              }}>
+                {incomingRequests.length}
+              </span>
+            )}
+
+            {/* Notification Dropdown Panel */}
+            {isNotificationPanelOpen && (
+              <div style={{
+                position: 'absolute', top: 46, right: 0,
+                width: 320, background: 'rgba(20,20,24,0.95)',
+                backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+                border: '1px solid rgba(255,255,255,0.08)', borderRadius: 18,
+                padding: 16, boxShadow: '0 12px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
+                zIndex: 1000, display: 'flex', flexDirection: 'column', gap: 12,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: 10 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e2e2' }}>Notifications</span>
+                  {incomingRequests.length > 0 && (
+                    <span style={{ fontSize: 11, color: '#4d8eff', fontWeight: 600 }}>{incomingRequests.length} pending</span>
+                  )}
+                </div>
+
+                <div style={{ maxHeight: 280, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }} className="custom-scrollbar">
+                  {incomingRequests.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '24px 0', color: 'rgba(194,198,214,0.4)', fontSize: 12 }}>
+                      No new notifications
+                    </div>
+                  ) : (
+                    incomingRequests.map(req => (
+                      <div key={req.id} style={{
+                        display: 'flex', flexDirection: 'column', gap: 8, padding: 10,
+                        background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)',
+                        borderRadius: 12,
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <PhotoAvatar name={req.display_name} size={32} color="#adc6ff" bg="linear-gradient(135deg, #1a2744 0%, #2a3f6e 100%)" />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, color: '#e2e2e2', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{req.display_name}</p>
+                            <p style={{ fontSize: 10, color: 'rgba(194,198,214,0.45)', margin: 0 }}>@{req.username}</p>
+                          </div>
+                        </div>
+                        {req.message && (
+                          <p style={{ fontSize: 11, color: 'rgba(194,198,214,0.6)', fontStyle: 'italic', margin: '2px 0 4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(77,142,255,0.3)', textAlign: 'left' }}>
+                            "{req.message}"
+                          </p>
+                        )}
+                        <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                          <button
+                            onClick={() => handleAcceptRequest(req.id)}
+                            style={{
+                              flex: 1, padding: '6px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                              background: '#4d8eff', color: '#00285d', fontSize: 11, fontWeight: 750,
+                            }}
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => handleDeclineRequest(req.id)}
+                            style={{
+                              flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)',
+                              background: 'transparent', color: 'rgba(194,198,214,0.6)', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                            }}
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Settings Button */}
+          <button style={{
+            width: 36, height: 36, borderRadius: 10, border: 'none',
+            background: 'transparent', cursor: 'pointer', color: 'rgba(194,198,214,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background 0.2s ease',
+            fontFamily: "'Material Symbols Outlined'", fontSize: 20,
+          }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          >
+            settings
+          </button>
+
           {/* User avatar */}
           <div style={{
             width: 34, height: 34, borderRadius: 10, marginLeft: 4,
@@ -268,6 +447,7 @@ export function DirectMessages() {
               </p>
             </div>
             <button
+              onClick={handleFocusSearch}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8, padding: '10px 22px',
                 background: 'transparent', color: '#adc6ff',
@@ -289,6 +469,63 @@ export function DirectMessages() {
               Add Friend
             </button>
           </div>
+
+          {/* ── Incoming Friend Requests Section ────────────────────────── */}
+          {incomingRequests.length > 0 && (
+            <div style={{ marginBottom: 40 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 20, color: '#adc6ff' }}>pending</span>
+                <h2 style={{ fontSize: 20, fontWeight: 600, color: '#e2e2e2', margin: 0 }}>Pending Friend Requests</h2>
+              </div>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                {incomingRequests.map(req => (
+                  <div key={req.id} style={{
+                    display: 'flex', flexDirection: 'column', gap: 12, padding: '16px 18px',
+                    background: 'rgba(173,198,255,0.03)', border: '1px solid rgba(173,198,255,0.12)',
+                    borderRadius: 18, minWidth: 280, maxWidth: 360,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <PhotoAvatar name={req.display_name} size={42} color="#adc6ff" bg="linear-gradient(135deg, #1a2744 0%, #2a3f6e 100%)" />
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: '#e2e2e2', marginBottom: 2 }}>{req.display_name}</p>
+                        <p style={{ fontSize: 11, color: 'rgba(194,198,214,0.45)' }}>@{req.username}</p>
+                      </div>
+                    </div>
+                    {req.message && (
+                      <div style={{
+                        background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)',
+                        borderRadius: 10, padding: 10, fontSize: 12, color: 'rgba(194,198,214,0.7)',
+                        fontStyle: 'italic', lineHeight: 1.4,
+                      }}>
+                        "{req.message}"
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                      <button
+                        onClick={() => handleAcceptRequest(req.id)}
+                        style={{
+                          flex: 1, padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                          background: '#4d8eff', color: '#00285d', fontSize: 12, fontWeight: 750,
+                        }}
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => handleDeclineRequest(req.id)}
+                        style={{
+                          flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)',
+                          background: 'transparent', color: 'rgba(194,198,214,0.6)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                        }}
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', marginTop: 32 }} />
+            </div>
+          )}
 
           {/* ── Search Results / Add Friends ────────────────────────────── */}
           {searchQuery.trim() && (
@@ -335,7 +572,7 @@ export function DirectMessages() {
                           <span style={{ fontSize: 12, color: 'rgba(194,198,214,0.4)', fontWeight: 600 }} onClick={e => e.stopPropagation()}>Friend</span>
                         ) : (
                           <button
-                            onClick={(e) => { e.stopPropagation(); handleAddFriend(user.id); }}
+                            onClick={(e) => { e.stopPropagation(); setRequestingFriendUser(user); }}
                             disabled={addingFriendId === user.id}
                             style={{
                               padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
@@ -347,12 +584,8 @@ export function DirectMessages() {
                             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(173,198,255,0.2)'; }}
                             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(173,198,255,0.1)'; }}
                           >
-                            {addingFriendId === user.id ? 'Adding...' : (
-                              <>
-                                <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 14 }}>person_add</span>
-                                Add Friend
-                              </>
-                            )}
+                            <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 14 }}>person_add</span>
+                            Add Friend
                           </button>
                         )}
                       </div>
@@ -464,13 +697,15 @@ export function DirectMessages() {
               <p style={{ fontSize: 14, color: 'rgba(194,198,214,0.5)', maxWidth: 320, margin: '0 auto 36px', lineHeight: 1.7 }}>
                 Add friends to start collaborating in real-time. Your network is waiting to be built.
               </p>
-              <button style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 28px',
-                background: 'rgba(173,198,255,0.1)', color: '#adc6ff',
-                border: '1px solid rgba(173,198,255,0.3)', borderRadius: 12,
-                fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s ease',
-                fontFamily: 'inherit',
-              }}
+              <button
+                onClick={handleFocusSearch}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 28px',
+                  background: 'rgba(173,198,255,0.1)', color: '#adc6ff',
+                  border: '1px solid rgba(173,198,255,0.3)', borderRadius: 12,
+                  fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s ease',
+                  fontFamily: 'inherit',
+                }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(173,198,255,0.18)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(173,198,255,0.1)'; }}
               >
@@ -481,6 +716,66 @@ export function DirectMessages() {
           )}
         </div>
       </div>
+
+      {/* ── One-time Message / Send Friend Request Modal ─────────────── */}
+      {requestingFriendUser && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 10000,
+        }} onClick={() => setRequestingFriendUser(null)}>
+          <div style={{
+            width: 420, background: '#131313',
+            border: '1px solid rgba(255,255,255,0.08)', borderRadius: 20,
+            padding: 24, boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+          }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#e2e2e2', marginBottom: 8 }}>
+              Send Friend Request
+            </h3>
+            <p style={{ fontSize: 13, color: 'rgba(194,198,214,0.5)', marginBottom: 20 }}>
+              You are sending a request to <strong>{requestingFriendUser.display_name || requestingFriendUser.email.split('@')[0]}</strong>. Add a one-time message to tell them who you are.
+            </p>
+            <textarea
+              placeholder="e.g. Hi, I'm Julian from the design team!"
+              value={oneTimeMessage}
+              onChange={e => setOneTimeMessage(e.target.value)}
+              rows={3}
+              style={{
+                width: '100%', background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10,
+                color: '#e2e2e2', fontSize: 14, padding: 12, outline: 'none',
+                fontFamily: 'inherit', boxSizing: 'border-box', marginBottom: 20,
+                resize: 'none', lineHeight: 1.5,
+              }}
+              maxLength={200}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+              <button
+                onClick={() => setRequestingFriendUser(null)}
+                style={{
+                  padding: '8px 16px', background: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8,
+                  color: 'rgba(194,198,214,0.6)', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendFriendRequest}
+                disabled={addingFriendId === requestingFriendUser.id}
+                style={{
+                  padding: '8px 16px', background: '#4d8eff', border: 'none',
+                  borderRadius: 8, color: '#00285d', cursor: 'pointer', fontSize: 13,
+                  fontWeight: 700, boxShadow: '0 0 12px rgba(77,142,255,0.3)',
+                }}
+              >
+                {addingFriendId === requestingFriendUser.id ? 'Sending...' : 'Send Request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── User Profile Modal ────────────────────────────────────────── */}
       {selectedUserProfile && (
@@ -559,19 +854,31 @@ export function DirectMessages() {
 
             {/* Actions */}
             {friends.some(f => f.id === selectedUserProfile.id) ? (
-              <button style={{
-                width: '100%', padding: '12px 0', borderRadius: 12, border: 'none',
-                background: 'rgba(173,198,255,0.1)', color: '#adc6ff',
-                fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                cursor: 'default'
-              }}>
-                <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 18 }}>check</span>
-                Already Friends
+              <button
+                onClick={() => handleChatWithFriend(selectedUserProfile.id)}
+                style={{
+                  width: '100%', padding: '12px 0', borderRadius: 12, border: 'none',
+                  background: '#4d8eff', color: '#001a3d',
+                  fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  cursor: 'pointer', boxShadow: '0 8px 24px rgba(77,142,255,0.25)',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.background = '#3b7de6';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 24px rgba(77,142,255,0.4)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.background = '#4d8eff';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 24px rgba(77,142,255,0.25)';
+                }}
+              >
+                <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 18 }}>chat</span>
+                Chat with Friend
               </button>
             ) : (
               <button
                 onClick={() => {
-                  handleAddFriend(selectedUserProfile.id);
+                  setRequestingFriendUser(selectedUserProfile);
                   setSelectedUserProfile(null);
                 }}
                 disabled={addingFriendId === selectedUserProfile.id}

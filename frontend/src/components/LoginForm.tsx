@@ -408,9 +408,13 @@ export function LoginForm() {
 
       // Auto-switch to login if duplicate email
       if (err.response?.status === 409) {
-        setError(msg + " Switched to Sign In.");
-        setIsSignUp(false);
-        setPassword("");
+        if (msg.toLowerCase().includes('taken')) {
+          setError(msg);
+        } else {
+          setError(msg + " Switched to Sign In.");
+          setIsSignUp(false);
+          setPassword("");
+        }
       } else {
         setError(msg);
       }

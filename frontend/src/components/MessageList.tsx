@@ -14,7 +14,8 @@ export function MessageList({ roomId }: MessageListProps) {
 
   // 🛡️ CRITICAL SAFETEY FALLBACK FILTER:
   // If state.messages is polluted by an error number (1) or null, fallback to a clean empty array []
-  const messages = Array.isArray(messagesFromStore) ? messagesFromStore : [];
+  const messages = (Array.isArray(messagesFromStore) ? messagesFromStore : [])
+    .filter(m => m.roomId === roomId);
 
   // Extract current user ID safely
   let userId = '';

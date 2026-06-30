@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import ChatPage from './components/ChatPage';
+import GroupsPage from './pages/GroupsPage';
 import SettingsPage from './pages/SettingsPage';
 import DirectMessages from './pages/DirectMessages';
 import LoginForm from './components/LoginForm';
@@ -13,6 +13,7 @@ const S: Record<string, React.CSSProperties> = {
     width: '100vw',
     background: '#000',
     overflow: 'hidden',
+    position: 'relative',
   },
   sidebar: {
     width: 280,
@@ -149,6 +150,16 @@ const S: Record<string, React.CSSProperties> = {
     display: 'inline-block',
     userSelect: 'none',
   },
+  pointerGlow: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100vw',
+    height: '100vh',
+    pointerEvents: 'none',
+    zIndex: 9999,
+    background: `radial-gradient(600px circle at var(--mouse-x, 0px) var(--mouse-y, 0px), rgba(77, 142, 255, 0.06), transparent 40%)`,
+  }
 };
 
 export function App() {
@@ -159,7 +170,7 @@ export function App() {
   const setToken = useChatStore((state) => state.setToken);
 
   const path = window.location.pathname;
-  const defaultTab = path.includes('dm') ? 'dm' : path.includes('settings') ? 'settings' : 'chat';
+  const defaultTab = path.includes('dm') ? 'dm' : path.includes('settings') ? 'settings' : 'groups';
   const [activeTab, setActiveTab] = useState(defaultTab);
 
   useEffect(() => {
@@ -170,21 +181,31 @@ export function App() {
     }
   }, [token, initializeSocket, disconnectSocket]);
 
+  // Pointer-following glow effect
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      document.documentElement.style.setProperty('--mouse-x', `${e.clientX}px`);
+      document.documentElement.style.setProperty('--mouse-y', `${e.clientY}px`);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
   if (!token) {
     return <LoginForm />;
   }
 
   const renderMainContent = () => {
     switch (activeTab) {
-      case 'chat': return <ChatPage />;
-      case 'dm':   return <DirectMessages />;
+      case 'groups': return <GroupsPage />;
+      case 'dm':     return <DirectMessages onNavigateToChat={() => setActiveTab('groups')} />;
       case 'settings': return <SettingsPage />;
-      default:     return <ChatPage />;
+      default:     return <GroupsPage />;
     }
   };
 
   const navItems = [
-    { id: 'chat',     icon: 'forum',    label: 'global-stream', prefix: '#' },
+    { id: 'groups',   icon: 'groups',   label: 'Groups', prefix: '' },
     { id: 'dm',       icon: 'mail',     label: 'Direct Messages', prefix: '' },
     { id: 'settings', icon: 'settings', label: 'Settings', prefix: '' },
   ];
@@ -193,6 +214,9 @@ export function App() {
 
   return (
     <div style={S.layout}>
+      {/* Global cursor glow */}
+      <div style={S.pointerGlow} />
+
       {/* Sidebar */}
       <aside style={S.sidebar}>
         {/* Brand Header */}

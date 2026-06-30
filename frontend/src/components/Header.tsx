@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useChatStore } from '../store/chatStore';
+import { apiClient } from '../api/queries';
 
 interface HeaderProps {
   roomId: string;
@@ -104,9 +105,32 @@ const S: Record<string, React.CSSProperties> = {
 export function Header({ roomId }: HeaderProps) {
   const presenceMap = useChatStore(state => state.presence);
   const onlineCount = Object.values(presenceMap).filter(p => p.online).length;
-  const roomLabel = roomId === 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' || roomId === 'general'
-    ? 'global-stream'
-    : roomId;
+  const [roomName, setRoomName] = useState<string>('');
+
+  useEffect(() => {
+    if (roomId === 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' || roomId === 'general') {
+      setRoomName('global-stream');
+      return;
+    }
+
+    let isMounted = true;
+    apiClient.get(`/api/rooms/${roomId}`)
+      .then(({ data }) => {
+        if (isMounted && data.room) {
+          setRoomName(data.room.name);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch room details:', err);
+        if (isMounted) {
+          setRoomName(roomId);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [roomId]);
 
   return (
     <header style={S.header}>
@@ -114,7 +138,7 @@ export function Header({ roomId }: HeaderProps) {
         <div style={S.leftCol}>
           <div style={S.titleRow}>
             <span style={S.hash}>#</span>
-            <span style={S.roomName}>{roomLabel}</span>
+            <span style={S.roomName}>{roomName}</span>
           </div>
           <p style={S.subtitle}>Ekam Real-Time Secure Gateway</p>
         </div>

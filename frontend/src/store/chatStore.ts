@@ -12,6 +12,10 @@ export interface ChatState {
   clearAuth: () => void;
 
   socket: any | null;
+  pusherInstance: any | null;
+  activeRoomId: string | null;
+  setActiveRoomId: (roomId: string | null) => void;
+  subscribeToRoom: (roomId: string) => void;
   connectionStatus: 'disconnected' | 'connecting' | 'connected';
   initializeSocket: (jwt: string) => void;
   disconnectSocket: () => void;
@@ -45,11 +49,100 @@ export const useChatStore = create<ChatState>()(
           const { disconnectSocket } = get();
           disconnectSocket();
           // Safe initialization ensuring collections remain structural arrays/objects
-          set({ token: null, messages: [], presence: {}, typing: {} });
+          set({ token: null, messages: [], presence: {}, typing: {}, activeRoomId: 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' });
         },
 
         // ----- Socket (Pusher) -----
         socket: null,
+        pusherInstance: null,
+        activeRoomId: 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a',
+        setActiveRoomId: (roomId) => {
+          set({ activeRoomId: roomId });
+          if (roomId) {
+            get().subscribeToRoom(roomId);
+          }
+        },
+        subscribeToRoom: (roomId) => {
+          const pusher = get().pusherInstance;
+          if (!pusher) return;
+
+          const generalRoomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
+
+          // Unsubscribe from other rooms (except the new room and the general room)
+          if (pusher.channels && pusher.channels.channels) {
+            const channels = Object.keys(pusher.channels.channels);
+            channels.forEach(chName => {
+              if (chName.startsWith('room-') && chName !== `room-${roomId}` && chName !== `room-${generalRoomId}`) {
+                pusher.unsubscribe(chName);
+              }
+              if (chName.startsWith('presence-room-') && chName !== `presence-room-${roomId}` && chName !== `presence-room-${generalRoomId}`) {
+                pusher.unsubscribe(chName);
+              }
+            });
+          }
+
+          // Subscribe to message channel
+          const msgChannelName = `room-${roomId}`;
+          if (!pusher.channel(msgChannelName)) {
+            const msgChannel = pusher.subscribe(msgChannelName);
+            msgChannel.bind('new-message', (data: any) => {
+              const msg: Message = {
+                id: data._id,
+                clientMessageId: data.clientMessageId || data._id,
+                roomId: data.room_id,
+                senderId: data.sender_id,
+                body: data.body,
+                status: 'sent',
+                ts: data.ts || Date.now(),
+                mediaUrl: data.media_url,
+                mediaType: data.media_type,
+              };
+              get().addMessage(msg);
+            });
+          }
+
+          // Subscribe to presence channel
+          const presenceChannelName = `presence-room-${roomId}`;
+          if (!pusher.channel(presenceChannelName)) {
+            const presenceChannel = pusher.subscribe(presenceChannelName);
+
+            presenceChannel.bind('pusher:subscription_succeeded', () => {
+              const initialPresence: PresenceMap = {};
+              presenceChannel.members.each((member: any) => {
+                initialPresence[member.id] = { online: true, info: member.info };
+              });
+              set((state) => ({
+                presence: { ...state.presence, ...initialPresence }
+              }));
+            });
+
+            presenceChannel.bind('pusher:member_added', (member: any) => {
+              set((state) => ({
+                presence: {
+                  ...state.presence,
+                  [member.id]: { online: true, info: member.info },
+                },
+              }));
+            });
+
+            presenceChannel.bind('pusher:member_removed', (member: any) => {
+              set((state) => ({
+                presence: {
+                  ...state.presence,
+                  [member.id]: { online: false, info: member.info },
+                },
+              }));
+            });
+
+            presenceChannel.bind('client-typing', (data: { userId: string; isTyping: boolean }) => {
+              if (data.isTyping) {
+                get().addTypingUser(roomId, data.userId);
+              } else {
+                get().removeTypingUser(roomId, data.userId);
+              }
+            });
+          }
+        },
         connectionStatus: 'disconnected',
         initializeSocket: (jwt) => {
           if (get().socket) return;
@@ -80,11 +173,12 @@ export const useChatStore = create<ChatState>()(
             }
           });
 
-          const roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
+          set({ pusherInstance: pusher });
 
-          // 1. Subscribe to public channel for message broadcasts
-          const msgChannel = pusher.subscribe(`room-${roomId}`);
-
+          // Subscribe to the default general room
+          const defaultRoomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
+          
+          const msgChannel = pusher.subscribe(`room-${defaultRoomId}`);
           msgChannel.bind('new-message', (data: any) => {
             const msg: Message = {
               id: data._id,
@@ -100,9 +194,7 @@ export const useChatStore = create<ChatState>()(
             get().addMessage(msg);
           });
 
-          // 2. Subscribe to presence channel for online users list and typing events
-          const presenceChannel = pusher.subscribe(`presence-room-${roomId}`);
-
+          const presenceChannel = pusher.subscribe(`presence-room-${defaultRoomId}`);
           presenceChannel.bind('pusher:subscription_succeeded', () => {
             const initialPresence: PresenceMap = {};
             presenceChannel.members.each((member: any) => {
@@ -129,23 +221,32 @@ export const useChatStore = create<ChatState>()(
             }));
           });
 
-          // Listen for client-typing events
           presenceChannel.bind('client-typing', (data: { userId: string; isTyping: boolean }) => {
             if (data.isTyping) {
-              get().addTypingUser(roomId, data.userId);
+              get().addTypingUser(defaultRoomId, data.userId);
             } else {
-              get().removeTypingUser(roomId, data.userId);
+              get().removeTypingUser(defaultRoomId, data.userId);
             }
           });
+
+          // Subscribe to the active room if it is different from general
+          const activeRoom = get().activeRoomId;
+          if (activeRoom && activeRoom !== defaultRoomId) {
+            get().subscribeToRoom(activeRoom);
+          }
 
           // Create a mock socket interface for backward compatibility in components
           const mockSocket = {
             emit: (event: string, data: any) => {
               if (event === 'typing') {
-                presenceChannel.trigger('client-typing', {
-                  userId: data.userId || '',
-                  isTyping: data.isTyping,
-                });
+                const targetRoomId = data.roomId || get().activeRoomId || defaultRoomId;
+                const activePresence = pusher.channel(`presence-room-${targetRoomId}`);
+                if (activePresence) {
+                  activePresence.trigger('client-typing', {
+                    userId: data.userId || '',
+                    isTyping: data.isTyping,
+                  });
+                }
               }
             },
             disconnect: () => {
@@ -162,7 +263,7 @@ export const useChatStore = create<ChatState>()(
             if (typeof socket.disconnect === 'function') {
               socket.disconnect();
             }
-            set({ socket: null, connectionStatus: 'disconnected' });
+            set({ socket: null, pusherInstance: null, connectionStatus: 'disconnected' });
           }
         },
 

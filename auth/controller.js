@@ -101,6 +101,13 @@ router.post('/register', async (req, res) => {
   const baseForUsername = username || displayName || (phone ? phone.replace(/[^0-9]/g, '') : undefined);
   const derivedUsername = baseForUsername ? baseForUsername.toString().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') : undefined;
 
+  if (derivedUsername) {
+    const existingEmail = await resolveIdentifierToEmail(derivedUsername);
+    if (existingEmail) {
+      return res.status(409).json({ error: 'the name is already taken try something diffrent' });
+    }
+  }
+
   try {
     const { data: { user }, error } = await supabaseAdmin.auth.admin.createUser({
       email: userEmail,

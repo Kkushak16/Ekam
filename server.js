@@ -222,9 +222,9 @@ app.get('/api/users/search', requireAuth, async (req, res) => {
   }
 });
 
-// Add a friend
+// Add a friend (Send request or accept if already sent by the other user)
 app.post('/api/friends', requireAuth, async (req, res) => {
-  const { friend_id } = req.body;
+  const { friend_id, message } = req.body;
   if (!friend_id) {
     return res.status(400).json({ error: 'friend_id is required' });
   }
@@ -235,67 +235,197 @@ app.post('/api/friends', requireAuth, async (req, res) => {
   try {
     const { db } = await connectToDatabase();
     
-    // Check if friendship already exists
+    // Check if friendship or request already exists
     const existing = await db.collection('friendships').findOne({
       users: { $all: [req.user.id, friend_id] }
     });
 
     if (existing) {
-      return res.status(400).json({ error: 'You are already friends with this user' });
+      if (!existing.status || existing.status === 'accepted') {
+        return res.status(400).json({ error: 'You are already friends with this user' });
+      }
+      if (existing.status === 'pending') {
+        if (existing.sender_id === req.user.id) {
+          return res.status(400).json({ error: 'Friend request already sent' });
+        } else {
+          // The other user sent a request to us, so clicking Add Friend accepts it!
+          return await acceptFriendship(req.user.id, friend_id, existing._id, res);
+        }
+      }
     }
 
-    // Insert friendship
+    // Insert pending friendship request
     await db.collection('friendships').insertOne({
       users: [req.user.id, friend_id],
+      status: 'pending',
+      sender_id: req.user.id,
+      message: message || '',
       created_at: new Date()
     });
 
-    // Automatically create a DM room in Supabase for them so they can chat
-    const { data: friendUser } = await supabaseAdmin
-      .from('users')
-      .select('display_name')
-      .eq('id', friend_id)
-      .single();
-
-    const friendName = friendUser?.display_name || 'User';
-    const myName = req.user.displayName || 'User';
-    const roomName = `${myName} & ${friendName} DM`;
-
-    const roomId = crypto.randomUUID();
-    
-    // Insert room in Supabase
-    const { error: roomError } = await supabaseAdmin
-      .from('rooms')
-      .insert({
-        id: roomId,
-        name: roomName,
-        created_by: req.user.id,
-        type: 'dm'
-      });
-
-    if (!roomError) {
-      // Add memberships
-      await supabaseAdmin.from('room_members').insert([
-        { room_id: roomId, user_id: req.user.id, role: 'member' },
-        { room_id: roomId, user_id: friend_id, role: 'member' }
-      ]);
-    }
-
-    return res.status(201).json({ message: 'Friend added successfully', room_id: roomId });
+    return res.status(201).json({ message: 'Friend request sent successfully' });
   } catch (err) {
-    console.error('Error adding friend:', err.message);
+    console.error('Error sending friend request:', err.message);
     return res.status(500).json({ error: err.message });
   }
 });
 
-// Get all friends
+// Helper function to accept friendship and create DM room
+async function acceptFriendship(userId, friendId, friendshipId, res) {
+  const { db } = await connectToDatabase();
+  
+  await db.collection('friendships').updateOne(
+    { _id: friendshipId },
+    { $set: { status: 'accepted' } }
+  );
+
+  // Automatically create a DM room in Supabase for them so they can chat
+  const { data: friendUser } = await supabaseAdmin
+    .from('users')
+    .select('display_name')
+    .eq('id', friendId)
+    .single();
+
+  const { data: meUser } = await supabaseAdmin
+    .from('users')
+    .select('display_name')
+    .eq('id', userId)
+    .single();
+
+  const friendName = friendUser?.display_name || 'User';
+  const myName = meUser?.display_name || 'User';
+  const roomName = `${myName} & ${friendName} DM`;
+
+  const roomId = crypto.randomUUID();
+  
+  // Insert room in Supabase
+  const { error: roomError } = await supabaseAdmin
+    .from('rooms')
+    .insert({
+      id: roomId,
+      name: roomName,
+      created_by: userId,
+      type: 'dm'
+    });
+
+  if (!roomError) {
+    // Add memberships
+    await supabaseAdmin.from('room_members').insert([
+      { room_id: roomId, user_id: userId, role: 'member' },
+      { room_id: roomId, user_id: friendId, role: 'member' }
+    ]);
+  }
+
+  return res.status(200).json({ message: 'Friend request accepted', room_id: roomId });
+}
+
+// Accept a friend request
+app.post('/api/friends/accept', requireAuth, async (req, res) => {
+  const { friend_id } = req.body;
+  if (!friend_id) {
+    return res.status(400).json({ error: 'friend_id is required' });
+  }
+
+  try {
+    const { db } = await connectToDatabase();
+    const existing = await db.collection('friendships').findOne({
+      users: { $all: [req.user.id, friend_id] },
+      status: 'pending'
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'No pending friend request found' });
+    }
+
+    return await acceptFriendship(req.user.id, friend_id, existing._id, res);
+  } catch (err) {
+    console.error('Error accepting friend request:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Decline a friend request
+app.post('/api/friends/decline', requireAuth, async (req, res) => {
+  const { friend_id } = req.body;
+  if (!friend_id) {
+    return res.status(400).json({ error: 'friend_id is required' });
+  }
+
+  try {
+    const { db } = await connectToDatabase();
+    const result = await db.collection('friendships').deleteOne({
+      users: { $all: [req.user.id, friend_id] },
+      status: 'pending'
+    });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'No pending friend request found' });
+    }
+
+    return res.json({ message: 'Friend request declined successfully' });
+  } catch (err) {
+    console.error('Error declining friend request:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Get incoming friend requests
+app.get('/api/friends/requests', requireAuth, async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const pendingRequests = await db.collection('friendships').find({
+      users: req.user.id,
+      status: 'pending',
+      sender_id: { $ne: req.user.id }
+    }).toArray();
+
+    if (pendingRequests.length === 0) {
+      return res.json({ requests: [] });
+    }
+
+    const senderIds = pendingRequests.map(r => r.sender_id);
+
+    // Fetch user details from Supabase
+    const { data: users, error } = await supabaseAdmin
+      .from('users')
+      .select('id, display_name, email, avatar_url, status')
+      .in('id', senderIds);
+
+    if (error) throw error;
+
+    const { data: authData } = await supabaseAdmin.auth.admin.listUsers();
+    const authUsers = authData?.users || [];
+
+    const mappedRequests = pendingRequests.map(reqDoc => {
+      const u = (users || []).find(user => user.id === reqDoc.sender_id);
+      const au = authUsers.find(a => a.id === reqDoc.sender_id);
+      return {
+        id: reqDoc.sender_id,
+        message: reqDoc.message,
+        created_at: reqDoc.created_at,
+        display_name: u?.display_name || u?.email?.split('@')[0] || 'User',
+        email: u?.email,
+        avatar_url: u?.avatar_url,
+        username: au?.user_metadata?.username || u?.email?.split('@')[0]
+      };
+    });
+
+    return res.json({ requests: mappedRequests });
+  } catch (err) {
+    console.error('Error getting friend requests:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Get all friends (only accepted/existing ones)
 app.get('/api/friends', requireAuth, async (req, res) => {
   try {
     const { db } = await connectToDatabase();
     
-    // Find all friendships for current user
+    // Find all accepted friendships for current user
     const friendships = await db.collection('friendships').find({
-      users: req.user.id
+      users: req.user.id,
+      status: { $ne: 'pending' }
     }).toArray();
 
     if (friendships.length === 0) {
@@ -347,6 +477,188 @@ app.get('/api/friends', requireAuth, async (req, res) => {
     return res.json({ friends: mappedFriends });
   } catch (err) {
     console.error('Error getting friends:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Get group rooms
+app.get('/api/rooms/groups', requireAuth, async (req, res) => {
+  try {
+    const { data: rooms, error } = await supabaseAdmin
+      .from('rooms')
+      .select('id, name, created_by, type, created_at')
+      .eq('type', 'group');
+    if (error) throw error;
+    return res.json({ rooms });
+  } catch (err) {
+    console.error('Error fetching group rooms:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Create group room
+app.post('/api/rooms/groups', requireAuth, async (req, res) => {
+  const { name } = req.body;
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    return res.status(400).json({ error: 'Group name is required' });
+  }
+  try {
+    const roomId = crypto.randomUUID();
+    const { data: room, error } = await supabaseAdmin
+      .from('rooms')
+      .insert({
+        id: roomId,
+        name: name.trim(),
+        created_by: req.user.id,
+        type: 'group'
+      })
+      .select()
+      .single();
+    if (error) throw error;
+
+    // Also add the creator as a member of the group
+    await supabaseAdmin.from('room_members').insert({
+      room_id: roomId,
+      user_id: req.user.id,
+      role: 'admin'
+    });
+
+    return res.status(201).json({ room });
+  } catch (err) {
+    console.error('Error creating group room:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Get or create DM room with a friend
+app.post('/api/rooms/dm', requireAuth, async (req, res) => {
+  const { friendId } = req.body;
+  if (!friendId) {
+    return res.status(400).json({ error: 'friendId is required' });
+  }
+
+  const userId = req.user.id;
+
+  try {
+    // 1. Find if a DM room already exists between userId and friendId
+    const { data: myMemberships, error: myError } = await supabaseAdmin
+      .from('room_members')
+      .select('room_id')
+      .eq('user_id', userId);
+
+    if (myError) throw myError;
+
+    const { data: friendMemberships, error: friendError } = await supabaseAdmin
+      .from('room_members')
+      .select('room_id')
+      .eq('user_id', friendId);
+
+    if (friendError) throw friendError;
+
+    const myRoomIds = myMemberships.map(m => m.room_id);
+    const friendRoomIds = friendMemberships.map(m => m.room_id);
+
+    const commonRoomIds = myRoomIds.filter(id => friendRoomIds.includes(id));
+
+    if (commonRoomIds.length > 0) {
+      const { data: dmRooms, error: dmError } = await supabaseAdmin
+        .from('rooms')
+        .select('id')
+        .in('id', commonRoomIds)
+        .eq('type', 'dm')
+        .limit(1);
+
+      if (dmError) throw dmError;
+
+      if (dmRooms && dmRooms.length > 0) {
+        return res.json({ room_id: dmRooms[0].id });
+      }
+    }
+
+    // 2. If no DM room exists, create one
+    const { data: friendUser } = await supabaseAdmin
+      .from('users')
+      .select('display_name')
+      .eq('id', friendId)
+      .single();
+
+    const { data: meUser } = await supabaseAdmin
+      .from('users')
+      .select('display_name')
+      .eq('id', userId)
+      .single();
+
+    const friendName = friendUser?.display_name || 'User';
+    const myName = meUser?.display_name || 'User';
+    const roomName = `${myName} & ${friendName} DM`;
+
+    const roomId = crypto.randomUUID();
+
+    const { error: roomError } = await supabaseAdmin
+      .from('rooms')
+      .insert({
+        id: roomId,
+        name: roomName,
+        created_by: userId,
+        type: 'dm'
+      });
+
+    if (roomError) throw roomError;
+
+    const { error: memberError } = await supabaseAdmin
+      .from('room_members')
+      .insert([
+        { room_id: roomId, user_id: userId, role: 'member' },
+        { room_id: roomId, user_id: friendId, role: 'member' }
+      ]);
+
+    if (memberError) throw memberError;
+
+    return res.json({ room_id: roomId });
+  } catch (err) {
+    console.error('Error getting/creating DM room:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Get room details by ID (resolving DM names dynamically)
+app.get('/api/rooms/:roomId', requireAuth, async (req, res) => {
+  const { roomId } = req.params;
+  try {
+    const { data: room, error } = await supabaseAdmin
+      .from('rooms')
+      .select('id, name, type, created_by')
+      .eq('id', roomId)
+      .single();
+
+    if (error || !room) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+
+    if (room.type === 'dm') {
+      const { data: members, error: memberError } = await supabaseAdmin
+        .from('room_members')
+        .select('user_id')
+        .eq('room_id', roomId);
+
+      if (!memberError && members) {
+        const otherMember = members.find(m => m.user_id !== req.user.id);
+        if (otherMember) {
+          const { data: otherUser } = await supabaseAdmin
+            .from('users')
+            .select('display_name')
+            .eq('id', otherMember.user_id)
+            .single();
+          if (otherUser) {
+            room.name = otherUser.display_name;
+          }
+        }
+      }
+    }
+
+    return res.json({ room });
+  } catch (err) {
+    console.error('Error fetching room details:', err.message);
     return res.status(500).json({ error: err.message });
   }
 });

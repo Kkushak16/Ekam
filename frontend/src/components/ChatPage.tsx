@@ -101,7 +101,11 @@ const S: Record<string, React.CSSProperties> = {
   },
 };
 
-export function ChatPage() {
+interface ChatPageProps {
+  roomId?: string;
+}
+
+export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: ChatPageProps) {
   const token = useChatStore(state => state.token);
   const socket = useChatStore(state => state.socket);
 
@@ -122,16 +126,16 @@ export function ChatPage() {
   useEffect(() => {
     if (socket && token) {
       const { loadOlderMessages } = useChatStore.getState();
-      loadOlderMessages(ROOM_ID, null);
+      loadOlderMessages(roomId, null);
     }
-  }, [socket, token]);
+  }, [socket, token, roomId]);
 
   const sendMessage = async (mediaUrl?: string, mediaType?: string) => {
     if ((!input.trim() && !mediaUrl) || !socket) return;
     const clientMessageId = crypto.randomUUID();
     const message = {
       clientMessageId,
-      roomId: ROOM_ID,
+      roomId: roomId,
       senderId: userId,
       body: input.trim(),
       ts: Date.now(),
@@ -143,7 +147,7 @@ export function ChatPage() {
     setInput('');
     try {
       const { data } = await apiClient.post('/api/messages', {
-        room_id: ROOM_ID,
+        room_id: roomId,
         body: message.body,
         media_url: mediaUrl,
         media_type: mediaType,
@@ -160,12 +164,12 @@ export function ChatPage() {
     setInput(e.target.value);
     if (!isTyping) {
       setIsTyping(true);
-      socket?.emit('typing', { roomId: ROOM_ID, isTyping: true, userId });
+      socket?.emit('typing', { roomId: roomId, isTyping: true, userId });
     }
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      socket?.emit('typing', { roomId: ROOM_ID, isTyping: false, userId });
+      socket?.emit('typing', { roomId: roomId, isTyping: false, userId });
     }, 1500);
   };
 
@@ -196,15 +200,15 @@ export function ChatPage() {
       <div style={S.bgGlow} />
 
       {/* Floating Header */}
-      <Header roomId={ROOM_ID} />
+      <Header roomId={roomId} />
 
       {/* Messages Area */}
       <div style={S.messagesArea}>
-        <MessageList roomId={ROOM_ID} />
+        <MessageList roomId={roomId} />
       </div>
 
       {/* Typing Indicator */}
-      <TypingIndicator roomId={ROOM_ID} />
+      <TypingIndicator roomId={roomId} />
 
       {/* Input Bar */}
       <div style={S.inputBarWrapper}>
