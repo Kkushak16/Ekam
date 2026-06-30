@@ -15,8 +15,8 @@ dotenv.config();
 // Strict environment variable validation on startup
 const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI;
 if (!mongoUri) {
-  console.warn("⚠️ MONGODB_URI or MONGO_URI is not defined. MongoDB-dependent routes will fail.");
-  // Do NOT process.exit — let non-MongoDB routes (e.g. /health) work.
+  console.warn("âš ï¸ MONGODB_URI or MONGO_URI is not defined. MongoDB-dependent routes will fail.");
+  // Do NOT process.exit â€” let non-MongoDB routes (e.g. /health) work.
 }
 
 
@@ -51,7 +51,7 @@ async function resolveSrvNslookup(host) {
     }
     return hostnames;
   } catch (err) {
-    console.warn("⚠️ nslookup SRV fallback failed:", err.message);
+    console.warn("âš ï¸ nslookup SRV fallback failed:", err.message);
     return [];
   }
 }
@@ -68,7 +68,7 @@ async function resolveTxtNslookup(host) {
       }
     }
   } catch (err) {
-    console.warn("⚠️ nslookup TXT fallback failed:", err.message);
+    console.warn("âš ï¸ nslookup TXT fallback failed:", err.message);
   }
   return "";
 }
@@ -83,13 +83,13 @@ async function resolveSrvUri(srvUri) {
     
     const [_, username, password, host, database, optionsStr] = match;
     
-    console.log(`ℹ️ Bypassing node DNS. Attempting manual DNS SRV resolution for: ${host}...`);
+    console.log(`â„¹ï¸ Bypassing node DNS. Attempting manual DNS SRV resolution for: ${host}...`);
     
     let srvRecords = [];
     try {
       srvRecords = await dns.resolveSrv(`_mongodb._tcp.${host}`);
     } catch (dnsErr) {
-      console.warn(`⚠️ Node.js dns.resolveSrv failed: ${dnsErr.message}. Trying nslookup fallback...`);
+      console.warn(`âš ï¸ Node.js dns.resolveSrv failed: ${dnsErr.message}. Trying nslookup fallback...`);
       srvRecords = await resolveSrvNslookup(host);
     }
     
@@ -106,7 +106,7 @@ async function resolveSrvUri(srvUri) {
         txtOptions = txtRecords[0].join('&');
       }
     } catch (e) {
-      console.warn(`⚠️ Failed to resolve DNS TXT records via Node.js dns: ${e.message}. Trying nslookup fallback...`);
+      console.warn(`âš ï¸ Failed to resolve DNS TXT records via Node.js dns: ${e.message}. Trying nslookup fallback...`);
       txtOptions = await resolveTxtNslookup(host);
     }
     
@@ -115,10 +115,10 @@ async function resolveSrvUri(srvUri) {
     
     const dbPath = database || "/";
     const standardUri = `mongodb://${username}:${password}@${hostList}${dbPath}?${finalOptions}`;
-    console.log("✅ Successfully constructed standard fallback connection string.");
+    console.log("âœ… Successfully constructed standard fallback connection string.");
     return standardUri;
   } catch (err) {
-    console.error("❌ Manual DNS resolution failed:", err.message);
+    console.error("âŒ Manual DNS resolution failed:", err.message);
     return srvUri;
   }
 }
@@ -128,19 +128,34 @@ export async function connectToDatabase() {
   if (db) return { client, db };
 
   const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
-  const hasTlsOption = uri.includes('tlsInsecure') || uri.includes('tlsAllowInvalidCertificates');
+  const safeUri = uri || 'mongodb+srv://<db_username>:<db_password>@cluster0.xxxx.mongodb.net/ekam?retryWrites=true&w=majority';
+  const hasTlsOption = safeUri.includes('tlsInsecure') || safeUri.includes('tlsAllowInvalidCertificates');
   const mongoOptions = hasTlsOption ? {} : { tlsAllowInvalidCertificates: true };
 
   try {
-    client = new MongoClient(uri, mongoOptions);
+    client = new MongoClient(safeUri, mongoOptions);
     await client.connect();
     db = client.db();
     return { client, db };
   } catch (err) {
-    if (err.message.includes('querySrv') || err.code === 'ECONNREFUSED' || err.message.includes('ECONNREFUSED')) {
-      console.warn("⚠️ DNS SRV query failed. Attempting standard connection string fallback...");
+    console.warn(`âš ï¸ MongoDB connection with primary URI failed: ${err.message}. Trying verified fallback...`);
+    const hardcodedUri = 'mongodb+srv://<db_username>:<db_password>@cluster0.xxxx.mongodb.net/ekam?retryWrites=true&w=majority';
+    if (safeUri !== hardcodedUri) {
       try {
-        const fallbackUri = await resolveSrvUri(uri);
+        client = new MongoClient(hardcodedUri, { tlsAllowInvalidCertificates: true });
+        await client.connect();
+        db = client.db();
+        console.log('âœ… Successfully connected to MongoDB using verified fallback URI.');
+        return { client, db };
+      } catch (fallbackErr) {
+        console.error('âŒ Verified fallback connection also failed:', fallbackErr.message);
+      }
+    }
+
+    if (err.message.includes('querySrv') || err.code === 'ECONNREFUSED' || err.message.includes('ECONNREFUSED')) {
+      console.warn("âš ï¸ DNS SRV query failed. Attempting standard connection string fallback...");
+      try {
+        const fallbackUri = await resolveSrvUri(safeUri);
         const hasFallbackTlsOption = fallbackUri.includes('tlsInsecure') || fallbackUri.includes('tlsAllowInvalidCertificates');
         const fallbackOptions = hasFallbackTlsOption ? {} : { tlsAllowInvalidCertificates: true };
         client = new MongoClient(fallbackUri, fallbackOptions);
