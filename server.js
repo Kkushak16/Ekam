@@ -140,6 +140,23 @@ import crypto from 'crypto';
 
 // REST Endpoints
 app.get('/health', (req, res) => res.status(200).json({ status: 'OK' }));
+app.get('/api/diagnose', (req, res) => {
+  const mask = (val) => {
+    if (!val) return 'MISSING';
+    if (val.length <= 6) return '***';
+    return val.substring(0, 3) + '...' + val.substring(val.length - 3);
+  };
+  res.json({
+    MONGODB_URI: mask(process.env.MONGODB_URI || process.env.MONGO_URI),
+    SUPABASE_URL: mask(process.env.SUPABASE_URL),
+    SUPABASE_SERVICE_ROLE_KEY: mask(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    JWT_SECRET: mask(process.env.JWT_SECRET),
+    JWT_ACCESS_SECRET: mask(process.env.JWT_ACCESS_SECRET),
+    JWT_REFRESH_SECRET: mask(process.env.JWT_REFRESH_SECRET),
+    PUSHER_APP_ID: mask(process.env.PUSHER_APP_ID),
+    CLOUDINARY_CLOUD_NAME: mask(process.env.CLOUDINARY_CLOUD_NAME)
+  });
+});
 app.use('/auth', authRouter);
 
 // Search users in Supabase by display_name, email, or username
