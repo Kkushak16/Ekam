@@ -85,7 +85,7 @@ const ipUploadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
 const userUploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 50,
-  // Use the built‑in ipKeyGenerator for IPv6 safety; fall back to user ID when authenticated
+  // Use the builtâ€‘in ipKeyGenerator for IPv6 safety; fall back to user ID when authenticated
   keyGenerator: (req) => req.user?.id || ipKeyGenerator(req)
 });
 
@@ -146,8 +146,10 @@ app.get('/api/diagnose', (req, res) => {
     if (val.length <= 6) return '***';
     return val.substring(0, 3) + '...' + val.substring(val.length - 3);
   };
+  const expectedUri = 'mongodb+srv://<db_username>:<db_password>@cluster0.xxxx.mongodb.net/ekam?retryWrites=true&w=majority';
   res.json({
     MONGODB_URI: mask(process.env.MONGODB_URI || process.env.MONGO_URI),
+    MONGODB_URI_MATCHES_LOCAL: (process.env.MONGODB_URI || process.env.MONGO_URI) === expectedUri,
     SUPABASE_URL: mask(process.env.SUPABASE_URL),
     SUPABASE_SERVICE_ROLE_KEY: mask(process.env.SUPABASE_SERVICE_ROLE_KEY),
     JWT_SECRET: mask(process.env.JWT_SECRET),
@@ -891,12 +893,12 @@ async function checkDatabaseSize() {
     const stats = await db.command({ dbStats: 1 });
     const storageSize = stats.storageSize || stats.dataSize || 0; // bytes
     const storageSizeMB = storageSize / (1024 * 1024);
-    console.log(`📊 [MongoDB Monitor] Current database size: ${storageSizeMB.toFixed(2)} MB`);
+    console.log(`ðŸ“Š [MongoDB Monitor] Current database size: ${storageSizeMB.toFixed(2)} MB`);
     if (storageSizeMB >= 400) {
-      console.warn(`⚠️ [MongoDB Monitor] WARNING: MongoDB database storage has reached ${storageSizeMB.toFixed(2)} MB, which is >= 80% of the 512 MB free tier limit!`);
+      console.warn(`âš ï¸ [MongoDB Monitor] WARNING: MongoDB database storage has reached ${storageSizeMB.toFixed(2)} MB, which is >= 80% of the 512 MB free tier limit!`);
     }
   } catch (err) {
-    console.error('❌ Failed to check MongoDB storage size:', err.message);
+    console.error('âŒ Failed to check MongoDB storage size:', err.message);
   }
 }
 
@@ -984,7 +986,7 @@ async function getUserContacts(userId) {
 }
 
 async function startServer() {
-  console.log("🔗 Verifying external service connections...");
+  console.log("ðŸ”— Verifying external service connections...");
   try {
     const { db } = await connectToDatabase();
     await db.command({ ping: 1 });
@@ -998,9 +1000,9 @@ async function startServer() {
     if (pgError) throw pgError;
 
     await connectRedis();
-    console.log("✅ Core Cloud services connected and validated.");
+    console.log("âœ… Core Cloud services connected and validated.");
   } catch (err) {
-    console.warn("⚠️ Service Startup Check Warning: " + err.message + " - Proceeding to allow partial boot.");
+    console.warn("âš ï¸ Service Startup Check Warning: " + err.message + " - Proceeding to allow partial boot.");
   }
 
   const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
@@ -1301,7 +1303,7 @@ async function startServer() {
     const now = Date.now();
     wss.clients.forEach((ws) => {
       if (now - ws.lastActivity > 30000) {
-        console.log(`🧹 Sweeping stale raw WebSocket connection for user: ${ws.userId}`);
+        console.log(`ðŸ§¹ Sweeping stale raw WebSocket connection for user: ${ws.userId}`);
         ws.terminate();
       }
     });
@@ -1325,7 +1327,7 @@ async function startServer() {
 
   server.listen(PORT, () => {
     console.log(`SERVER_PORT=${server.address().port}`);
-    console.log(`🚀 Unified Node Server Running on Port: ${server.address().port}`);
+    console.log(`ðŸš€ Unified Node Server Running on Port: ${server.address().port}`);
   });
 
   process.on('SIGTERM', async () => {
