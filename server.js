@@ -417,6 +417,50 @@ app.get('/api/friends/requests', requireAuth, async (req, res) => {
   }
 });
 
+// Get current user's profile
+app.get('/api/users/me', requireAuth, async (req, res) => {
+  try {
+    const { data: user, error } = await supabaseAdmin
+      .from('users')
+      .select('id, display_name, email, avatar_url, status, username, activity_description')
+      .eq('id', req.user.id)
+      .single();
+
+    if (error || !user) {
+      return res.status(404).json({ error: 'User profile not found' });
+    }
+
+    return res.json({ user });
+  } catch (err) {
+    console.error('Error fetching current user profile:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Update current user's activity description
+app.put('/api/users/activity', requireAuth, async (req, res) => {
+  const { activity_description } = req.body;
+  if (activity_description === undefined) {
+    return res.status(400).json({ error: 'activity_description is required' });
+  }
+
+  try {
+    const { error } = await supabaseAdmin
+      .from('users')
+      .update({ activity_description })
+      .eq('id', req.user.id);
+
+    if (error) {
+      throw error;
+    }
+
+    return res.json({ message: 'Activity description updated successfully', activity_description });
+  } catch (err) {
+    console.error('Error updating activity description:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // Get all friends (only accepted/existing ones)
 app.get('/api/friends', requireAuth, async (req, res) => {
   try {
@@ -439,7 +483,7 @@ app.get('/api/friends', requireAuth, async (req, res) => {
     try {
       const { data: users, error } = await supabaseAdmin
         .from('users')
-        .select('id, display_name, email, avatar_url, status, username')
+        .select('id, display_name, email, avatar_url, status, username, activity_description')
         .in('id', friendIds);
 
       if (!error && users) {
@@ -456,7 +500,7 @@ app.get('/api/friends', requireAuth, async (req, res) => {
     // Fallback: fetch without username, then merge from auth users
     const { data: users, error } = await supabaseAdmin
       .from('users')
-      .select('id, display_name, email, avatar_url, status')
+      .select('id, display_name, email, avatar_url, status, activity_description')
       .in('id', friendIds);
 
     if (error) {
@@ -1262,3 +1306,5 @@ async function startServer() {
 if (!process.env.VERCEL) {
   startServer();
 }
+
+export default app;

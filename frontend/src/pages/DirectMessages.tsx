@@ -112,6 +112,12 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
   const [oneTimeMessage, setOneTimeMessage] = useState('');
   const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
 
+  // Activity Status States
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [myActivityDescription, setMyActivityDescription] = useState('');
+  const [tempActivityDescription, setTempActivityDescription] = useState('');
+  const [savingActivity, setSavingActivity] = useState(false);
+
   // Refs
   const searchInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -124,7 +130,8 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
         handle: `@${u.username || (u.display_name ? u.display_name.toLowerCase().replace(/\s+/g, '_') : u.email.split('@')[0])}`,
         email: u.email,
         status: u.status === 'online' ? 'online' : 'offline',
-        statusMsg: u.status === 'online' ? 'Active now' : 'Offline',
+        statusMsg: u.activity_description ? `"${u.activity_description}"` : (u.status === 'online' ? 'Active now' : 'Offline'),
+        activity_description: u.activity_description,
         avatarColor: '#adc6ff',
         avatarBg: 'linear-gradient(135deg, #1a2744 0%, #2a3f6e 50%, #1e3a5a 100%)',
       }));
@@ -147,10 +154,39 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
     }
   };
 
+  const fetchMyProfile = async () => {
+    try {
+      const { data } = await apiClient.get('/api/users/me');
+      if (data?.user) {
+        setMyActivityDescription(data.user.activity_description || '');
+        setTempActivityDescription(data.user.activity_description || '');
+      }
+    } catch (err) {
+      console.error('Failed to fetch my profile:', err);
+    }
+  };
+
   useEffect(() => {
     fetchFriends();
     fetchIncomingRequests();
+    fetchMyProfile();
   }, []);
+
+  const handleSaveActivity = async () => {
+    setSavingActivity(true);
+    try {
+      await apiClient.put('/api/users/activity', {
+        activity_description: tempActivityDescription.trim()
+      });
+      setMyActivityDescription(tempActivityDescription.trim());
+      setShowActivityModal(false);
+    } catch (err) {
+      console.error('Failed to save activity description:', err);
+      alert('Failed to update activity description. Please try again.');
+    } finally {
+      setSavingActivity(false);
+    }
+  };
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -422,9 +458,16 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
           }}>
             {(username || 'U').slice(0, 1).toUpperCase()}
           </div>
-          <span style={{ fontSize: 13, color: 'rgba(194,198,214,0.7)', fontWeight: 600, marginLeft: 4 }}>
-            {username || 'User'}
-          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', marginLeft: 6 }}>
+            <span style={{ fontSize: 13, color: 'rgba(194,198,214,0.85)', fontWeight: 600, lineHeight: 1.2 }}>
+              {username || 'User'}
+            </span>
+            {myActivityDescription && (
+              <span style={{ fontSize: 11, color: 'rgba(194,198,214,0.45)', fontStyle: 'italic', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }} title={myActivityDescription}>
+                {myActivityDescription}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -446,28 +489,55 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
                 Manage your network and start seamless real-time collaborations.
               </p>
             </div>
-            <button
-              onClick={handleFocusSearch}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8, padding: '10px 22px',
-                background: 'transparent', color: '#adc6ff',
-                border: '1px solid rgba(173,198,255,0.35)',
-                borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                transition: 'all 0.2s ease', whiteSpace: 'nowrap', flexShrink: 0,
-                marginTop: 4,
-              }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.background = 'rgba(173,198,255,0.08)';
-                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(173,198,255,0.6)';
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.background = 'transparent';
-                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(173,198,255,0.35)';
-              }}
-            >
-              <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 18, lineHeight: 1 }}>person_add</span>
-              Add Friend
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button
+                onClick={() => {
+                  setTempActivityDescription(myActivityDescription);
+                  setShowActivityModal(true);
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '10px 22px',
+                  background: 'transparent', color: '#adc6ff',
+                  border: '1px solid rgba(173,198,255,0.35)',
+                  borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                  transition: 'all 0.2s ease', whiteSpace: 'nowrap', flexShrink: 0,
+                  marginTop: 4,
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(173,198,255,0.08)';
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(173,198,255,0.6)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.background = 'transparent';
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(173,198,255,0.35)';
+                }}
+              >
+                <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 18, lineHeight: 1 }}>edit_note</span>
+                Set Status
+              </button>
+              <button
+                onClick={handleFocusSearch}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '10px 22px',
+                  background: 'transparent', color: '#adc6ff',
+                  border: '1px solid rgba(173,198,255,0.35)',
+                  borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                  transition: 'all 0.2s ease', whiteSpace: 'nowrap', flexShrink: 0,
+                  marginTop: 4,
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(173,198,255,0.08)';
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(173,198,255,0.6)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.background = 'transparent';
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(173,198,255,0.35)';
+                }}
+              >
+                <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 18, lineHeight: 1 }}>person_add</span>
+                Add Friend
+              </button>
+            </div>
           </div>
 
           {/* ── Incoming Friend Requests Section ────────────────────────── */}
@@ -850,6 +920,14 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
                   {selectedUserProfile.status || 'offline'}
                 </span>
               </div>
+              {selectedUserProfile.activity_description && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 10 }}>
+                  <span style={{ fontSize: 12, color: 'rgba(194,198,214,0.4)', fontWeight: 500 }}>Activity</span>
+                  <span style={{ fontSize: 13, color: '#adc6ff', fontWeight: 500, fontStyle: 'italic' }}>
+                    "{selectedUserProfile.activity_description}"
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Actions */}
@@ -902,6 +980,86 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
                 {addingFriendId === selectedUserProfile.id ? 'Adding...' : 'Add Friend'}
               </button>
             )}
+          </div>
+        </div>
+      )}
+      {/* ── Activity Status Modal ─────────────────────────────────────── */}
+      {showActivityModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <div style={{
+            width: '100%', maxWidth: 420,
+            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+            border: '1px solid rgba(173, 198, 255, 0.15)',
+            borderRadius: 24, padding: '28px 32px', boxSizing: 'border-box',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+          }}>
+            <h3 style={{ fontSize: 20, fontWeight: 700, color: '#e2e2e2', margin: '0 0 8px 0' }}>
+              Set Activity Status
+            </h3>
+            <p style={{ fontSize: 13, color: 'rgba(194,198,214,0.6)', margin: '0 0 20px 0', lineHeight: 1.5 }}>
+              Share what you're up to with your connected friends.
+            </p>
+
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: 14, padding: '12px 16px', display: 'flex', gap: 12,
+              alignItems: 'center', marginBottom: 24,
+            }}>
+              <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 20, color: '#adc6ff' }}>edit_note</span>
+              <input
+                type="text"
+                value={tempActivityDescription}
+                onChange={e => setTempActivityDescription(e.target.value)}
+                placeholder="What's your status?"
+                maxLength={100}
+                style={{
+                  flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                  color: '#e2e2e2', fontSize: 14, fontFamily: 'inherit',
+                }}
+                autoFocus
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleSaveActivity();
+                  if (e.key === 'Escape') setShowActivityModal(false);
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+              <button
+                onClick={() => setShowActivityModal(false)}
+                style={{
+                  padding: '10px 20px', borderRadius: 12, border: 'none',
+                  background: 'rgba(255, 255, 255, 0.05)', color: 'rgba(194, 198, 214, 0.8)',
+                  fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                  transition: 'background 0.2s',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255, 255, 255, 0.08)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255, 255, 255, 0.05)'; }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveActivity}
+                disabled={savingActivity}
+                style={{
+                  padding: '10px 24px', borderRadius: 12, border: 'none',
+                  background: '#4d8eff', color: '#002e6a',
+                  fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                  transition: 'filter 0.2s',
+                  opacity: savingActivity ? 0.6 : 1,
+                }}
+                onMouseEnter={e => { if (!savingActivity) (e.currentTarget as HTMLElement).style.filter = 'brightness(1.12)'; }}
+                onMouseLeave={e => { if (!savingActivity) (e.currentTarget as HTMLElement).style.filter = 'brightness(1)'; }}
+              >
+                {savingActivity ? 'Saving...' : 'Save'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -3,7 +3,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useChatStore } from '../store/chatStore';
 import { Message, Room } from '../types';
 
-const API_URL = import.meta.env.DEV ? (import.meta.env.VITE_API_URL || 'http://localhost:3000') : window.location.origin;
+const getApiUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (import.meta.env.DEV) {
+    return envUrl || 'http://localhost:3000';
+  }
+  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    return envUrl;
+  }
+  return window.location.origin;
+};
+const API_URL = getApiUrl().replace(/\/$/, '');
 
 export const apiClient = axios.create({
   baseURL: API_URL,

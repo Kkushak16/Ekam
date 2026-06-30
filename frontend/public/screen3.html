@@ -282,37 +282,18 @@
 <div class="space-y-6 overflow-y-auto custom-scrollbar pr-1">
 <!-- Folders -->
 <div class="grid grid-cols-2 gap-sm">
-<div class="asset-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer group/folder">
-<span class="material-symbols-outlined text-primary/50 fill-1 group-hover/folder:text-primary transition-colors">folder</span>
-<span class="text-[13px] font-semibold">Assets</span>
+<div id="folder-you" class="asset-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer group/folder border border-primary bg-primary/5">
+<span class="material-symbols-outlined text-primary fill-1">folder</span>
+<span class="text-[13px] font-semibold">You</span>
 </div>
-<div class="asset-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer group/folder">
+<div id="folder-them" class="asset-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer group/folder border border-transparent hover:border-white/5">
 <span class="material-symbols-outlined text-primary/50 fill-1 group-hover/folder:text-primary transition-colors">folder</span>
-<span class="text-[13px] font-semibold">Docs</span>
+<span class="text-[13px] font-semibold">Elias Vance</span>
 </div>
 </div>
 <!-- Files List -->
-<div class="space-y-1">
-<div class="flex items-center justify-between p-3.5 asset-card rounded-xl group cursor-pointer">
-<div class="flex items-center gap-4">
-<span class="material-symbols-outlined text-on-surface-variant/30 group-hover:text-primary transition-colors">image</span>
-<div>
-<p class="text-[13px] font-bold">hero_banner.png</p>
-<p class="text-[10px] text-on-surface-variant/40 font-medium">2.4 MB • PNG</p>
-</div>
-</div>
-<span class="material-symbols-outlined text-primary opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">download</span>
-</div>
-<div class="flex items-center justify-between p-3.5 asset-card rounded-xl group cursor-pointer">
-<div class="flex items-center gap-4">
-<span class="material-symbols-outlined text-on-surface-variant/30 group-hover:text-primary transition-colors">picture_as_pdf</span>
-<div>
-<p class="text-[13px] font-bold">brand_guidelines.pdf</p>
-<p class="text-[10px] text-on-surface-variant/40 font-medium">12.8 MB • PDF</p>
-</div>
-</div>
-<span class="material-symbols-outlined text-primary opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">download</span>
-</div>
+<div id="files-list" class="space-y-1">
+<!-- Dynamic Files -->
 </div>
 <!-- Recent Thumbnails -->
 <div class="pt-2">
@@ -364,5 +345,60 @@
             input.dispatchEvent(new Event('input'));
         }
     });
+
+    // Folders and files interaction
+    const filesData = {
+        you: [
+            { name: "brand_guidelines.pdf", size: "12.8 MB", type: "PDF", icon: "picture_as_pdf" },
+            { name: "feedback_notes.docx", size: "1.2 MB", type: "DOCX", icon: "description" }
+        ],
+        them: [
+            { name: "hero_banner.png", size: "2.4 MB", type: "PNG", icon: "image" },
+            { name: "api_v2_spec.json", size: "45 KB", type: "JSON", icon: "settings_ethernet" }
+        ]
+    };
+
+    const folderYou = document.getElementById('folder-you');
+    const folderThem = document.getElementById('folder-them');
+    const filesList = document.getElementById('files-list');
+
+    function renderFiles(folderKey) {
+        const files = filesData[folderKey];
+        filesList.innerHTML = files.map(file => `
+            <div class="flex items-center justify-between p-3.5 asset-card rounded-xl group cursor-pointer">
+                <div class="flex items-center gap-4">
+                    <span class="material-symbols-outlined text-on-surface-variant/30 group-hover:text-primary transition-colors">${file.icon}</span>
+                    <div>
+                        <p class="text-[13px] font-bold">${file.name}</p>
+                        <p class="text-[10px] text-on-surface-variant/40 font-medium">${file.size} • ${file.type}</p>
+                    </div>
+                </div>
+                <span class="material-symbols-outlined text-primary opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0">download</span>
+            </div>
+        `).join('');
+    }
+
+    function selectFolder(folderKey) {
+        if (folderKey === 'you') {
+            folderYou.className = "asset-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer group/folder border border-primary bg-primary/5";
+            folderYou.querySelector('.material-symbols-outlined').className = "material-symbols-outlined text-primary fill-1";
+            
+            folderThem.className = "asset-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer group/folder border border-transparent hover:border-white/5";
+            folderThem.querySelector('.material-symbols-outlined').className = "material-symbols-outlined text-primary/50 fill-1 group-hover/folder:text-primary transition-colors";
+        } else {
+            folderThem.className = "asset-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer group/folder border border-primary bg-primary/5";
+            folderThem.querySelector('.material-symbols-outlined').className = "material-symbols-outlined text-primary fill-1";
+            
+            folderYou.className = "asset-card p-4 rounded-2xl flex items-center gap-3 cursor-pointer group/folder border border-transparent hover:border-white/5";
+            folderYou.querySelector('.material-symbols-outlined').className = "material-symbols-outlined text-primary/50 fill-1 group-hover/folder:text-primary transition-colors";
+        }
+        renderFiles(folderKey);
+    }
+
+    folderYou.addEventListener('click', () => selectFolder('you'));
+    folderThem.addEventListener('click', () => selectFolder('them'));
+
+    // Initial render
+    selectFolder('you');
 </script>
 </body></html>

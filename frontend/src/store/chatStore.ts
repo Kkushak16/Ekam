@@ -4,7 +4,17 @@ import Pusher from 'pusher-js';
 import axios from 'axios';
 import { Message, PresenceMap } from '../types';
 
-const API_URL = (import.meta.env.DEV ? (import.meta.env.VITE_API_URL || 'http://localhost:3000') : window.location.origin).replace(/\/$/, '');
+const getApiUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (import.meta.env.DEV) {
+    return envUrl || 'http://localhost:3000';
+  }
+  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    return envUrl;
+  }
+  return window.location.origin;
+};
+const API_URL = getApiUrl().replace(/\/$/, '');
 
 export interface ChatState {
   token: string | null;

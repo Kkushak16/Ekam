@@ -4,9 +4,17 @@ import { useChatStore } from "../store/chatStore";
 import { useToast } from "./ToastProvider";
 // Removed PhoneLogin import as phone login handled in this form
 
-const API_URL = import.meta.env.DEV
-  ? ""   // Vite proxy handles /auth/* → backend in dev
-  : (import.meta.env.VITE_API_URL || window.location.origin);
+const getApiUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (import.meta.env.DEV) {
+    return ""; // Vite proxy handles /auth/* → backend in dev
+  }
+  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    return envUrl;
+  }
+  return window.location.origin;
+};
+const API_URL = getApiUrl().replace(/\/$/, '');
 
 /* ─── Inline Styles ───────────────────────────────────────────────────────── */
 const S: Record<string, React.CSSProperties> = {

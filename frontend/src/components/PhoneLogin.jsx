@@ -13,9 +13,17 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-const API_URL = import.meta.env.DEV
-  ? ""
-  : (import.meta.env.VITE_API_URL || window.location.origin);
+const getApiUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (import.meta.env.DEV) {
+    return "";
+  }
+  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    return envUrl;
+  }
+  return window.location.origin;
+};
+const API_URL = getApiUrl().replace(/\/$/, '');
 
 let firebaseApp = null;
 let firebaseAuth = null;
