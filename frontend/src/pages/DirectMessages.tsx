@@ -449,16 +449,28 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
           </button>
 
           {/* User avatar */}
-          <div style={{
-            width: 34, height: 34, borderRadius: 10, marginLeft: 4,
-            background: 'linear-gradient(135deg, #1a2744 0%, #2a3f6e 100%)',
-            border: '1px solid rgba(173,198,255,0.2)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 12, fontWeight: 700, color: '#adc6ff', cursor: 'pointer',
-          }}>
+          <div 
+            onClick={() => {
+              setTempActivityDescription(myActivityDescription);
+              setShowActivityModal(true);
+            }}
+            style={{
+              width: 34, height: 34, borderRadius: 10, marginLeft: 4,
+              background: 'linear-gradient(135deg, #1a2744 0%, #2a3f6e 100%)',
+              border: '1px solid rgba(173,198,255,0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 12, fontWeight: 700, color: '#adc6ff', cursor: 'pointer',
+            }}
+          >
             {(username || 'U').slice(0, 1).toUpperCase()}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', marginLeft: 6 }}>
+          <div 
+            onClick={() => {
+              setTempActivityDescription(myActivityDescription);
+              setShowActivityModal(true);
+            }}
+            style={{ display: 'flex', flexDirection: 'column', marginLeft: 6, cursor: 'pointer' }}
+          >
             <span style={{ fontSize: 13, color: 'rgba(194,198,214,0.85)', fontWeight: 600, lineHeight: 1.2 }}>
               {username || 'User'}
             </span>
@@ -767,21 +779,41 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
               <p style={{ fontSize: 14, color: 'rgba(194,198,214,0.5)', maxWidth: 320, margin: '0 auto 36px', lineHeight: 1.7 }}>
                 Add friends to start collaborating in real-time. Your network is waiting to be built.
               </p>
-              <button
-                onClick={handleFocusSearch}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 28px',
-                  background: 'rgba(173,198,255,0.1)', color: '#adc6ff',
-                  border: '1px solid rgba(173,198,255,0.3)', borderRadius: 12,
-                  fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s ease',
-                  fontFamily: 'inherit',
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(173,198,255,0.18)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(173,198,255,0.1)'; }}
-              >
-                <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 18, lineHeight: 1 }}>person_add</span>
-                Add Friends
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'center' }}>
+                <button
+                  onClick={() => {
+                    setTempActivityDescription(myActivityDescription);
+                    setShowActivityModal(true);
+                  }}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 28px',
+                    background: 'transparent', color: '#adc6ff',
+                    border: '1px solid rgba(173,198,255,0.3)', borderRadius: 12,
+                    fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s ease',
+                    fontFamily: 'inherit',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(173,198,255,0.08)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                >
+                  <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 18, lineHeight: 1 }}>edit_note</span>
+                  Set Status
+                </button>
+                <button
+                  onClick={handleFocusSearch}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 28px',
+                    background: 'rgba(173,198,255,0.1)', color: '#adc6ff',
+                    border: '1px solid rgba(173,198,255,0.3)', borderRadius: 12,
+                    fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s ease',
+                    fontFamily: 'inherit',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(173,198,255,0.18)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(173,198,255,0.1)'; }}
+                >
+                  <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 18, lineHeight: 1 }}>person_add</span>
+                  Add Friends
+                </button>
+              </div>
             </div>
           )}
         </div>

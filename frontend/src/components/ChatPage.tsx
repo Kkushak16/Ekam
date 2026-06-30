@@ -10,11 +10,12 @@ const ROOM_ID = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
 const S: Record<string, React.CSSProperties> = {
   chatWindow: {
     display: 'flex',
-    flexDirection: 'column',
+    flexDirection: 'row',
     height: '100%',
     width: '100%',
     position: 'relative',
     background: '#000',
+    overflow: 'hidden',
   },
   bgGlow: {
     position: 'absolute',
@@ -101,6 +102,37 @@ const S: Record<string, React.CSSProperties> = {
   },
 };
 
+const getFileNameFromUrl = (url?: string) => {
+  if (!url) return 'Unknown File';
+  try {
+    const decoded = decodeURIComponent(url);
+    const parts = decoded.split('/');
+    const last = parts[parts.length - 1];
+    return last || 'File';
+  } catch {
+    return 'File';
+  }
+};
+
+const getFileIcon = (type?: string, url?: string) => {
+  if (type?.startsWith('image/')) return 'image';
+  if (type?.startsWith('video/')) return 'movie';
+  if (type?.startsWith('audio/')) return 'audiotrack';
+  if (type?.includes('pdf')) return 'picture_as_pdf';
+  if (type?.includes('json')) return 'data_object';
+  if (type?.includes('zip') || type?.includes('tar') || type?.includes('rar')) return 'archive';
+  
+  const ext = url?.split('.').pop()?.toLowerCase();
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext || '')) return 'image';
+  if (['mp4', 'mov', 'avi', 'mkv'].includes(ext || '')) return 'movie';
+  if (['mp3', 'wav', 'ogg'].includes(ext || '')) return 'audiotrack';
+  if (ext === 'pdf') return 'picture_as_pdf';
+  if (ext === 'json') return 'data_object';
+  if (['zip', 'rar', '7z', 'gz'].includes(ext || '')) return 'archive';
+  
+  return 'description';
+};
+
 interface ChatPageProps {
   roomId?: string;
 }
@@ -123,12 +155,36 @@ export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: Ch
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadMutation = useUploadMutation();
 
+  // Right Sidebar states and effects
+  const [roomDetails, setRoomDetails] = useState<{ type: string; name: string } | null>(null);
+  const [activeFolder, setActiveFolder] = useState<'you' | 'them'>('you');
+
   useEffect(() => {
     if (socket && token) {
       const { loadOlderMessages } = useChatStore.getState();
       loadOlderMessages(roomId, null);
     }
   }, [socket, token, roomId]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!token) return;
+    apiClient.get(`/api/rooms/${roomId}`)
+      .then(({ data }) => {
+        if (isMounted && data.room) {
+          setRoomDetails({
+            type: data.room.type,
+            name: data.room.name
+          });
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch room details:', err);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [roomId, token]);
 
   const sendMessage = async (mediaUrl?: string, mediaType?: string) => {
     if ((!input.trim() && !mediaUrl) || !socket) return;
@@ -194,88 +250,311 @@ export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: Ch
 
   const hasInput = input.trim().length > 0;
 
+  // Filter messages for current room containing attachments
+  const messages = useChatStore(state => state.messages) || [];
+  const roomMessages = messages.filter(m => m.roomId === roomId);
+  const mediaMessages = roomMessages.filter(m => m.mediaUrl);
+
+  const myFiles = mediaMessages.filter(m => m.senderId === userId);
+  const theirFiles = mediaMessages.filter(m => m.senderId !== userId);
+
+  const sharedMedia = mediaMessages.filter(m => 
+    m.mediaType?.startsWith('image/') || 
+    (m.mediaUrl && m.mediaUrl.match(/\.(jpeg|jpg|gif|png|webp)/i))
+  );
+
+  const otherFolderName = roomDetails?.type === 'dm' ? roomDetails.name : 'Others';
+
   return (
     <div style={S.chatWindow}>
-      {/* Atmospheric background glow */}
-      <div style={S.bgGlow} />
+      {/* Main Chat Area */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', minWidth: 0 }}>
+        {/* Atmospheric background glow */}
+        <div style={S.bgGlow} />
 
-      {/* Floating Header */}
-      <Header roomId={roomId} />
+        {/* Floating Header */}
+        <Header roomId={roomId} />
 
-      {/* Messages Area */}
-      <div style={S.messagesArea}>
-        <MessageList roomId={roomId} />
-      </div>
+        {/* Messages Area */}
+        <div style={S.messagesArea}>
+          <MessageList roomId={roomId} />
+        </div>
 
-      {/* Typing Indicator */}
-      <TypingIndicator roomId={roomId} />
+        {/* Typing Indicator */}
+        <TypingIndicator roomId={roomId} />
 
-      {/* Input Bar */}
-      <div style={S.inputBarWrapper}>
-        <div style={S.inputBar}>
-          {/* Attachment */}
-          <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadMutation.isPending}
-            style={S.attachBtn}
-            title="Attach file"
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#adc6ff'; (e.currentTarget as HTMLElement).style.transform = 'scale(1.1)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(194,198,214,0.4)'; (e.currentTarget as HTMLElement).style.transform = 'scale(1)'; }}
-          >
-            <span style={S.materialIcon}>
-              {uploadMutation.isPending ? 'hourglass_empty' : 'add_circle'}
-            </span>
-          </button>
+        {/* Input Bar */}
+        <div style={S.inputBarWrapper}>
+          <div style={S.inputBar}>
+            {/* Attachment */}
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadMutation.isPending}
+              style={S.attachBtn}
+              title="Attach file"
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#adc6ff'; (e.currentTarget as HTMLElement).style.transform = 'scale(1.1)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(194,198,214,0.4)'; (e.currentTarget as HTMLElement).style.transform = 'scale(1)'; }}
+            >
+              <span style={S.materialIcon}>
+                {uploadMutation.isPending ? 'hourglass_empty' : 'add_circle'}
+              </span>
+            </button>
 
-          {/* Text input */}
-          <textarea
-            placeholder="Type a message..."
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            rows={1}
-            style={S.textarea}
-          />
+            {/* Text input */}
+            <textarea
+              placeholder="Type a message..."
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              rows={1}
+              style={S.textarea}
+            />
 
-          {/* Emoji */}
-          <button
-            style={S.emojiBtn}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-          >
-            <span style={S.materialIcon}>mood</span>
-          </button>
+            {/* Emoji */}
+            <button
+              style={S.emojiBtn}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+            >
+              <span style={S.materialIcon}>mood</span>
+            </button>
 
-          {/* Send */}
-          <button
-            onClick={() => sendMessage()}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 12,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.2s ease',
-              cursor: 'pointer',
-              border: 'none',
-              background: hasInput ? '#4d8eff' : 'rgba(173,198,255,0.1)',
-              boxShadow: hasInput ? '0 4px 16px rgba(173,198,255,0.3)' : 'none',
-            }}
-          >
-            <span style={{
-              ...S.materialIcon,
-              fontSize: 20,
-              color: hasInput ? '#fff' : '#adc6ff',
-              transform: hasInput ? 'translateX(1px)' : 'none',
-              transition: 'transform 0.2s ease',
-            }}>
-              send
-            </span>
-          </button>
+            {/* Send */}
+            <button
+              onClick={() => sendMessage()}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+                cursor: 'pointer',
+                border: 'none',
+                background: hasInput ? '#4d8eff' : 'rgba(173,198,255,0.1)',
+                boxShadow: hasInput ? '0 4px 16px rgba(173,198,255,0.3)' : 'none',
+              }}
+            >
+              <span style={{
+                ...S.materialIcon,
+                fontSize: 20,
+                color: hasInput ? '#fff' : '#adc6ff',
+                transform: hasInput ? 'translateX(1px)' : 'none',
+                transition: 'transform 0.2s ease',
+              }}>
+                send
+              </span>
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Right Sidebar: Cloud Assets & Shared Media */}
+      <aside style={{
+        width: 340,
+        background: 'rgba(13, 13, 13, 0.4)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        borderLeft: '1px solid rgba(255, 255, 255, 0.04)',
+        display: 'flex',
+        flexDirection: 'column',
+        flexShrink: 0,
+        height: '100%',
+        boxSizing: 'border-box',
+        zIndex: 15,
+      }}>
+        {/* Shared Media Section */}
+        <div style={{ padding: '24px 24px 16px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', color: '#adc6ff', textTransform: 'uppercase' }}>
+              Shared Media
+            </span>
+            {sharedMedia.length > 0 && (
+              <span style={{ fontSize: 11, color: 'rgba(194, 198, 214, 0.4)', fontWeight: 500 }}>
+                {sharedMedia.length} items
+              </span>
+            )}
+          </div>
+          
+          {sharedMedia.length === 0 ? (
+            <div style={{
+              height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              border: '1px dashed rgba(255,255,255,0.05)', borderRadius: 12,
+              color: 'rgba(194, 198, 214, 0.3)', fontSize: 12
+            }}>
+              No shared media
+            </div>
+          ) : (
+            <div className="custom-scrollbar" style={{
+              display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8,
+              maxHeight: 180, overflowY: 'auto', paddingRight: 4
+            }}>
+              {sharedMedia.map((m, idx) => (
+                <a
+                  key={m.id || idx}
+                  href={m.mediaUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    aspectRatio: '1', borderRadius: 8, overflow: 'hidden',
+                    border: '1px solid rgba(255,255,255,0.05)', display: 'block',
+                    background: 'rgba(255,255,255,0.02)'
+                  }}
+                >
+                  <img
+                    src={m.mediaUrl}
+                    alt="shared"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'opacity 0.2s' }}
+                    onMouseEnter={e => { e.currentTarget.style.opacity = '0.8'; }}
+                    onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+                  />
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Divider */}
+        <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: '0 24px' }} />
+
+        {/* Cloud Assets Section */}
+        <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', color: '#adc6ff', textTransform: 'uppercase', marginBottom: 16 }}>
+            Cloud Assets
+          </span>
+
+          {/* Folder Tabs */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
+            {/* You Folder */}
+            <div
+              onClick={() => setActiveFolder('you')}
+              style={{
+                background: activeFolder === 'you' ? 'rgba(173, 198, 255, 0.06)' : 'transparent',
+                border: activeFolder === 'you' ? '1px solid rgba(173, 198, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.03)',
+                borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 8,
+                cursor: 'pointer', transition: 'all 0.2s'
+              }}
+            >
+              <span style={{
+                fontFamily: "'Material Symbols Outlined'", fontSize: 20,
+                color: activeFolder === 'you' ? '#4d8eff' : 'rgba(194, 198, 214, 0.4)',
+                fontVariationSettings: "'FILL' 1"
+              }}>
+                folder
+              </span>
+              <span style={{
+                fontSize: 13, fontWeight: 600,
+                color: activeFolder === 'you' ? '#e2e2e2' : 'rgba(194, 198, 214, 0.6)'
+              }}>
+                You
+              </span>
+            </div>
+
+            {/* Friend Folder */}
+            <div
+              onClick={() => setActiveFolder('them')}
+              style={{
+                background: activeFolder === 'them' ? 'rgba(173, 198, 255, 0.06)' : 'transparent',
+                border: activeFolder === 'them' ? '1px solid rgba(173, 198, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.03)',
+                borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 8,
+                cursor: 'pointer', transition: 'all 0.2s', overflow: 'hidden'
+              }}
+            >
+              <span style={{
+                fontFamily: "'Material Symbols Outlined'", fontSize: 20,
+                color: activeFolder === 'them' ? '#4d8eff' : 'rgba(194, 198, 214, 0.4)',
+                fontVariationSettings: "'FILL' 1"
+              }}>
+                folder
+              </span>
+              <span 
+                style={{
+                  fontSize: 13, fontWeight: 600,
+                  color: activeFolder === 'them' ? '#e2e2e2' : 'rgba(194, 198, 214, 0.6)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                }}
+                title={otherFolderName}
+              >
+                {otherFolderName}
+              </span>
+            </div>
+          </div>
+
+          {/* Files List */}
+          <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 4 }}>
+            {((activeFolder === 'you' ? myFiles : theirFiles).length === 0) ? (
+              <div style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'rgba(194, 198, 214, 0.3)', fontSize: 13, textAlign: 'center',
+                padding: 20, border: '1px dashed rgba(255,255,255,0.03)', borderRadius: 16
+              }}>
+                No files in this folder
+              </div>
+            ) : (
+              (activeFolder === 'you' ? myFiles : theirFiles).map((file, idx) => {
+                const fileName = getFileNameFromUrl(file.mediaUrl);
+                return (
+                  <div
+                    key={file.id || idx}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid rgba(255, 255, 255, 0.03)',
+                      borderRadius: 12, padding: '12px 14px',
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                      e.currentTarget.style.borderColor = 'rgba(173,198,255,0.15)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.03)';
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+                      <span style={{
+                        fontFamily: "'Material Symbols Outlined'", fontSize: 20,
+                        color: 'rgba(194, 198, 214, 0.4)'
+                      }}>
+                        {getFileIcon(file.mediaType, file.mediaUrl)}
+                      </span>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <p style={{
+                          fontSize: 13, fontWeight: 650, color: '#e2e2e2',
+                          margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                        }} title={fileName}>
+                          {fileName}
+                        </p>
+                        <p style={{ fontSize: 10, color: 'rgba(194, 198, 214, 0.35)', fontWeight: 500, margin: '2px 0 0' }}>
+                          {new Date(file.ts).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <a
+                      href={file.mediaUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        width: 32, height: 32, borderRadius: 8, display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', color: '#4d8eff',
+                        background: 'rgba(77,142,255,0.08)', textDecoration: 'none',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(77,142,255,0.16)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(77,142,255,0.08)'; }}
+                    >
+                      <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 18 }}>download</span>
+                    </a>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }

@@ -9,7 +9,7 @@ const getApiUrl = () => {
   if (import.meta.env.DEV) {
     return ""; // Vite proxy handles /auth/* → backend in dev
   }
-  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1') && !envUrl.includes('vercel.app')) {
     return envUrl;
   }
   return 'https://ekam-backend-3b2w.onrender.com';
