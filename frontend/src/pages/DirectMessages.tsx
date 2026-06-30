@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useChatStore } from '../store/chatStore';
 import { apiClient } from '../api/queries';
+import ChatPage from '../components/ChatPage';
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 interface Friend {
@@ -120,6 +121,32 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
 
   // Refs
   const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  const activeRoomId = useChatStore(state => state.activeRoomId);
+  const [isActiveRoomDm, setIsActiveRoomDm] = useState(false);
+  const [activeFriendId, setActiveFriendId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!activeRoomId) {
+      setIsActiveRoomDm(false);
+      setActiveFriendId(null);
+      return;
+    }
+    apiClient.get(`/api/rooms/${activeRoomId}`)
+      .then(({ data }) => {
+        const isDm = data.room?.type === 'dm';
+        setIsActiveRoomDm(isDm);
+        if (isDm && data.room?.dmRecipientId) {
+          setActiveFriendId(data.room.dmRecipientId);
+        } else {
+          setActiveFriendId(null);
+        }
+      })
+      .catch(() => {
+        setIsActiveRoomDm(false);
+        setActiveFriendId(null);
+      });
+  }, [activeRoomId]);
 
   const fetchFriends = async () => {
     try {
@@ -275,6 +302,167 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
     f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     f.handle.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  if (isActiveRoomDm && activeRoomId) {
+    return (
+      <div style={{ display: 'flex', height: '100%', width: '100%', background: '#0a0a0a', overflow: 'hidden' }}>
+        {/* Left DM Sidebar */}
+        <div style={{
+          width: 260,
+          background: 'rgba(15, 15, 15, 0.4)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderRight: '1px solid rgba(255, 255, 255, 0.05)',
+          display: 'flex',
+          flexDirection: 'column',
+          flexShrink: 0,
+        }}>
+          {/* Header */}
+          <div style={{
+            height: 56,
+            display: 'flex',
+            alignItems: 'center',
+            padding: '0 16px',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+          }}>
+            <span style={{
+              fontSize: 14,
+              fontWeight: 750,
+              letterSpacing: '0.1em',
+              color: '#adc6ff',
+              textTransform: 'uppercase',
+            }}>Direct Messages</span>
+          </div>
+
+          {/* DM List */}
+          <div style={{
+            flex: 1,
+            overflowY: 'auto',
+            padding: '12px 8px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4,
+          }} className="custom-scrollbar">
+            {/* Friends / Dashboard button */}
+            <button
+              onClick={() => useChatStore.getState().setActiveRoomId(null)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: 10,
+                fontSize: 14,
+                fontWeight: 600,
+                transition: 'all 0.2s ease',
+                textAlign: 'left',
+                cursor: 'pointer',
+                border: 'none',
+                background: 'transparent',
+                color: 'rgba(194, 198, 214, 0.6)',
+                fontFamily: 'inherit',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.color = '#e2e2e2';
+                e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.color = 'rgba(194, 198, 214, 0.6)';
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <span style={{
+                fontFamily: "'Material Symbols Outlined'",
+                fontSize: 18,
+                color: 'rgba(194, 198, 214, 0.4)',
+              }}>group</span>
+              <span>Friends Dashboard</span>
+            </button>
+
+            <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '8px 4px' }} />
+
+            {friends.map(friend => {
+              const isActive = activeFriendId === friend.id;
+              return (
+                <button
+                  key={friend.id}
+                  onClick={() => handleChatWithFriend(friend.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    fontSize: 14,
+                    fontWeight: isActive ? 600 : 500,
+                    transition: 'all 0.2s ease',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    border: 'none',
+                    background: isActive ? 'rgba(77, 142, 255, 0.08)' : 'transparent',
+                    color: isActive ? '#4d8eff' : 'rgba(194, 198, 214, 0.7)',
+                    fontFamily: 'inherit',
+                  }}
+                  onMouseEnter={e => {
+                    if (!isActive) {
+                      e.currentTarget.style.color = '#e2e2e2';
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!isActive) {
+                      e.currentTarget.style.color = 'rgba(194, 198, 214, 0.7)';
+                      e.currentTarget.style.background = 'transparent';
+                    }
+                  }}
+                >
+                  <div style={{ position: 'relative' }}>
+                    <PhotoAvatar
+                      name={friend.name}
+                      size={32}
+                      color="#adc6ff"
+                      bg="linear-gradient(135deg, #1a2744 0%, #2a3f6e 100%)"
+                    />
+                    <div style={{ position: 'absolute', bottom: -2, right: -2 }}>
+                      <PresenceGem status={friend.status} />
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{
+                      margin: 0,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      color: isActive ? '#adc6ff' : '#e2e2e2'
+                    }}>{friend.name}</p>
+                    {friend.statusMsg && (
+                      <p style={{
+                        margin: 0,
+                        fontSize: 11,
+                        color: isActive ? 'rgba(173, 198, 255, 0.6)' : 'rgba(194, 198, 214, 0.4)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}>{friend.statusMsg}</p>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right Chat Pane */}
+        <div style={{ flex: 1, height: '100%', position: 'relative' }}>
+          <ChatPage roomId={activeRoomId} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#0a0a0a', overflow: 'hidden' }}>

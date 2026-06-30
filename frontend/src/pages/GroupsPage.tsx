@@ -175,7 +175,7 @@ const S: Record<string, React.CSSProperties> = {
 export function GroupsPage() {
   const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const selectedGroupId = useChatStore(state => state.activeRoomId) || 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
+  const selectedGroupId = useChatStore(state => state.activeRoomId) || '';
   const setSelectedGroupId = useChatStore(state => state.setActiveRoomId);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -184,10 +184,21 @@ export function GroupsPage() {
   const fetchGroups = async () => {
     try {
       const { data } = await apiClient.get('/api/rooms/groups');
-      setGroups(data.rooms || []);
-      // If no active room is selected, default to the first group
-      if (!selectedGroupId && data.rooms && data.rooms.length > 0) {
-        setSelectedGroupId(data.rooms[0].id);
+      const preGroupIds = [
+        'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a',
+        'e8a36d7d-5a9e-4e4f-bbfb-dc874e4c278b',
+        'f8a36d7d-5a9e-4e4f-bbfb-dc874e4c278c'
+      ];
+      const filtered = (data.rooms || []).filter((r: any) => !preGroupIds.includes(r.id));
+      setGroups(filtered);
+      
+      const isActiveGroup = filtered.some(g => g.id === selectedGroupId);
+      if (!isActiveGroup) {
+        if (filtered.length > 0) {
+          setSelectedGroupId(filtered[0].id);
+        } else {
+          setSelectedGroupId('');
+        }
       }
     } catch (err) {
       console.error('Failed to fetch groups:', err);

@@ -726,6 +726,7 @@ app.get('/api/rooms/:roomId', requireAuth, async (req, res) => {
       if (!memberError && members) {
         const otherMember = members.find(m => m.user_id !== req.user.id);
         if (otherMember) {
+          room.dmRecipientId = otherMember.user_id;
           const { data: otherUser } = await supabaseAdmin
             .from('users')
             .select('display_name')

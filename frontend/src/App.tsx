@@ -198,7 +198,7 @@ export function App() {
   const renderMainContent = () => {
     switch (activeTab) {
       case 'groups': return <GroupsPage />;
-      case 'dm':     return <DirectMessages onNavigateToChat={() => setActiveTab('groups')} />;
+      case 'dm':     return <DirectMessages />;
       case 'settings': return <SettingsPage />;
       default:     return <GroupsPage />;
     }
