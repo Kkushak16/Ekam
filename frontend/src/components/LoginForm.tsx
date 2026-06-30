@@ -409,10 +409,14 @@ export function LoginForm() {
         setUsername("");
       }
     } catch (err: any) {
-      const msg =
+      let msg =
         err.response?.data?.error ||
         err.response?.data?.message ||
         "Something went wrong. Please try again.";
+
+      if (msg && typeof msg === "object") {
+        msg = msg.message || msg.code || JSON.stringify(msg);
+      }
 
       // Auto-switch to login if duplicate email
       if (err.response?.status === 409) {
