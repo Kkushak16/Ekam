@@ -7,16 +7,9 @@
       "config": {
         "distDir": "dist"
       }
-    },
-    {
-      "src": "server.js",
-      "use": "@vercel/node"
     }
   ],
   "routes": [
-    { "src": "/health", "dest": "server.js" },
-    { "src": "/auth/(.*)", "dest": "server.js" },
-    { "src": "/api/(.*)", "dest": "server.js" },
     { "src": "/assets/(.*)", "dest": "/frontend/assets/$1" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/frontend/index.html" }

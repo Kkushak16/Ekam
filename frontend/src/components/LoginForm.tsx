@@ -12,7 +12,7 @@ const getApiUrl = () => {
   if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
     return envUrl;
   }
-  return window.location.origin;
+  return 'https://ekam-backend-3b2w.onrender.com';
 };
 const API_URL = getApiUrl().replace(/\/$/, '');
 
