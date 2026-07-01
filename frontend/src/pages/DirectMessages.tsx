@@ -123,6 +123,7 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
   const searchInputRef = React.useRef<HTMLInputElement>(null);
 
   const activeRoomId = useChatStore(state => state.activeRoomId);
+  const presenceMap = useChatStore(state => state.presence);
   const [isActiveRoomDm, setIsActiveRoomDm] = useState(false);
   const [activeFriendId, setActiveFriendId] = useState<string | null>(null);
 
@@ -384,6 +385,11 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
 
             {friends.map(friend => {
               const isActive = activeFriendId === friend.id;
+              const isOnline = !!presenceMap[friend.id]?.online;
+              const friendStatus = isOnline ? 'online' : 'offline';
+              const friendStatusMsg = friend.activity_description
+                ? `"${friend.activity_description}"`
+                : (isOnline ? 'Active now' : 'Offline');
               return (
                 <button
                   key={friend.id}
@@ -426,7 +432,7 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
                       bg="linear-gradient(135deg, #1a2744 0%, #2a3f6e 100%)"
                     />
                     <div style={{ position: 'absolute', bottom: -2, right: -2 }}>
-                      <PresenceGem status={friend.status} />
+                      <PresenceGem status={friendStatus} />
                     </div>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -439,7 +445,7 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
                       whiteSpace: 'nowrap',
                       color: isActive ? '#adc6ff' : '#e2e2e2'
                     }}>{friend.name}</p>
-                    {friend.statusMsg && (
+                    {friendStatusMsg && (
                       <p style={{
                         margin: 0,
                         fontSize: 11,
@@ -877,78 +883,85 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
                 gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
                 gap: 16, marginBottom: 56,
               }}>
-                {filteredFriends.map(friend => (
-                  <div
-                    key={friend.id}
-                    onClick={() => setSelectedUserProfile(friend)}
-                    style={{
-                      background: friend.isFavorite ? 'rgba(173,198,255,0.04)' : 'rgba(20,20,24,0.7)',
-                      backdropFilter: 'blur(20px)',
-                      border: friend.isFavorite ? '1px solid rgba(173,198,255,0.18)' : '1px solid rgba(255,255,255,0.06)',
-                      borderRadius: 18, padding: '20px 18px', cursor: 'pointer',
-                      transition: 'all 0.25s ease', position: 'relative',
-                    }}
-                    onMouseEnter={e => {
-                      (e.currentTarget as HTMLElement).style.background = 'rgba(173,198,255,0.07)';
-                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(173,198,255,0.2)';
-                      (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={e => {
-                      (e.currentTarget as HTMLElement).style.background = friend.isFavorite ? 'rgba(173,198,255,0.04)' : 'rgba(20,20,24,0.7)';
-                      (e.currentTarget as HTMLElement).style.borderColor = friend.isFavorite ? 'rgba(173,198,255,0.18)' : 'rgba(255,255,255,0.06)';
-                      (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
-                    }}
-                  >
-                    {/* Favorite badge */}
-                    {friend.isFavorite && (
-                      <div style={{
-                        position: 'absolute', top: 14, right: 14,
-                        fontSize: 9, background: 'rgba(173,198,255,0.15)',
-                        color: '#adc6ff', padding: '3px 8px', borderRadius: 6,
-                        fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase',
-                      }} onClick={e => e.stopPropagation()}>FAVORITE</div>
-                    )}
-
-                    {/* More options (non-favorites) */}
-                    {!friend.isFavorite && (
-                      <button style={{
-                        position: 'absolute', top: 12, right: 12,
-                        background: 'none', border: 'none', cursor: 'pointer',
-                        color: 'rgba(194,198,214,0.25)', padding: 4,
-                        borderRadius: 6, transition: 'color 0.2s',
-                        fontFamily: "'Material Symbols Outlined'", fontSize: 18, lineHeight: 1,
+                {filteredFriends.map(friend => {
+                  const isOnline = !!presenceMap[friend.id]?.online;
+                  const friendStatus = isOnline ? 'online' : 'offline';
+                  const friendStatusMsg = friend.activity_description
+                    ? `"${friend.activity_description}"`
+                    : (isOnline ? 'Active now' : 'Offline');
+                  return (
+                    <div
+                      key={friend.id}
+                      onClick={() => setSelectedUserProfile(friend)}
+                      style={{
+                        background: friend.isFavorite ? 'rgba(173,198,255,0.04)' : 'rgba(20,20,24,0.7)',
+                        backdropFilter: 'blur(20px)',
+                        border: friend.isFavorite ? '1px solid rgba(173,198,255,0.18)' : '1px solid rgba(255,255,255,0.06)',
+                        borderRadius: 18, padding: '20px 18px', cursor: 'pointer',
+                        transition: 'all 0.25s ease', position: 'relative',
                       }}
-                        onClick={e => e.stopPropagation()}
-                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(194,198,214,0.7)'; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(194,198,214,0.25)'; }}
-                      >more_horiz</button>
-                    )}
+                      onMouseEnter={e => {
+                        (e.currentTarget as HTMLElement).style.background = 'rgba(173,198,255,0.07)';
+                        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(173,198,255,0.2)';
+                        (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLElement).style.background = friend.isFavorite ? 'rgba(173,198,255,0.04)' : 'rgba(20,20,24,0.7)';
+                        (e.currentTarget as HTMLElement).style.borderColor = friend.isFavorite ? 'rgba(173,198,255,0.18)' : 'rgba(255,255,255,0.06)';
+                        (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                      }}
+                    >
+                      {/* Favorite badge */}
+                      {friend.isFavorite && (
+                        <div style={{
+                          position: 'absolute', top: 14, right: 14,
+                          fontSize: 9, background: 'rgba(173,198,255,0.15)',
+                          color: '#adc6ff', padding: '3px 8px', borderRadius: 6,
+                          fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase',
+                        }} onClick={e => e.stopPropagation()}>FAVORITE</div>
+                      )}
 
-                    {/* Avatar + presence */}
-                    <div style={{ position: 'relative', width: 64, marginBottom: 14 }}>
-                      <PhotoAvatar name={friend.name} size={64} color={friend.avatarColor} bg={friend.avatarBg} />
-                      <div style={{ position: 'absolute', bottom: -1, right: -1 }}>
-                        <PresenceGem status={friend.status} />
+                      {/* More options (non-favorites) */}
+                      {!friend.isFavorite && (
+                        <button style={{
+                          position: 'absolute', top: 12, right: 12,
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          color: 'rgba(194,198,214,0.25)', padding: 4,
+                          borderRadius: 6, transition: 'color 0.2s',
+                          fontFamily: "'Material Symbols Outlined'", fontSize: 18, lineHeight: 1,
+                        }}
+                          onClick={e => e.stopPropagation()}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(194,198,214,0.7)'; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'rgba(194,198,214,0.25)'; }}
+                        >more_horiz</button>
+                      )}
+
+                      {/* Avatar + presence */}
+                      <div style={{ position: 'relative', width: 64, marginBottom: 14 }}>
+                        <PhotoAvatar name={friend.name} size={64} color={friend.avatarColor} bg={friend.avatarBg} />
+                        <div style={{ position: 'absolute', bottom: -1, right: -1 }}>
+                          <PresenceGem status={friendStatus} />
+                        </div>
                       </div>
-                    </div>
 
-                    <h3 style={{ fontSize: 15, fontWeight: 700, color: '#e2e2e2', marginBottom: 3, letterSpacing: '-0.01em' }}>
-                      {friend.name}
-                    </h3>
-                    <p style={{
-                      fontSize: 12, fontWeight: 600, marginBottom: 9,
-                      color: friend.status === 'online' ? 'rgba(173,198,255,0.65)' : 'rgba(194,198,214,0.35)',
-                    }}>
-                      {friend.handle}
-                    </p>
-                    <p style={{
-                      fontSize: 12, lineHeight: 1.55, fontStyle: 'italic',
-                      color: friend.status === 'online' ? 'rgba(194,198,214,0.75)' : 'rgba(194,198,214,0.4)',
-                    }}>
-                      {friend.statusMsg}
-                    </p>
-                  </div>
-                ))}
+                      <h3 style={{ fontSize: 15, fontWeight: 700, color: '#e2e2e2', marginBottom: 3, letterSpacing: '-0.01em' }}>
+                        {friend.name}
+                      </h3>
+                      <p style={{
+                        fontSize: 12, fontWeight: 600, marginBottom: 9,
+                        color: isOnline ? 'rgba(173,198,255,0.65)' : 'rgba(194,198,214,0.35)',
+                      }}>
+                        {friend.handle}
+                      </p>
+                      <p style={{
+                        fontSize: 12, lineHeight: 1.55, fontStyle: 'italic',
+                        color: isOnline ? 'rgba(194,198,214,0.75)' : 'rgba(194,198,214,0.4)',
+                      }}>
+                        {friendStatusMsg}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
             </>
           ) : (
@@ -1099,47 +1112,56 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
             >close</button>
 
             {/* Profile Avatar */}
-            <div style={{ position: 'relative', marginBottom: 20 }}>
-              <PhotoAvatar
-                name={selectedUserProfile.display_name || selectedUserProfile.name || selectedUserProfile.email.split('@')[0]}
-                size={96}
-                color="#adc6ff"
-                bg="linear-gradient(135deg, #1a2744 0%, #2a3f6e 50%, #1e3a5a 100%)"
-              />
-              <div style={{ position: 'absolute', bottom: 2, right: 2 }}>
-                <PresenceGem status={selectedUserProfile.status || 'offline'} />
-              </div>
-            </div>
+            {(() => {
+              const isProfileOnline = !!presenceMap[selectedUserProfile.id]?.online;
+              const profileStatus = isProfileOnline ? 'online' : 'offline';
+              return (
+                <>
+                  <div style={{ position: 'relative', marginBottom: 20 }}>
+                    <PhotoAvatar
+                      name={selectedUserProfile.display_name || selectedUserProfile.name || selectedUserProfile.email.split('@')[0]}
+                      size={96}
+                      color="#adc6ff"
+                      bg="linear-gradient(135deg, #1a2744 0%, #2a3f6e 50%, #1e3a5a 100%)"
+                    />
+                    <div style={{ position: 'absolute', bottom: 2, right: 2 }}>
+                      <PresenceGem status={profileStatus} />
+                    </div>
+                  </div>
 
-            {/* User Details */}
-            <h2 style={{ fontSize: 22, fontWeight: 700, color: '#e2e2e2', marginBottom: 6, textAlign: 'center' }}>
-              {selectedUserProfile.display_name || selectedUserProfile.name || selectedUserProfile.email.split('@')[0]}
-            </h2>
-            <p style={{ fontSize: 14, color: '#4d8eff', fontWeight: 600, marginBottom: 16 }}>
-              @{selectedUserProfile.username || (selectedUserProfile.display_name || selectedUserProfile.name)?.toLowerCase().replace(/\s+/g, '_') || selectedUserProfile.email.split('@')[0]}
-            </p>
+                  {/* User Details */}
+                  <h2 style={{ fontSize: 22, fontWeight: 700, color: '#e2e2e2', marginBottom: 6, textAlign: 'center' }}>
+                    {selectedUserProfile.display_name || selectedUserProfile.name || selectedUserProfile.email.split('@')[0]}
+                  </h2>
+                  <p style={{ fontSize: 14, color: '#4d8eff', fontWeight: 600, marginBottom: 16 }}>
+                    @{selectedUserProfile.username || (selectedUserProfile.display_name || selectedUserProfile.name)?.toLowerCase().replace(/\s+/g, '_') || selectedUserProfile.email.split('@')[0]}
+                  </p>
 
-            {/* Extra Metadata */}
-            <div style={{
-              width: '100%', background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.05)', borderRadius: 16,
-              padding: '16px 20px', marginBottom: 24, boxSizing: 'border-box'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                <span style={{ fontSize: 12, color: 'rgba(194,198,214,0.4)', fontWeight: 500 }}>Email</span>
-                <span style={{ fontSize: 13, color: '#e2e2e2', fontWeight: 500 }}>{selectedUserProfile.email}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12, color: 'rgba(194,198,214,0.4)', fontWeight: 500 }}>Status</span>
-                <span style={{
-                  fontSize: 13,
-                  color: selectedUserProfile.status === 'online' ? '#a8d4b0' : 'rgba(194,198,214,0.5)',
-                  fontWeight: 600,
-                  textTransform: 'capitalize'
-                }}>
-                  {selectedUserProfile.status || 'offline'}
-                </span>
-              </div>
+                  {/* Extra Metadata */}
+                  <div style={{
+                    width: '100%', background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.05)', borderRadius: 16,
+                    padding: '16px 20px', marginBottom: 24, boxSizing: 'border-box'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                      <span style={{ fontSize: 12, color: 'rgba(194,198,214,0.4)', fontWeight: 500 }}>Email</span>
+                      <span style={{ fontSize: 13, color: '#e2e2e2', fontWeight: 500 }}>{selectedUserProfile.email}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 12, color: 'rgba(194,198,214,0.4)', fontWeight: 500 }}>Status</span>
+                      <span style={{
+                        fontSize: 13,
+                        color: isProfileOnline ? '#a8d4b0' : 'rgba(194,198,214,0.5)',
+                        fontWeight: 600,
+                        textTransform: 'capitalize'
+                      }}>
+                        {profileStatus}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
               {selectedUserProfile.activity_description && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 10 }}>
                   <span style={{ fontSize: 12, color: 'rgba(194,198,214,0.4)', fontWeight: 500 }}>Activity</span>

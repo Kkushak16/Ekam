@@ -85,7 +85,7 @@ const ipUploadLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
 const userUploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 50,
-  // Use the builtâ€‘in ipKeyGenerator for IPv6 safety; fall back to user ID when authenticated
+  // Use the built‑in ipKeyGenerator for IPv6 safety; fall back to user ID when authenticated
   keyGenerator: (req) => req.user?.id || ipKeyGenerator(req)
 });
 
@@ -146,10 +146,8 @@ app.get('/api/diagnose', (req, res) => {
     if (val.length <= 6) return '***';
     return val.substring(0, 3) + '...' + val.substring(val.length - 3);
   };
-  const expectedUri = 'mongodb+srv://<db_username>:<db_password>@cluster0.xxxx.mongodb.net/ekam?retryWrites=true&w=majority';
   res.json({
     MONGODB_URI: mask(process.env.MONGODB_URI || process.env.MONGO_URI),
-    MONGODB_URI_MATCHES_LOCAL: (process.env.MONGODB_URI || process.env.MONGO_URI) === expectedUri,
     SUPABASE_URL: mask(process.env.SUPABASE_URL),
     SUPABASE_SERVICE_ROLE_KEY: mask(process.env.SUPABASE_SERVICE_ROLE_KEY),
     JWT_SECRET: mask(process.env.JWT_SECRET),
@@ -867,6 +865,7 @@ app.post('/api/messages', requireAuth, async (req, res) => {
 
     // Step 5: Broadcast real-time packet state over serverless web-hubs (Pusher)
     if (process.env.PUSHER_APP_ID) {
+      // Broadcast to room channel (for users currently viewing the room)
       await pusher.trigger(`room-${room_id}`, 'new-message', {
         _id: mongoDoc._id,
         room_id,
@@ -875,6 +874,25 @@ app.post('/api/messages', requireAuth, async (req, res) => {
         supabase_id: supabaseMessage.id,
         ts: Date.now()
       }).catch(e => console.error("Realtime Broadcast Skip:", e.message));
+
+      // Broadcast to each room member's private user channel (so they get it in background/sidebar)
+      try {
+        const members = await getRoomMembers(room_id);
+        for (const memberId of members) {
+          if (memberId !== sender_id) {
+            await pusher.trigger(`user-${memberId}`, 'new-message', {
+              _id: mongoDoc._id,
+              room_id,
+              sender_id,
+              body,
+              supabase_id: supabaseMessage.id,
+              ts: Date.now()
+            }).catch(e => console.error(`Pusher background trigger for ${memberId} failed:`, e.message));
+          }
+        }
+      } catch (err) {
+        console.error("Failed background Pusher broadcast to members:", err.message);
+      }
     }
 
     return res.status(201).json({ ...mongoDoc, supabase_id: supabaseMessage.id });
@@ -894,7 +912,7 @@ async function checkDatabaseSize() {
     const stats = await db.command({ dbStats: 1 });
     const storageSize = stats.storageSize || stats.dataSize || 0; // bytes
     const storageSizeMB = storageSize / (1024 * 1024);
-    console.log(`ðŸ“Š [MongoDB Monitor] Current database size: ${storageSizeMB.toFixed(2)} MB`);
+    console.log(`📊 [MongoDB Monitor] Current database size: ${storageSizeMB.toFixed(2)} MB`);
     if (storageSizeMB >= 400) {
       console.warn(`âš ï¸ [MongoDB Monitor] WARNING: MongoDB database storage has reached ${storageSizeMB.toFixed(2)} MB, which is >= 80% of the 512 MB free tier limit!`);
     }
@@ -987,7 +1005,7 @@ async function getUserContacts(userId) {
 }
 
 async function startServer() {
-  console.log("ðŸ”— Verifying external service connections...");
+  console.log("🔗 Verifying external service connections...");
   try {
     const { db } = await connectToDatabase();
     await db.command({ ping: 1 });
@@ -1001,7 +1019,7 @@ async function startServer() {
     if (pgError) throw pgError;
 
     await connectRedis();
-    console.log("âœ… Core Cloud services connected and validated.");
+    console.log("✅ Core Cloud services connected and validated.");
   } catch (err) {
     console.warn("âš ï¸ Service Startup Check Warning: " + err.message + " - Proceeding to allow partial boot.");
   }
@@ -1304,7 +1322,7 @@ async function startServer() {
     const now = Date.now();
     wss.clients.forEach((ws) => {
       if (now - ws.lastActivity > 30000) {
-        console.log(`ðŸ§¹ Sweeping stale raw WebSocket connection for user: ${ws.userId}`);
+        console.log(`🧹 Sweeping stale raw WebSocket connection for user: ${ws.userId}`);
         ws.terminate();
       }
     });
@@ -1328,7 +1346,7 @@ async function startServer() {
 
   server.listen(PORT, () => {
     console.log(`SERVER_PORT=${server.address().port}`);
-    console.log(`ðŸš€ Unified Node Server Running on Port: ${server.address().port}`);
+    console.log(`🚀 Unified Node Server Running on Port: ${server.address().port}`);
   });
 
   process.on('SIGTERM', async () => {

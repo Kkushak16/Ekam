@@ -115,7 +115,7 @@ async function resolveSrvUri(srvUri) {
     
     const dbPath = database || "/";
     const standardUri = `mongodb://${username}:${password}@${hostList}${dbPath}?${finalOptions}`;
-    console.log("âœ… Successfully constructed standard fallback connection string.");
+    console.log("✅ Successfully constructed standard fallback connection string.");
     return standardUri;
   } catch (err) {
     console.error("âŒ Manual DNS resolution failed:", err.message);
@@ -128,34 +128,22 @@ export async function connectToDatabase() {
   if (db) return { client, db };
 
   const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
-  const safeUri = uri || 'mongodb+srv://<db_username>:<db_password>@cluster0.xxxx.mongodb.net/ekam?retryWrites=true&w=majority';
-  const hasTlsOption = safeUri.includes('tlsInsecure') || safeUri.includes('tlsAllowInvalidCertificates');
+  if (!uri) {
+    throw new Error("MONGODB_URI or MONGO_URI environment variable is not defined.");
+  }
+  const hasTlsOption = uri.includes('tlsInsecure') || uri.includes('tlsAllowInvalidCertificates');
   const mongoOptions = hasTlsOption ? {} : { tlsAllowInvalidCertificates: true };
 
   try {
-    client = new MongoClient(safeUri, mongoOptions);
+    client = new MongoClient(uri, mongoOptions);
     await client.connect();
     db = client.db();
     return { client, db };
   } catch (err) {
-    console.warn(`âš ï¸ MongoDB connection with primary URI failed: ${err.message}. Trying verified fallback...`);
-    const hardcodedUri = 'mongodb+srv://<db_username>:<db_password>@cluster0.xxxx.mongodb.net/ekam?retryWrites=true&w=majority';
-    if (safeUri !== hardcodedUri) {
-      try {
-        client = new MongoClient(hardcodedUri, { tlsAllowInvalidCertificates: true });
-        await client.connect();
-        db = client.db();
-        console.log('âœ… Successfully connected to MongoDB using verified fallback URI.');
-        return { client, db };
-      } catch (fallbackErr) {
-        console.error('âŒ Verified fallback connection also failed:', fallbackErr.message);
-      }
-    }
-
     if (err.message.includes('querySrv') || err.code === 'ECONNREFUSED' || err.message.includes('ECONNREFUSED')) {
-      console.warn("âš ï¸ DNS SRV query failed. Attempting standard connection string fallback...");
+      console.warn("⚠️ DNS SRV query failed. Attempting standard connection string fallback...");
       try {
-        const fallbackUri = await resolveSrvUri(safeUri);
+        const fallbackUri = await resolveSrvUri(uri);
         const hasFallbackTlsOption = fallbackUri.includes('tlsInsecure') || fallbackUri.includes('tlsAllowInvalidCertificates');
         const fallbackOptions = hasFallbackTlsOption ? {} : { tlsAllowInvalidCertificates: true };
         client = new MongoClient(fallbackUri, fallbackOptions);
@@ -170,8 +158,7 @@ export async function connectToDatabase() {
   }
 }
 
-// Close the cached connection
-export async function closeDatabaseConnection() {
+// export async function closeDatabaseConnection() {
   if (client) {
     await client.close();
     client = null;

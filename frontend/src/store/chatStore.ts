@@ -185,6 +185,31 @@ export const useChatStore = create<ChatState>()(
 
           set({ pusherInstance: pusher });
 
+          // Parse JWT to subscribe to user's private channel for real-time delivery
+          try {
+            const payload = get().parseJwt(jwt);
+            const userId = payload.id || payload.sub;
+            if (userId) {
+              const userChannel = pusher.subscribe(`user-${userId}`);
+              userChannel.bind('new-message', (data: any) => {
+                const msg: Message = {
+                  id: data._id,
+                  clientMessageId: data.clientMessageId || data._id,
+                  roomId: data.room_id,
+                  senderId: data.sender_id,
+                  body: data.body,
+                  status: 'sent',
+                  ts: data.ts || Date.now(),
+                  mediaUrl: data.media_url,
+                  mediaType: data.media_type,
+                };
+                get().addMessage(msg);
+              });
+            }
+          } catch (e) {
+            console.error('Failed to subscribe to user private channel:', e);
+          }
+
           // Subscribe to the default general room
           const defaultRoomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
           
