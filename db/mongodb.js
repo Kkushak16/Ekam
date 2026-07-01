@@ -158,7 +158,7 @@ export async function connectToDatabase() {
   }
 }
 
-// export async function closeDatabaseConnection() {
+export async function closeDatabaseConnection() {
   if (client) {
     await client.close();
     client = null;
