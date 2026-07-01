@@ -22,6 +22,37 @@ export function MessageItem({ message, currentUserId }: MessageItemProps) {
     } catch { timeStr = String(message.ts); }
   }
 
+  const getFileNameFromUrl = (url?: string) => {
+    if (!url) return 'Unknown File';
+    try {
+      const decoded = decodeURIComponent(url);
+      const parts = decoded.split('/');
+      const last = parts[parts.length - 1];
+      return last || 'File';
+    } catch {
+      return 'File';
+    }
+  };
+
+  const getFileIcon = (type?: string, url?: string) => {
+    if (type?.startsWith('image/')) return 'image';
+    if (type?.startsWith('video/')) return 'movie';
+    if (type?.startsWith('audio/')) return 'audiotrack';
+    if (type?.includes('pdf')) return 'picture_as_pdf';
+    if (type?.includes('json')) return 'data_object';
+    if (type?.includes('zip') || type?.includes('tar') || type?.includes('rar')) return 'archive';
+    
+    const ext = url?.split('.').pop()?.toLowerCase();
+    if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext || '')) return 'image';
+    if (['mp4', 'mov', 'avi', 'mkv'].includes(ext || '')) return 'movie';
+    if (['mp3', 'wav', 'ogg'].includes(ext || '')) return 'audiotrack';
+    if (ext === 'pdf') return 'picture_as_pdf';
+    if (ext === 'json') return 'data_object';
+    if (['zip', 'rar', '7z', 'gz'].includes(ext || '')) return 'archive';
+    
+    return 'description';
+  };
+
   const renderMedia = () => {
     if (!message.mediaUrl) return null;
     const isImage = message.mediaType?.startsWith('image/') || /\.(jpeg|jpg|gif|png|webp)$/i.test(message.mediaUrl);
@@ -37,14 +68,65 @@ export function MessageItem({ message, currentUserId }: MessageItemProps) {
         <video src={message.mediaUrl} controls style={{ width: '100%', maxHeight: '240px', display: 'block' }} />
       </div>
     );
+
+    const fileName = getFileNameFromUrl(message.mediaUrl);
+    const fileIcon = getFileIcon(message.mediaType, message.mediaUrl);
+
     return (
-      <div style={{ marginTop: '8px', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span className="material-symbols-outlined text-[#adc6ff] text-[18px]">attach_file</span>
-        <a href={message.mediaUrl} target="_blank" rel="noopener noreferrer"
-          style={{ color: '#adc6ff', textDecoration: 'underline', fontSize: '13px', wordBreak: 'break-all' }}>
-          Download Attachment
-        </a>
-      </div>
+      <a
+        href={message.mediaUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          marginTop: '10px',
+          padding: '12px 14px',
+          background: 'rgba(255, 255, 255, 0.02)',
+          border: '1px solid rgba(255, 255, 255, 0.04)',
+          borderRadius: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          textDecoration: 'none',
+          color: '#e2e2e2',
+          maxWidth: '280px',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+          e.currentTarget.style.borderColor = 'rgba(77, 142, 255, 0.4)';
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.04)';
+        }}
+      >
+        <div style={{
+          width: '36px',
+          height: '36px',
+          borderRadius: '8px',
+          background: 'rgba(77, 142, 255, 0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          <span className="material-symbols-outlined" style={{ color: '#4d8eff', fontSize: '20px' }}>
+            {fileIcon}
+          </span>
+        </div>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <p style={{ fontSize: '13px', fontWeight: 650, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={fileName}>
+            {fileName}
+          </p>
+          <p style={{ fontSize: '10px', color: 'rgba(194, 198, 214, 0.5)', margin: '2px 0 0', fontWeight: 500 }}>
+            File Attachment
+          </p>
+        </div>
+        <span className="material-symbols-outlined" style={{ color: '#4d8eff', fontSize: '18px', marginLeft: 'auto' }}>
+          download
+        </span>
+      </a>
     );
   };
 

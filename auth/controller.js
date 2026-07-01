@@ -86,6 +86,11 @@ router.post('/register', async (req, res) => {
     // Convert phone to pseudo‑email for Supabase (e.g. 919876543210@phone.ekam.app)
     const phoneEmail = phone.replace(/[^0-9]/g, '') + '@phone.ekam.app';
     userEmail = phoneEmail;
+  } else {
+    // Enforce Gmail-only registration for standard email signups
+    if (!userEmail || !userEmail.toLowerCase().endsWith('@gmail.com')) {
+      return res.status(400).json({ error: 'Registration is restricted to Gmail accounts only' });
+    }
   }
 
   if (!userEmail) {
@@ -206,6 +211,9 @@ router.post('/google', async (req, res) => {
     }
 
     const user = data.user;
+    if (!user.email || !user.email.toLowerCase().endsWith('@gmail.com')) {
+      return res.status(400).json({ error: 'Google sign-in is restricted to Gmail accounts only' });
+    }
     const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0];
     const derivedUsername = displayName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
 

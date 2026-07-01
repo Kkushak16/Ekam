@@ -1158,19 +1158,18 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
                         {profileStatus}
                       </span>
                     </div>
+                    {selectedUserProfile.activity_description && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 10 }}>
+                        <span style={{ fontSize: 12, color: 'rgba(194,198,214,0.4)', fontWeight: 500 }}>Activity</span>
+                        <span style={{ fontSize: 13, color: '#adc6ff', fontWeight: 500, fontStyle: 'italic' }}>
+                          "{selectedUserProfile.activity_description}"
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </>
               );
             })()}
-              {selectedUserProfile.activity_description && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 10, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 10 }}>
-                  <span style={{ fontSize: 12, color: 'rgba(194,198,214,0.4)', fontWeight: 500 }}>Activity</span>
-                  <span style={{ fontSize: 13, color: '#adc6ff', fontWeight: 500, fontStyle: 'italic' }}>
-                    "{selectedUserProfile.activity_description}"
-                  </span>
-                </div>
-              )}
-            </div>
 
             {/* Actions */}
             {friends.some(f => f.id === selectedUserProfile.id) ? (
