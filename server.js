@@ -153,10 +153,16 @@ app.get('/api/diagnose', (req, res) => {
   const uriRegex = /^([^:]+):\/\/([^:]+):([^@]+)@([^/]+)\/([^?]+)\?(.*)$/;
   const match = currentUri.match(uriRegex);
   if (match) {
+    const password = match[3];
     parsed = {
       protocol: match[1],
       username: match[2],
-      passwordLength: match[3].length,
+      passwordLength: password.length,
+      passwordStartsWithQuote: password.startsWith('"') || password.startsWith("'"),
+      passwordEndsWithQuote: password.endsWith('"') || password.endsWith("'"),
+      passwordHasWhitespace: /\s/.test(password),
+      passwordFirstChar: password.substring(0, 1),
+      passwordLastChar: password.substring(password.length - 1),
       host: match[4],
       database: match[5],
       options: match[6]
@@ -166,10 +172,16 @@ app.get('/api/diagnose', (req, res) => {
     const simpleRegex = /^([^:]+):\/\/([^:]+):([^@]+)@([^/]+)\/(.*)$/;
     const simpleMatch = currentUri.match(simpleRegex);
     if (simpleMatch) {
+      const password = simpleMatch[3];
       parsed = {
         protocol: simpleMatch[1],
         username: simpleMatch[2],
-        passwordLength: simpleMatch[3].length,
+        passwordLength: password.length,
+        passwordStartsWithQuote: password.startsWith('"') || password.startsWith("'"),
+        passwordEndsWithQuote: password.endsWith('"') || password.endsWith("'"),
+        passwordHasWhitespace: /\s/.test(password),
+        passwordFirstChar: password.substring(0, 1),
+        passwordLastChar: password.substring(password.length - 1),
         host: simpleMatch[4],
         database: simpleMatch[5],
         options: 'None'
