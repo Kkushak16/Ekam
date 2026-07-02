@@ -146,46 +146,9 @@ app.get('/api/diagnose', (req, res) => {
     if (val.length <= 6) return '***';
     return val.substring(0, 3) + '...' + val.substring(val.length - 3);
   };
-  const localUri = 'mongodb+srv://kkushak_1605:MyNewPass123!@ac-ba9k5xl.jwnmyff.mongodb.net/ekam?retryWrites=true&w=majority';
   const currentUri = process.env.MONGODB_URI || process.env.MONGO_URI || '';
-  
-  let parsed = { error: 'Could not parse URI structure' };
-  const uriRegex = /^([^:]+):\/\/([^:]+):([^@]+)@([^/]+)\/([^?]+)\?(.*)$/;
-  const match = currentUri.match(uriRegex);
-  if (match) {
-    const password = match[3];
-    parsed = {
-      protocol: match[1],
-      username: match[2],
-      passwordLength: password.length,
-      passwordBase64: Buffer.from(password).toString('base64'),
-      host: match[4],
-      database: match[5],
-      options: match[6]
-    };
-  } else {
-    // Try matching without options
-    const simpleRegex = /^([^:]+):\/\/([^:]+):([^@]+)@([^/]+)\/(.*)$/;
-    const simpleMatch = currentUri.match(simpleRegex);
-    if (simpleMatch) {
-      const password = simpleMatch[3];
-      parsed = {
-        protocol: simpleMatch[1],
-        username: simpleMatch[2],
-        passwordLength: password.length,
-        passwordBase64: Buffer.from(password).toString('base64'),
-        host: simpleMatch[4],
-        database: simpleMatch[5],
-        options: 'None'
-      };
-    }
-  }
-
   res.json({
     MONGODB_URI: mask(currentUri),
-    MONGODB_URI_LENGTH: currentUri.length,
-    MONGODB_URI_MATCHES_LOCAL: currentUri === localUri,
-    MONGODB_URI_PARSED: parsed,
     SUPABASE_URL: mask(process.env.SUPABASE_URL),
     SUPABASE_SERVICE_ROLE_KEY: mask(process.env.SUPABASE_SERVICE_ROLE_KEY),
     JWT_SECRET: mask(process.env.JWT_SECRET),
