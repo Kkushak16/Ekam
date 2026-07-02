@@ -146,8 +146,12 @@ app.get('/api/diagnose', (req, res) => {
     if (val.length <= 6) return '***';
     return val.substring(0, 3) + '...' + val.substring(val.length - 3);
   };
+  const localUri = 'mongodb+srv://kkushak_1605:MyNewPass123!@ac-ba9k5xl.jwnmyff.mongodb.net/ekam?retryWrites=true&w=majority';
+  const currentUri = process.env.MONGODB_URI || process.env.MONGO_URI || '';
   res.json({
-    MONGODB_URI: mask(process.env.MONGODB_URI || process.env.MONGO_URI),
+    MONGODB_URI: mask(currentUri),
+    MONGODB_URI_LENGTH: currentUri.length,
+    MONGODB_URI_MATCHES_LOCAL: currentUri === localUri,
     SUPABASE_URL: mask(process.env.SUPABASE_URL),
     SUPABASE_SERVICE_ROLE_KEY: mask(process.env.SUPABASE_SERVICE_ROLE_KEY),
     JWT_SECRET: mask(process.env.JWT_SECRET),
