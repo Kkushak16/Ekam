@@ -148,10 +148,40 @@ app.get('/api/diagnose', (req, res) => {
   };
   const localUri = 'mongodb+srv://kkushak_1605:MyNewPass123!@ac-ba9k5xl.jwnmyff.mongodb.net/ekam?retryWrites=true&w=majority';
   const currentUri = process.env.MONGODB_URI || process.env.MONGO_URI || '';
+  
+  let parsed = { error: 'Could not parse URI structure' };
+  const uriRegex = /^([^:]+):\/\/([^:]+):([^@]+)@([^/]+)\/([^?]+)\?(.*)$/;
+  const match = currentUri.match(uriRegex);
+  if (match) {
+    parsed = {
+      protocol: match[1],
+      username: match[2],
+      passwordLength: match[3].length,
+      host: match[4],
+      database: match[5],
+      options: match[6]
+    };
+  } else {
+    // Try matching without options
+    const simpleRegex = /^([^:]+):\/\/([^:]+):([^@]+)@([^/]+)\/(.*)$/;
+    const simpleMatch = currentUri.match(simpleRegex);
+    if (simpleMatch) {
+      parsed = {
+        protocol: simpleMatch[1],
+        username: simpleMatch[2],
+        passwordLength: simpleMatch[3].length,
+        host: simpleMatch[4],
+        database: simpleMatch[5],
+        options: 'None'
+      };
+    }
+  }
+
   res.json({
     MONGODB_URI: mask(currentUri),
     MONGODB_URI_LENGTH: currentUri.length,
     MONGODB_URI_MATCHES_LOCAL: currentUri === localUri,
+    MONGODB_URI_PARSED: parsed,
     SUPABASE_URL: mask(process.env.SUPABASE_URL),
     SUPABASE_SERVICE_ROLE_KEY: mask(process.env.SUPABASE_SERVICE_ROLE_KEY),
     JWT_SECRET: mask(process.env.JWT_SECRET),
