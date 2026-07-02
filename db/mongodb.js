@@ -127,10 +127,11 @@ async function resolveSrvUri(srvUri) {
 export async function connectToDatabase() {
   if (db) return { client, db };
 
-  const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
+  let uri = process.env.MONGODB_URI || process.env.MONGO_URI;
   if (!uri) {
     throw new Error("MONGODB_URI or MONGO_URI environment variable is not defined.");
   }
+  uri = uri.replace(/\s+/g, '');
   const hasTlsOption = uri.includes('tlsInsecure') || uri.includes('tlsAllowInvalidCertificates');
   const mongoOptions = hasTlsOption ? {} : { tlsAllowInvalidCertificates: true };
 

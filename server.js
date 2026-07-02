@@ -147,13 +147,8 @@ app.get('/api/diagnose', (req, res) => {
     return val.substring(0, 3) + '...' + val.substring(val.length - 3);
   };
   const currentUri = process.env.MONGODB_URI || process.env.MONGO_URI || '';
-  const queryIndex = currentUri.indexOf('?');
-  const queryString = queryIndex !== -1 ? currentUri.substring(queryIndex) : '';
-  const queryStringChars = Array.from(queryString).map(c => ({ char: c, code: c.charCodeAt(0) }));
   res.json({
     MONGODB_URI: mask(currentUri),
-    MONGODB_URI_QUERY_STRING: queryString,
-    MONGODB_URI_QUERY_STRING_CHARS: queryStringChars,
     SUPABASE_URL: mask(process.env.SUPABASE_URL),
     SUPABASE_SERVICE_ROLE_KEY: mask(process.env.SUPABASE_SERVICE_ROLE_KEY),
     JWT_SECRET: mask(process.env.JWT_SECRET),
