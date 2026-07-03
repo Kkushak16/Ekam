@@ -137,7 +137,6 @@ export function Header({ roomId }: HeaderProps) {
       <div style={S.leftGroup}>
         <div style={S.leftCol}>
           <div style={S.titleRow}>
-            <span style={S.hash}>#</span>
             <span style={S.roomName}>{roomName}</span>
           </div>
           <p style={S.subtitle}>Ekam Real-Time Secure Gateway</p>

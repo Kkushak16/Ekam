@@ -892,7 +892,7 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
                   return (
                     <div
                       key={friend.id}
-                      onClick={() => setSelectedUserProfile(friend)}
+                      onClick={() => handleChatWithFriend(friend.id)}
                       style={{
                         background: friend.isFavorite ? 'rgba(173,198,255,0.04)' : 'rgba(20,20,24,0.7)',
                         backdropFilter: 'blur(20px)',

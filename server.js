@@ -14,6 +14,7 @@ import {
 import { createSupabaseUserClient, supabaseAdmin } from './db/supabase.js';
 import authRouter from './auth/controller.js';
 import { verifyAccessToken } from './auth/utils/jwt.js';
+import { runMigrations } from './db/migrate.js';
 
 // Testing & Hardening Requirements
 import http from 'http';
@@ -32,6 +33,28 @@ import {
 } from './validation.js';
 
 dotenv.config();
+
+function generateMockEmbedding(text) {
+  const vector = new Array(384).fill(0);
+  if (!text) return vector;
+  for (let i = 0; i < text.length; i++) {
+    const charCode = text.charCodeAt(i);
+    for (let j = 0; j < 384; j++) {
+      vector[j] += Math.sin(charCode * (j + 1) + i);
+    }
+  }
+  let magnitude = 0;
+  for (let j = 0; j < 384; j++) {
+    magnitude += vector[j] * vector[j];
+  }
+  magnitude = Math.sqrt(magnitude);
+  if (magnitude > 0) {
+    for (let j = 0; j < 384; j++) {
+      vector[j] /= magnitude;
+    }
+  }
+  return vector;
+}
 
 // 1. Initialize Serverless Realtime Engine (Pusher Alternative to Socket.io)
 const pusher = new Pusher({
@@ -549,15 +572,136 @@ app.get('/api/friends', requireAuth, async (req, res) => {
 
     const friendsWithActivity = users.map(u => {
       const act = activities.find(a => a.userId === u.id);
+      const friendship = friendships.find(f => f.users.includes(u.id));
+      const isFavorite = friendship && friendship.favorites && friendship.favorites.includes(req.user.id);
+      const isMuted = friendship && friendship.muted_by && friendship.muted_by.includes(req.user.id);
       return {
         ...u,
-        activity_description: act ? act.activity_description : null
+        activity_description: act ? act.activity_description : null,
+        isFavorite: !!isFavorite,
+        isMuted: !!isMuted
       };
     });
 
     return res.json({ friends: friendsWithActivity });
   } catch (err) {
     console.error('Error getting friends:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Remove a friend
+app.delete('/api/friends/:friendId', requireAuth, async (req, res) => {
+  const { friendId } = req.params;
+  const userId = req.user.id;
+  try {
+    const { db } = await connectToDatabase();
+    await db.collection('friendships').deleteOne({
+      users: { $all: [userId, friendId] }
+    });
+
+    const { data: myMemberships } = await supabaseAdmin
+      .from('room_members')
+      .select('room_id')
+      .eq('user_id', userId);
+    const { data: friendMemberships } = await supabaseAdmin
+      .from('room_members')
+      .select('room_id')
+      .eq('user_id', friendId);
+
+    if (myMemberships && friendMemberships) {
+      const myRoomIds = myMemberships.map(m => m.room_id);
+      const friendRoomIds = friendMemberships.map(m => m.room_id);
+      const commonRoomIds = myRoomIds.filter(id => friendRoomIds.includes(id));
+
+      if (commonRoomIds.length > 0) {
+        const { data: dmRooms } = await supabaseAdmin
+          .from('rooms')
+          .select('id')
+          .in('id', commonRoomIds)
+          .eq('type', 'dm');
+
+        if (dmRooms && dmRooms.length > 0) {
+          const dmRoomId = dmRooms[0].id;
+          await supabaseAdmin.from('room_members').delete().eq('room_id', dmRoomId);
+          await supabaseAdmin.from('rooms').delete().eq('id', dmRoomId);
+
+          await redisRest.del(`room_members:${dmRoomId}`);
+          await redisRest.del(`user_rooms:${userId}`);
+          await redisRest.del(`user_rooms:${friendId}`);
+        }
+      }
+    }
+
+    return res.json({ success: true, message: 'Friend removed successfully' });
+  } catch (err) {
+    console.error('Error removing friend:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Toggle Favorite Friend
+app.put('/api/friends/:friendId/favorite', requireAuth, async (req, res) => {
+  const { friendId } = req.params;
+  const { isFavorite } = req.body;
+  const userId = req.user.id;
+  try {
+    const { db } = await connectToDatabase();
+    const friendship = await db.collection('friendships').findOne({
+      users: { $all: [userId, friendId] }
+    });
+    if (!friendship) return res.status(404).json({ error: 'Friendship not found' });
+
+    let favorites = friendship.favorites || [];
+    if (isFavorite) {
+      if (!favorites.includes(userId)) {
+        favorites.push(userId);
+      }
+    } else {
+      favorites = favorites.filter(id => id !== userId);
+    }
+
+    await db.collection('friendships').updateOne(
+      { _id: friendship._id },
+      { $set: { favorites } }
+    );
+
+    return res.json({ success: true, isFavorite });
+  } catch (err) {
+    console.error('Error toggling favorite:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Toggle Mute Friend (mark DM room members or friendship document)
+app.put('/api/friends/:friendId/mute', requireAuth, async (req, res) => {
+  const { friendId } = req.params;
+  const { isMuted } = req.body;
+  const userId = req.user.id;
+  try {
+    const { db } = await connectToDatabase();
+    const friendship = await db.collection('friendships').findOne({
+      users: { $all: [userId, friendId] }
+    });
+    if (!friendship) return res.status(404).json({ error: 'Friendship not found' });
+
+    let muted_by = friendship.muted_by || [];
+    if (isMuted) {
+      if (!muted_by.includes(userId)) {
+        muted_by.push(userId);
+      }
+    } else {
+      muted_by = muted_by.filter(id => id !== userId);
+    }
+
+    await db.collection('friendships').updateOne(
+      { _id: friendship._id },
+      { $set: { muted_by } }
+    );
+
+    return res.json({ success: true, isMuted });
+  } catch (err) {
+    console.error('Error toggling mute:', err.message);
     return res.status(500).json({ error: err.message });
   }
 });
@@ -579,7 +723,7 @@ app.get('/api/rooms/groups', requireAuth, async (req, res) => {
 
 // Create group room
 app.post('/api/rooms/groups', requireAuth, async (req, res) => {
-  const { name } = req.body;
+  const { name, description, userIds } = req.body;
   if (!name || typeof name !== 'string' || !name.trim()) {
     return res.status(400).json({ error: 'Group name is required' });
   }
@@ -590,6 +734,7 @@ app.post('/api/rooms/groups', requireAuth, async (req, res) => {
       .insert({
         id: roomId,
         name: name.trim(),
+        description: description ? description.trim() : null,
         created_by: req.user.id,
         type: 'group'
       })
@@ -597,12 +742,20 @@ app.post('/api/rooms/groups', requireAuth, async (req, res) => {
       .single();
     if (error) throw error;
 
-    // Also add the creator as a member of the group
-    await supabaseAdmin.from('room_members').insert({
-      room_id: roomId,
-      user_id: req.user.id,
-      role: 'admin'
-    });
+    const membersToInsert = [
+      { room_id: roomId, user_id: req.user.id, role: 'admin' }
+    ];
+
+    if (userIds && Array.isArray(userIds)) {
+      userIds.forEach(uid => {
+        if (uid !== req.user.id) {
+          membersToInsert.push({ room_id: roomId, user_id: uid, role: 'member' });
+        }
+      });
+    }
+
+    const { error: memberError } = await supabaseAdmin.from('room_members').insert(membersToInsert);
+    if (memberError) throw memberError;
 
     return res.status(201).json({ room });
   } catch (err) {
@@ -745,6 +898,229 @@ app.get('/api/rooms/:roomId', requireAuth, async (req, res) => {
   }
 });
 
+// Get room members list
+app.get('/api/rooms/:roomId/members', requireAuth, async (req, res) => {
+  const { roomId } = req.params;
+  try {
+    const { data: members, error } = await supabaseAdmin
+      .from('room_members')
+      .select('room_id, user_id, role, is_muted, created_at, users(id, display_name, email, avatar_url, status, username)')
+      .eq('room_id', roomId);
+    if (error) throw error;
+    return res.json({ members });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Add more users/friends to a group
+app.post('/api/rooms/:roomId/members', requireAuth, async (req, res) => {
+  const { roomId } = req.params;
+  const { userIds } = req.body;
+  if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+    return res.status(400).json({ error: 'userIds array is required' });
+  }
+  try {
+    const { data: callerMembership, error: callerError } = await supabaseAdmin
+      .from('room_members')
+      .select('role')
+      .eq('room_id', roomId)
+      .eq('user_id', req.user.id)
+      .single();
+    if (callerError || !callerMembership) {
+      return res.status(403).json({ error: 'You are not a member of this group' });
+    }
+
+    const inserts = userIds.map(uid => ({
+      room_id: roomId,
+      user_id: uid,
+      role: 'member'
+    }));
+    const { error } = await supabaseAdmin.from('room_members').insert(inserts);
+    if (error) throw error;
+
+    await redisRest.del(`room_members:${roomId}`);
+    for (const uid of userIds) {
+      await redisRest.del(`user_rooms:${uid}`);
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Leave group
+app.post('/api/rooms/:roomId/leave', requireAuth, async (req, res) => {
+  const { roomId } = req.params;
+  try {
+    const { error } = await supabaseAdmin
+      .from('room_members')
+      .delete()
+      .eq('room_id', roomId)
+      .eq('user_id', req.user.id);
+    if (error) throw error;
+
+    await redisRest.del(`room_members:${roomId}`);
+    await redisRest.del(`user_rooms:${req.user.id}`);
+
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Kick a member (admin/co-admin role required)
+app.post('/api/rooms/:roomId/kick', requireAuth, async (req, res) => {
+  const { roomId } = req.params;
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId is required' });
+  try {
+    const { data: caller, error: callerErr } = await supabaseAdmin
+      .from('room_members')
+      .select('role')
+      .eq('room_id', roomId)
+      .eq('user_id', req.user.id)
+      .single();
+    if (callerErr || !caller) return res.status(403).json({ error: 'Unauthorized' });
+
+    const { data: target, error: targetErr } = await supabaseAdmin
+      .from('room_members')
+      .select('role')
+      .eq('room_id', roomId)
+      .eq('user_id', userId)
+      .single();
+    if (targetErr || !target) return res.status(404).json({ error: 'Target member not found' });
+
+    if (caller.role !== 'admin' && caller.role !== 'co-admin') {
+      return res.status(403).json({ error: 'Only admins or co-admins can kick users' });
+    }
+    if (target.role === 'admin') {
+      return res.status(403).json({ error: 'Cannot kick the primary admin' });
+    }
+    if (caller.role === 'co-admin' && target.role === 'co-admin') {
+      return res.status(403).json({ error: 'Co-admins cannot kick other co-admins' });
+    }
+
+    const { error } = await supabaseAdmin
+      .from('room_members')
+      .delete()
+      .eq('room_id', roomId)
+      .eq('user_id', userId);
+    if (error) throw error;
+
+    await redisRest.del(`room_members:${roomId}`);
+    await redisRest.del(`user_rooms:${userId}`);
+
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Mute/unmute a member (admin/co-admin role required)
+app.post('/api/rooms/:roomId/mute', requireAuth, async (req, res) => {
+  const { roomId } = req.params;
+  const { userId, isMuted } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId is required' });
+  try {
+    const { data: caller, error: callerErr } = await supabaseAdmin
+      .from('room_members')
+      .select('role')
+      .eq('room_id', roomId)
+      .eq('user_id', req.user.id)
+      .single();
+    if (callerErr || !caller) return res.status(403).json({ error: 'Unauthorized' });
+
+    const { data: target, error: targetErr } = await supabaseAdmin
+      .from('room_members')
+      .select('role')
+      .eq('room_id', roomId)
+      .eq('user_id', userId)
+      .single();
+    if (targetErr || !target) return res.status(404).json({ error: 'Target member not found' });
+
+    if (caller.role !== 'admin' && caller.role !== 'co-admin') {
+      return res.status(403).json({ error: 'Only admins or co-admins can mute users' });
+    }
+    if (target.role === 'admin') {
+      return res.status(403).json({ error: 'Cannot mute the primary admin' });
+    }
+    if (caller.role === 'co-admin' && target.role === 'co-admin') {
+      return res.status(403).json({ error: 'Co-admins cannot mute other co-admins' });
+    }
+
+    const { error } = await supabaseAdmin
+      .from('room_members')
+      .update({ is_muted: !!isMuted })
+      .eq('room_id', roomId)
+      .eq('user_id', userId);
+    if (error) throw error;
+
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Promote/demote a member (admin role required)
+app.post('/api/rooms/:roomId/promote', requireAuth, async (req, res) => {
+  const { roomId } = req.params;
+  const { userId, role } = req.body;
+  if (!userId || !role) return res.status(400).json({ error: 'userId and role are required' });
+  if (role !== 'co-admin' && role !== 'member') {
+    return res.status(400).json({ error: 'Role must be either co-admin or member' });
+  }
+  try {
+    const { data: caller, error: callerErr } = await supabaseAdmin
+      .from('room_members')
+      .select('role')
+      .eq('room_id', roomId)
+      .eq('user_id', req.user.id)
+      .single();
+    if (callerErr || !caller) return res.status(403).json({ error: 'Unauthorized' });
+
+    if (caller.role !== 'admin') {
+      return res.status(403).json({ error: 'Only the primary admin can promote/demote members' });
+    }
+
+    const { error } = await supabaseAdmin
+      .from('room_members')
+      .update({ role })
+      .eq('room_id', roomId)
+      .eq('user_id', userId);
+    if (error) throw error;
+
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Vector semantic search for messages in a room
+app.get('/api/rooms/:roomId/search', requireAuth, async (req, res) => {
+  const { roomId } = req.params;
+  const { q } = req.query;
+  if (!q) return res.status(400).json({ error: 'Search query is required' });
+  try {
+    const queryEmbedding = generateMockEmbedding(q);
+    const queryEmbeddingStr = JSON.stringify(queryEmbedding);
+
+    const { data: results, error } = await supabaseAdmin.rpc('match_messages', {
+      query_embedding: queryEmbeddingStr,
+      match_threshold: 0.1,
+      match_count: 20,
+      p_room_id: roomId
+    });
+
+    if (error) throw error;
+    return res.json({ results: results || [] });
+  } catch (err) {
+    console.error('Vector search error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // Pusher Channel Authentication Endpoint
 app.post('/api/pusher/auth', requireAuth, (req, res) => {
   const socketId = req.body.socket_id;
@@ -853,9 +1229,10 @@ app.post('/api/messages', requireAuth, async (req, res) => {
     mongoDoc = await insertMessage({ room_id, sender_id, body, media_url, media_type, status: 'sent' });
 
     // Step 3: Write to relational database layer (Supabase) using admin client to bypass token mismatch issues
+    const embeddingStr = JSON.stringify(generateMockEmbedding(body));
     const { data: supabaseMessage, error: supabaseError } = await supabaseAdmin
       .from('messages')
-      .insert({ room_id, sender_id, content: body, media_url: media_url || null, media_type: media_type || null })
+      .insert({ room_id, sender_id, content: body, media_url: media_url || null, media_type: media_type || null, embedding: embeddingStr })
       .select('id').single();
 
     if (supabaseError || !supabaseMessage) throw new Error(supabaseError?.message || 'Supabase rejection');
@@ -1016,6 +1393,8 @@ async function startServer() {
       await cloudinary.api.ping();
     }
     
+    await runMigrations();
+    
     const { error: pgError } = await supabaseAdmin.from('users').select('id').limit(1);
     if (pgError) throw pgError;
 
@@ -1131,9 +1510,10 @@ async function startServer() {
 
         const mongoDoc = await insertMessage({ room_id: roomId, sender_id: userId, body, media_url: mediaUrl, media_type: mediaType, status: 'sent' });
 
+        const embeddingStr = JSON.stringify(generateMockEmbedding(body));
         const { data: supabaseMessage, error: supabaseError } = await supabaseAdmin
           .from('messages')
-          .insert({ room_id: roomId, sender_id: userId, content: body, media_url: mediaUrl || null, media_type: mediaType || null })
+          .insert({ room_id: roomId, sender_id: userId, content: body, media_url: mediaUrl || null, media_type: mediaType || null, embedding: embeddingStr })
           .select('id').single();
 
         if (supabaseError || !supabaseMessage) throw new Error(supabaseError?.message || 'Supabase structural insert rejected');

@@ -4,6 +4,7 @@ import { useUploadMutation, apiClient } from '../api/queries';
 import MessageList from './MessageList';
 import TypingIndicator from './TypingIndicator';
 import Header from './Header';
+import EmojiPicker, { Theme } from 'emoji-picker-react';
 
 const ROOM_ID = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
 
@@ -150,6 +151,7 @@ export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: Ch
   });
 
   const [input, setInput] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -312,13 +314,25 @@ export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: Ch
             />
 
             {/* Emoji */}
-            <button
-              style={S.emojiBtn}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-            >
-              <span style={S.materialIcon}>mood</span>
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                style={S.emojiBtn}
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+              >
+                <span style={S.materialIcon}>mood</span>
+              </button>
+              
+              {showEmojiPicker && (
+                <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '10px', zIndex: 100 }}>
+                  <EmojiPicker 
+                    theme={Theme.DARK} 
+                    onEmojiClick={(emojiData) => setInput(prev => prev + emojiData.emoji)}
+                  />
+                </div>
+              )}
+            </div>
 
             {/* Send */}
             <button
