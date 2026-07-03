@@ -2,10 +2,15 @@ import pg from 'pg';
 const { Client } = pg;
 
 export async function runMigrations() {
-  const host = 'db.ubvuwqoedkgbfbsvuxmk.supabase.co';
-  const user = 'postgres';
-  const database = 'postgres';
-  const password = 'MyNewPass123!';
+  const host = process.env.SUPABASE_DB_HOST || 'db.ubvuwqoedkgbfbsvuxmk.supabase.co';
+  const user = process.env.SUPABASE_DB_USER || 'postgres';
+  const database = process.env.SUPABASE_DB_DATABASE || 'postgres';
+  const password = process.env.SUPABASE_DB_PASSWORD;
+
+  if (!password) {
+    console.warn('[Migration] SUPABASE_DB_PASSWORD is not set. Skipping migrations.');
+    return;
+  }
 
   console.log(`[Migration] Attempting to connect to ${host}...`);
   const client = new Client({

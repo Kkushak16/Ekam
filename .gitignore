@@ -11,3 +11,6 @@ yarn-error.log*
 
 # Allow frontend .env (only has public keys like VITE_GOOGLE_CLIENT_ID)
 !frontend/.env
+
+# Ignore scratch files
+scratch/
