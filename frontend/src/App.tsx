@@ -169,6 +169,7 @@ export function App() {
   const connectionStatus = useChatStore((state) => state.connectionStatus);
   const setToken = useChatStore((state) => state.setToken);
   const activeRoomId = useChatStore((state) => state.activeRoomId);
+  const isConnected = connectionStatus === 'connected';
 
   const path = window.location.pathname;
   const defaultTab = path.includes('dm') ? 'dm' : path.includes('settings') ? 'settings' : 'groups';
