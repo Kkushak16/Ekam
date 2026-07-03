@@ -299,10 +299,21 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
 
   const hasFriends = friends.length > 0;
 
-  const filteredFriends = friends.filter(f =>
-    f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    f.handle.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredFriends = friends.filter(f => {
+    const queryLower = searchQuery.toLowerCase();
+    if (!queryLower) return true;
+    const name = f.name.toLowerCase();
+    const handle = f.handle.toLowerCase();
+    
+    let matches = [];
+    if (name.includes(queryLower)) {
+      matches.push(queryLower.length >= Math.ceil(name.length / 2));
+    }
+    if (handle.includes(queryLower)) {
+      matches.push(queryLower.length >= Math.ceil(handle.length / 2));
+    }
+    return matches.length > 0 && matches.some(m => m === true);
+  });
 
   if (isActiveRoomDm && activeRoomId) {
     return (

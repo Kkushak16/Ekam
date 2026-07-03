@@ -193,6 +193,25 @@ app.get('/api/users/search', requireAuth, async (req, res) => {
   try {
     const queryStr = q.trim();
     
+    const queryLower = queryStr.toLowerCase();
+    const isHalfCorrect = (userObj) => {
+      const username = (userObj.username || '').toLowerCase();
+      const displayName = (userObj.display_name || '').toLowerCase();
+      const emailPrefix = (userObj.email || '').split('@')[0].toLowerCase();
+      
+      let matches = [];
+      if (username.includes(queryLower)) {
+        matches.push(queryLower.length >= Math.ceil(username.length / 2));
+      }
+      if (displayName.includes(queryLower)) {
+        matches.push(queryLower.length >= Math.ceil(displayName.length / 2));
+      }
+      if (emailPrefix.includes(queryLower)) {
+        matches.push(queryLower.length >= Math.ceil(emailPrefix.length / 2));
+      }
+      return matches.length > 0 && matches.some(m => m === true);
+    };
+
     // 1. Try querying with the username column
     try {
       const { data: users, error } = await supabaseAdmin
@@ -203,7 +222,8 @@ app.get('/api/users/search', requireAuth, async (req, res) => {
         .limit(20);
 
       if (!error && users) {
-        return res.json({ users });
+        const filtered = users.filter(isHalfCorrect);
+        return res.json({ users: filtered });
       }
       
       if (error && !error.message.includes('column') && !error.message.includes('does not exist')) {
@@ -229,7 +249,6 @@ app.get('/api/users/search', requireAuth, async (req, res) => {
     const { data: authData } = await supabaseAdmin.auth.admin.listUsers();
     const authUsers = authData?.users || [];
 
-    const queryLower = queryStr.toLowerCase();
     const mergedUsers = (users || []).map(u => {
       const au = authUsers.find(a => a.id === u.id);
       return {
@@ -256,7 +275,8 @@ app.get('/api/users/search', requireAuth, async (req, res) => {
       }
     }
 
-    return res.json({ users: mergedUsers.slice(0, 20) });
+    const filteredUsers = mergedUsers.filter(isHalfCorrect);
+    return res.json({ users: filteredUsers.slice(0, 20) });
   } catch (err) {
     console.error('Error searching users:', err.message);
     return res.status(500).json({ error: err.message });

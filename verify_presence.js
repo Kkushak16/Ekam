@@ -69,7 +69,7 @@ async function runTests() {
     console.log("🔑 Fetching user JWT session for Alice...");
     const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
     const { data: aliceAuth, error: aliceAuthErr } = await supabase.auth.signInWithPassword({
-      email: 'alice@example.com',
+      email: 'alice@gmail.com',
       password: 'password123'
     });
     if (aliceAuthErr) throw new Error("Supabase auth failed for Alice: " + aliceAuthErr.message);
@@ -79,7 +79,7 @@ async function runTests() {
 
     console.log("🔑 Fetching user JWT session for Bob...");
     const { data: bobAuth, error: bobAuthErr } = await supabase.auth.signInWithPassword({
-      email: 'bob@example.com',
+      email: 'bob@gmail.com',
       password: 'password123'
     });
     if (bobAuthErr) throw new Error("Supabase auth failed for Bob: " + bobAuthErr.message);
