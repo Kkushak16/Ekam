@@ -168,6 +168,7 @@ export function App() {
   const disconnectSocket = useChatStore((state) => state.disconnectSocket);
   const connectionStatus = useChatStore((state) => state.connectionStatus);
   const setToken = useChatStore((state) => state.setToken);
+  const activeRoomId = useChatStore((state) => state.activeRoomId);
 
   const path = window.location.pathname;
   const defaultTab = path.includes('dm') ? 'dm' : path.includes('settings') ? 'settings' : 'groups';
@@ -218,7 +219,10 @@ export function App() {
       <div style={S.pointerGlow} />
 
       {/* Sidebar */}
-      <aside style={S.sidebar}>
+      <aside style={{
+        ...S.sidebar,
+        display: activeRoomId ? 'none' : 'flex'
+      }}>
         {/* Brand Header */}
         <div style={S.brandHeader}>
           <div style={S.logoBox}>
