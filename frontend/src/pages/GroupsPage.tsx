@@ -194,9 +194,9 @@ export function GroupsPage() {
       
       const isActiveGroup = filtered.some(g => g.id === selectedGroupId);
       if (!isActiveGroup) {
-        if (filtered.length > 0) {
+        if (selectedGroupId === 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' && filtered.length > 0) {
           setSelectedGroupId(filtered[0].id);
-        } else {
+        } else if (selectedGroupId !== '') {
           setSelectedGroupId('');
         }
       }

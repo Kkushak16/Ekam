@@ -135,6 +135,21 @@ export function Header({ roomId }: HeaderProps) {
   return (
     <header style={S.header}>
       <div style={S.leftGroup}>
+        <button
+          onClick={() => useChatStore.getState().setActiveRoomId(null)}
+          style={{
+            ...S.iconBtn,
+            marginRight: 4,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          title="Back"
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+        >
+          <span style={{ ...S.materialIcon, color: '#adc6ff' }}>arrow_back</span>
+        </button>
         <div style={S.leftCol}>
           <div style={S.titleRow}>
             <span style={S.roomName}>{roomName}</span>

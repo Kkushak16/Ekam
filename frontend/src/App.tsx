@@ -211,7 +211,7 @@ export function App() {
     { id: 'settings', icon: 'settings', label: 'Settings', prefix: '' },
   ];
 
-  const isConnected = connectionStatus === 'connected';
+  const isChatting = activeRoomId !== null && activeRoomId !== 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' && activeRoomId !== '';
 
   return (
     <div style={S.layout}>
@@ -221,7 +221,7 @@ export function App() {
       {/* Sidebar */}
       <aside style={{
         ...S.sidebar,
-        display: activeRoomId ? 'none' : 'flex'
+        display: isChatting ? 'none' : 'flex'
       }}>
         {/* Brand Header */}
         <div style={S.brandHeader}>
