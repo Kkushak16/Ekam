@@ -167,12 +167,12 @@ export function App() {
   const initializeSocket = useChatStore((state) => state.initializeSocket);
   const disconnectSocket = useChatStore((state) => state.disconnectSocket);
   const connectionStatus = useChatStore((state) => state.connectionStatus);
-  const setToken = useChatStore((state) => state.setToken);
+  const clearAuth = useChatStore((state) => state.clearAuth);
   const activeRoomId = useChatStore((state) => state.activeRoomId);
   const isConnected = connectionStatus === 'connected';
 
   const path = window.location.pathname;
-  const defaultTab = path.includes('dm') ? 'dm' : path.includes('settings') ? 'settings' : 'groups';
+  const defaultTab = path.includes('groups') ? 'groups' : path.includes('settings') ? 'settings' : 'dm';
   const [activeTab, setActiveTab] = useState(defaultTab);
 
   useEffect(() => {
@@ -291,7 +291,7 @@ export function App() {
               <p style={{ fontSize: 10, color: 'rgba(194,198,214,0.4)' }}>{connectionStatus}</p>
             </div>
             <button
-              onClick={() => setToken('')}
+              onClick={() => clearAuth()}
               style={S.logoutBtn}
               title="Sign out"
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#adc6ff'; }}

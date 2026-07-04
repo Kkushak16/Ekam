@@ -28,7 +28,7 @@ function requireSecret(secret, name) {
  * Payload should contain at least `sub` (user id) and optional claims.
  */
 export function signAccessToken(payload) {
-  return jwt.sign(payload, requireSecret(accessSecret, 'ACCESS_SECRET'), { expiresIn: '15m' });
+  return jwt.sign(payload, requireSecret(accessSecret, 'ACCESS_SECRET'), { expiresIn: '30d' });
 }
 
 /**

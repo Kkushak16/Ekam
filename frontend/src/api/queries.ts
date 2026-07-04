@@ -28,6 +28,17 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// Automatically log out if we get a 401 Unauthorized response
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      useChatStore.getState().clearAuth();
+    }
+    return Promise.reject(error);
+  }
+);
+
 // React Query Hooks
 
 // 1. Rooms Query

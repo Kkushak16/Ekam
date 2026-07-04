@@ -419,7 +419,7 @@ export const useChatStore = create<ChatState>()(
       }),
       {
         name: 'ekam-chat-store',
-        storage: createJSONStorage(() => sessionStorage),
+        storage: createJSONStorage(() => localStorage),
         partialize: (state) => ({ token: state.token }),
       }
     )
