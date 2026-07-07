@@ -77,7 +77,18 @@ const pusher = pusherAppId && pusherKey && pusherSecret
     })
   : null;
 
-// Configure Cloudinary
+// 2. In-process SSE client registry — zero external dependencies, works always
+// Map: roomId -> Set of SSE response objects
+const sseClients = new Map();
+
+function broadcastToSSE(roomId, event, data) {
+  const clients = sseClients.get(roomId);
+  if (!clients || clients.size === 0) return;
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const res of clients) {
+    try { res.write(payload); } catch (e) { clients.delete(res); }
+  }
+}
 if (process.env.CLOUDINARY_CLOUD_NAME) {
   cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -195,7 +206,63 @@ app.get('/api/diagnose', (req, res) => {
 });
 app.use('/auth', authRouter);
 
-// Search users in Supabase by display_name, email, or username
+// SSE Real-time Stream — zero external dependencies, works on all hosting
+// Client connects once; server pushes 'new-message' events as they arrive
+// NOTE: EventSource cannot set custom headers, so token is passed as query param
+app.get('/api/sse/room/:roomId', async (req, res) => {
+  const { roomId } = req.params;
+
+  // Authenticate via query param (EventSource can't set Authorization header)
+  const token = req.query.token || (req.headers.authorization?.split(' ')[1]);
+  if (!token) return res.status(401).json({ error: 'No auth token' });
+
+  try {
+    // Verify JWT (reuse same logic as requireAuth)
+    const payload = verifyAccessToken(token);
+    req.user = { id: payload.id || payload.sub, email: payload.email };
+  } catch (e) {
+    try {
+      const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+      if (error || !user) return res.status(401).json({ error: 'Invalid token' });
+      req.user = { id: user.id, email: user.email };
+    } catch {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+  }
+
+  // SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Disable Nginx buffering
+  res.flushHeaders();
+
+  // Send a heartbeat immediately so the client knows the connection is alive
+  res.write(': connected\n\n');
+
+  // Register this client
+  if (!sseClients.has(roomId)) sseClients.set(roomId, new Set());
+  sseClients.get(roomId).add(res);
+
+  // Heartbeat every 25s to keep connection alive through load balancers
+  const heartbeat = setInterval(() => {
+    try { res.write(': ping\n\n'); } catch (e) { clearInterval(heartbeat); }
+  }, 25000);
+
+  // Cleanup on disconnect
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    const clients = sseClients.get(roomId);
+    if (clients) {
+      clients.delete(res);
+      if (clients.size === 0) sseClients.delete(roomId);
+    }
+  });
+});
+
+
+
+
 app.get('/api/users/search', requireAuth, async (req, res) => {
   const { q } = req.query;
   if (!q || typeof q !== 'string' || !q.trim()) {
@@ -1419,6 +1486,19 @@ app.post('/api/messages', requireAuth, async (req, res) => {
     } else {
       console.warn('[Pusher] Skipping real-time broadcast — Pusher not initialized (check env vars on Render).');
     }
+
+    // Always broadcast via SSE (works without any external credentials)
+    const ssePayload = {
+      _id: String(mongoDoc._id),
+      room_id,
+      sender_id,
+      body,
+      supabase_id: supabaseMessage.id,
+      ts: Date.now(),
+      media_url: media_url || null,
+      media_type: media_type || null,
+    };
+    broadcastToSSE(room_id, 'new-message', ssePayload);
 
     return res.status(201).json({ ...mongoDoc, supabase_id: supabaseMessage.id });
   } catch (err) {

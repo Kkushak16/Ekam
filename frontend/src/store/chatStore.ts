@@ -23,9 +23,12 @@ export interface ChatState {
 
   socket: any | null;
   pusherInstance: any | null;
+  sseSource: EventSource | null;
   activeRoomId: string | null;
   setActiveRoomId: (roomId: string | null) => void;
   subscribeToRoom: (roomId: string) => void;
+  connectSSE: (roomId: string) => void;
+  disconnectSSE: () => void;
   connectionStatus: 'disconnected' | 'connecting' | 'connected';
   initializeSocket: (jwt: string) => void;
   disconnectSocket: () => void;
@@ -56,20 +59,71 @@ export const useChatStore = create<ChatState>()(
         token: null,
         setToken: (token) => set({ token }),
         clearAuth: () => {
-          const { disconnectSocket } = get();
+          const { disconnectSocket, disconnectSSE } = get();
           disconnectSocket();
-          // Safe initialization ensuring collections remain structural arrays/objects
+          disconnectSSE();
           set({ token: null, messages: [], presence: {}, typing: {}, activeRoomId: 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' });
         },
 
-        // ----- Socket (Pusher) -----
+        // ----- Socket (Pusher) + SSE -----
         socket: null,
         pusherInstance: null,
+        sseSource: null,
         activeRoomId: 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a',
         setActiveRoomId: (roomId) => {
           set({ activeRoomId: roomId });
           if (roomId) {
             get().subscribeToRoom(roomId);
+            get().connectSSE(roomId);
+          }
+        },
+        connectSSE: (roomId) => {
+          const token = get().token;
+          if (!token || !roomId) return;
+
+          // Close any existing SSE connection
+          const existing = get().sseSource;
+          if (existing) {
+            existing.close();
+            set({ sseSource: null });
+          }
+
+          // Open a new SSE connection — authenticates via query param since EventSource can't set headers
+          const url = `${API_URL}/api/sse/room/${encodeURIComponent(roomId)}?token=${encodeURIComponent(token)}`;
+          const es = new EventSource(url);
+
+          es.addEventListener('new-message', (e: MessageEvent) => {
+            try {
+              const data = JSON.parse(e.data);
+              const msg: Message = {
+                id: String(data._id || ''),
+                clientMessageId: String(data.clientMessageId || data._id || ''),
+                roomId: data.room_id || roomId,
+                senderId: data.sender_id || '',
+                body: data.body || '',
+                status: 'sent',
+                ts: data.ts || Date.now(),
+                mediaUrl: data.media_url,
+                mediaType: data.media_type,
+              };
+              get().addMessage(msg);
+            } catch (err) {
+              console.error('[SSE] Failed to parse message event:', err);
+            }
+          });
+
+          es.onerror = () => {
+            // Browser auto-reconnects EventSource; just log
+            console.warn('[SSE] Connection error — browser will retry automatically');
+          };
+
+          set({ sseSource: es });
+        },
+        disconnectSSE: () => {
+          const es = get().sseSource;
+          if (es) {
+            es.close();
+            set({ sseSource: null });
           }
         },
         subscribeToRoom: (roomId) => {

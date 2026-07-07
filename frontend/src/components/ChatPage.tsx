@@ -161,8 +161,6 @@ export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: Ch
   const [roomDetails, setRoomDetails] = useState<{ type: string; name: string } | null>(null);
   const [activeFolder, setActiveFolder] = useState<'you' | 'them'>('you');
 
-  const connectionStatus = useChatStore(state => state.connectionStatus);
-
   // Load messages when room changes — via HTTP, no socket dependency
   useEffect(() => {
     if (!token) return;
@@ -170,16 +168,15 @@ export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: Ch
     loadOlderMessages(roomId, null);
   }, [token, roomId]);
 
-  // Polling fallback: re-fetch messages every 8s when Pusher is not connected
-  // This ensures messages always arrive even if real-time is unavailable
+  // Polling safety net: always re-fetch every 5s regardless of Pusher/SSE status
+  // SSE handles instant delivery; polling is the guaranteed backstop
   useEffect(() => {
     if (!token) return;
-    if (connectionStatus === 'connected') return; // Pusher handles it
     const interval = setInterval(() => {
       useChatStore.getState().syncMissingMessages(roomId, '');
-    }, 8000);
+    }, 5000);
     return () => clearInterval(interval);
-  }, [token, roomId, connectionStatus]);
+  }, [token, roomId]);
 
   useEffect(() => {
     let isMounted = true;
