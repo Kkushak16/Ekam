@@ -57,11 +57,16 @@ function generateMockEmbedding(text) {
 }
 
 // 1. Initialize Serverless Realtime Engine (Pusher Alternative to Socket.io)
+const pusherAppId = process.env.PUSHER_APP_ID || '2170437';
+const pusherKey = process.env.PUSHER_KEY || 'ced54b716030c616146d';
+const pusherSecret = process.env.PUSHER_SECRET || '4852539de6be379d5dbf';
+const pusherCluster = process.env.PUSHER_CLUSTER || 'ap2';
+
 const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID || '',
-  key: process.env.PUSHER_KEY || '',
-  secret: process.env.PUSHER_SECRET || '',
-  cluster: process.env.PUSHER_CLUSTER || '',
+  appId: pusherAppId,
+  key: pusherKey,
+  secret: pusherSecret,
+  cluster: pusherCluster,
   useTLS: true
 });
 
@@ -177,7 +182,7 @@ app.get('/api/diagnose', (req, res) => {
     JWT_SECRET: mask(process.env.JWT_SECRET),
     JWT_ACCESS_SECRET: mask(process.env.JWT_ACCESS_SECRET),
     JWT_REFRESH_SECRET: mask(process.env.JWT_REFRESH_SECRET),
-    PUSHER_APP_ID: mask(process.env.PUSHER_APP_ID),
+    PUSHER_APP_ID: mask(pusherAppId),
     CLOUDINARY_CLOUD_NAME: mask(process.env.CLOUDINARY_CLOUD_NAME)
   });
 });
@@ -1370,7 +1375,7 @@ app.post('/api/messages', requireAuth, async (req, res) => {
     await db.collection('messages').updateOne({ _id: mongoDoc._id }, { $set: { supabase_id: supabaseMessage.id } });
 
     // Step 5: Broadcast real-time packet state over serverless web-hubs (Pusher)
-    if (process.env.PUSHER_APP_ID) {
+    if (pusherAppId) {
       // Broadcast to room channel (for users currently viewing the room)
       await pusher.trigger(`room-${room_id}`, 'new-message', {
         _id: mongoDoc._id,
