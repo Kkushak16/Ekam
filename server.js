@@ -194,23 +194,7 @@ app.get('/api/users/search', requireAuth, async (req, res) => {
     const queryStr = q.trim();
     
     const queryLower = queryStr.toLowerCase();
-    const isHalfCorrect = (userObj) => {
-      const username = (userObj.username || '').toLowerCase();
-      const displayName = (userObj.display_name || '').toLowerCase();
-      const emailPrefix = (userObj.email || '').split('@')[0].toLowerCase();
-      
-      let matches = [];
-      if (username.includes(queryLower)) {
-        matches.push(queryLower.length >= Math.ceil(username.length / 2));
-      }
-      if (displayName.includes(queryLower)) {
-        matches.push(queryLower.length >= Math.ceil(displayName.length / 2));
-      }
-      if (emailPrefix.includes(queryLower)) {
-        matches.push(queryLower.length >= Math.ceil(emailPrefix.length / 2));
-      }
-      return matches.length > 0 && matches.some(m => m === true);
-    };
+    const isHalfCorrect = (userObj) => true;
 
     // 1. Try querying with the username column
     try {
@@ -279,6 +263,130 @@ app.get('/api/users/search', requireAuth, async (req, res) => {
     return res.json({ users: filteredUsers.slice(0, 20) });
   } catch (err) {
     console.error('Error searching users:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Update username with 7-day cooldown
+app.put('/api/users/username', requireAuth, async (req, res) => {
+  const { username } = req.body;
+  if (!username || typeof username !== 'string') {
+    return res.status(400).json({ error: 'Username is required' });
+  }
+
+  const cleanUsername = username.trim().toLowerCase().replace(/\s+/g, '_');
+  if (!/^[a-z0-9_]+$/.test(cleanUsername)) {
+    return res.status(400).json({ error: 'Username can only contain alphanumeric characters and underscores.' });
+  }
+
+  if (cleanUsername.length < 3) {
+    return res.status(400).json({ error: 'Username must be at least 3 characters long.' });
+  }
+
+  try {
+    // 1. Fetch current profile to check cooldown and current username
+    const { data: userProfile, error: profileErr } = await supabaseAdmin
+      .from('users')
+      .select('last_username_change, username')
+      .eq('id', req.user.id)
+      .single();
+
+    if (profileErr || !userProfile) {
+      return res.status(404).json({ error: 'User profile not found' });
+    }
+
+    if (userProfile.username === cleanUsername) {
+      return res.json({ success: true, username: cleanUsername });
+    }
+
+    // Cooldown check (7 days)
+    if (userProfile.last_username_change) {
+      const lastChange = new Date(userProfile.last_username_change);
+      const now = new Date();
+      const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+      const elapsed = now.getTime() - lastChange.getTime();
+
+      if (elapsed < sevenDaysInMs) {
+        const remainingMs = sevenDaysInMs - elapsed;
+        const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
+        return res.status(400).json({
+          error: `You can only change your username once every 7 days. Please wait ${remainingDays} more day(s).`
+        });
+      }
+    }
+
+    // 2. Check if username is already taken by another user
+    const { data: existingUser, error: checkError } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .eq('username', cleanUsername)
+      .maybeSingle();
+
+    if (existingUser && existingUser.id !== req.user.id) {
+      return res.status(409).json({ error: 'the name is already taken try something diffrent' });
+    }
+
+    // Also check auth user metadata for conflicting username
+    let page = 1;
+    const perPage = 100;
+    let usernameConflict = false;
+    while (true) {
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+      if (error || !data || !data.users) break;
+      const match = data.users.find(u => 
+        u.id !== req.user.id && 
+        u.user_metadata?.username?.toLowerCase() === cleanUsername
+      );
+      if (match) {
+        usernameConflict = true;
+        break;
+      }
+      if (data.users.length < perPage) break;
+      page++;
+    }
+
+    if (usernameConflict) {
+      return res.status(409).json({ error: 'the name is already taken try something diffrent' });
+    }
+
+    // 3. Retrieve existing auth user to preserve metadata
+    const { data: { user: authUser }, error: getUserErr } = await supabaseAdmin.auth.admin.getUserById(req.user.id);
+    if (getUserErr || !authUser) {
+      return res.status(500).json({ error: 'Failed to retrieve auth user record.' });
+    }
+
+    // Update metadata in Auth
+    const { error: authUpdateErr } = await supabaseAdmin.auth.admin.updateUserById(req.user.id, {
+      user_metadata: {
+        ...(authUser.user_metadata || {}),
+        username: cleanUsername
+      }
+    });
+
+    if (authUpdateErr) {
+      return res.status(500).json({ error: 'Failed to update auth metadata: ' + authUpdateErr.message });
+    }
+
+    // 4. Update username and timestamp in public.users table
+    const { error: dbUpdateErr } = await supabaseAdmin
+      .from('users')
+      .update({
+        username: cleanUsername,
+        last_username_change: new Date().toISOString()
+      })
+      .eq('id', req.user.id);
+
+    if (dbUpdateErr) {
+      return res.status(500).json({ error: 'Failed to update database profile: ' + dbUpdateErr.message });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Username updated successfully!',
+      username: cleanUsername
+    });
+  } catch (err) {
+    console.error('Error updating username:', err.message);
     return res.status(500).json({ error: err.message });
   }
 });
@@ -483,7 +591,7 @@ app.get('/api/users/me', requireAuth, async (req, res) => {
   try {
     const { data: user, error } = await supabaseAdmin
       .from('users')
-      .select('id, display_name, email, avatar_url, status, username')
+      .select('id, display_name, email, avatar_url, status, username, last_username_change')
       .eq('id', req.user.id)
       .single();
 
