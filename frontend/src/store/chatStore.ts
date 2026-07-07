@@ -159,8 +159,14 @@ export const useChatStore = create<ChatState>()(
 
           set({ connectionStatus: 'connecting' });
 
-          const pusherKey = import.meta.env.VITE_PUSHER_KEY || 'ced54b716030c616146d';
+          const pusherKey = import.meta.env.VITE_PUSHER_KEY;
           const pusherCluster = import.meta.env.VITE_PUSHER_CLUSTER || 'ap2';
+
+          if (!pusherKey) {
+            console.error('[Pusher] VITE_PUSHER_KEY is not set. Real-time messaging will not work. Set this in your Vercel environment variables.');
+            set({ connectionStatus: 'disconnected' });
+            return;
+          }
 
           const pusher = new Pusher(pusherKey, {
             cluster: pusherCluster,

@@ -56,19 +56,26 @@ function generateMockEmbedding(text) {
   return vector;
 }
 
-// 1. Initialize Serverless Realtime Engine (Pusher Alternative to Socket.io)
-const pusherAppId = process.env.PUSHER_APP_ID || '2170437';
-const pusherKey = process.env.PUSHER_KEY || 'ced54b716030c616146d';
-const pusherSecret = process.env.PUSHER_SECRET || '4852539de6be379d5dbf';
+// 1. Initialize Serverless Realtime Engine (Pusher)
+const pusherAppId = process.env.PUSHER_APP_ID;
+const pusherKey = process.env.PUSHER_KEY;
+const pusherSecret = process.env.PUSHER_SECRET;
 const pusherCluster = process.env.PUSHER_CLUSTER || 'ap2';
 
-const pusher = new Pusher({
-  appId: pusherAppId,
-  key: pusherKey,
-  secret: pusherSecret,
-  cluster: pusherCluster,
-  useTLS: true
-});
+if (!pusherAppId || !pusherKey || !pusherSecret) {
+  console.error('[STARTUP ERROR] Missing required Pusher environment variables: PUSHER_APP_ID, PUSHER_KEY, PUSHER_SECRET');
+  console.error('[ACTION REQUIRED] Set these variables in your Render/hosting environment settings.');
+}
+
+const pusher = pusherAppId && pusherKey && pusherSecret
+  ? new Pusher({
+      appId: pusherAppId,
+      key: pusherKey,
+      secret: pusherSecret,
+      cluster: pusherCluster,
+      useTLS: true
+    })
+  : null;
 
 // Configure Cloudinary
 if (process.env.CLOUDINARY_CLOUD_NAME) {
@@ -1256,6 +1263,11 @@ app.get('/api/rooms/:roomId/search', requireAuth, async (req, res) => {
 
 // Pusher Channel Authentication Endpoint
 app.post('/api/pusher/auth', requireAuth, (req, res) => {
+  if (!pusher) {
+    console.error('[Pusher Auth] Pusher not initialized — check PUSHER_APP_ID, PUSHER_KEY, PUSHER_SECRET env vars on Render.');
+    return res.status(503).json({ error: 'Real-time service unavailable. Pusher not configured on the server.' });
+  }
+
   const socketId = req.body.socket_id;
   const channel = req.body.channel_name;
   
@@ -1375,7 +1387,7 @@ app.post('/api/messages', requireAuth, async (req, res) => {
     await db.collection('messages').updateOne({ _id: mongoDoc._id }, { $set: { supabase_id: supabaseMessage.id } });
 
     // Step 5: Broadcast real-time packet state over serverless web-hubs (Pusher)
-    if (pusherAppId) {
+    if (pusher) {
       // Broadcast to room channel (for users currently viewing the room)
       await pusher.trigger(`room-${room_id}`, 'new-message', {
         _id: mongoDoc._id,
@@ -1404,6 +1416,8 @@ app.post('/api/messages', requireAuth, async (req, res) => {
       } catch (err) {
         console.error("Failed background Pusher broadcast to members:", err.message);
       }
+    } else {
+      console.warn('[Pusher] Skipping real-time broadcast — Pusher not initialized (check env vars on Render).');
     }
 
     return res.status(201).json({ ...mongoDoc, supabase_id: supabaseMessage.id });
