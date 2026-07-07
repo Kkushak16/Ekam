@@ -345,15 +345,29 @@ export const useChatStore = create<ChatState>()(
           try {
             const token = get().token;
             const resp = await axios.get(`${API_URL}/messages`, {
-              params: { room_id: roomId, before: beforeId, limit: 20 },
+              params: { room_id: roomId, before: beforeId, limit: 50 },
               headers: { Authorization: `Bearer ${token}` },
             });
             
             set((state) => {
-              const incomingMessages = resp.data && Array.isArray(resp.data.messages) ? resp.data.messages : [];
+              const raw = resp.data && Array.isArray(resp.data.messages) ? resp.data.messages : [];
+              // Normalize MongoDB field names to frontend Message shape
+              const incomingMessages: Message[] = raw.map((m: any) => ({
+                id: String(m._id || m.id || ''),
+                clientMessageId: String(m.clientMessageId || m._id || m.id || ''),
+                roomId: m.roomId || m.room_id || roomId,
+                senderId: m.senderId || m.sender_id || '',
+                body: m.body || m.content || '',
+                status: (m.status as Message['status']) || 'sent',
+                ts: m.ts || m.created_at || Date.now(),
+                mediaUrl: m.mediaUrl || m.media_url,
+                mediaType: m.mediaType || m.media_type,
+                supabaseId: m.supabaseId || m.supabase_id,
+              }));
               const safeMessages = Array.isArray(state.messages) ? state.messages : [];
-              const currentIds = new Set(safeMessages.map((m) => m.clientMessageId));
-              const filteredNew = incomingMessages.filter((m: Message) => !currentIds.has(m.clientMessageId));
+              // Dedup by id (since old messages won't have clientMessageId)
+              const currentIds = new Set(safeMessages.map((m) => m.id || m.clientMessageId));
+              const filteredNew = incomingMessages.filter((m) => !currentIds.has(m.id) && !currentIds.has(m.clientMessageId));
               return { messages: [...filteredNew, ...safeMessages] };
             });
           } catch (error) {
@@ -365,15 +379,27 @@ export const useChatStore = create<ChatState>()(
         syncMissingMessages: async (roomId, lastSeenId) => {
           try {
             const token = get().token;
-            const resp = await axios.get(`${API_URL}/messages/sync`, {
-              params: { roomId, after: lastSeenId },
+            const resp = await axios.get(`${API_URL}/messages`, {
+              params: { room_id: roomId, limit: 50 },
               headers: { Authorization: `Bearer ${token}` },
             });
             set((state) => {
-              const incomingMessages = resp.data && Array.isArray(resp.data.messages) ? resp.data.messages : [];
+              const raw = resp.data && Array.isArray(resp.data.messages) ? resp.data.messages : [];
+              const incomingMessages: Message[] = raw.map((m: any) => ({
+                id: String(m._id || m.id || ''),
+                clientMessageId: String(m.clientMessageId || m._id || m.id || ''),
+                roomId: m.roomId || m.room_id || roomId,
+                senderId: m.senderId || m.sender_id || '',
+                body: m.body || m.content || '',
+                status: (m.status as Message['status']) || 'sent',
+                ts: m.ts || m.created_at || Date.now(),
+                mediaUrl: m.mediaUrl || m.media_url,
+                mediaType: m.mediaType || m.media_type,
+                supabaseId: m.supabaseId || m.supabase_id,
+              }));
               const safeMessages = Array.isArray(state.messages) ? state.messages : [];
-              const currentIds = new Set(safeMessages.map((m) => m.clientMessageId));
-              const filteredNew = incomingMessages.filter((m: Message) => !currentIds.has(m.clientMessageId));
+              const currentIds = new Set(safeMessages.map((m) => m.id || m.clientMessageId));
+              const filteredNew = incomingMessages.filter((m) => !currentIds.has(m.id) && !currentIds.has(m.clientMessageId));
               return { messages: [...safeMessages, ...filteredNew] };
             });
           } catch (error) {
