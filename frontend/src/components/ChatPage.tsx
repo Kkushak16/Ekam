@@ -275,29 +275,51 @@ export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: Ch
     if (!file) return;
     try {
       const res = await uploadMutation.mutateAsync(file);
-      await sendMessage(res.secure_url, file.type);
-    } catch {
-      alert('Failed to upload file. Max 10MB.');
+      // Use media_type returned by server (more reliable than browser's file.type)
+      const mediaType = res.media_type || file.type;
+      await sendMessage(res.secure_url, mediaType);
+    } catch (err: any) {
+      const errMsg = err?.response?.data?.error || err?.message || 'Upload failed';
+      alert(errMsg);
     }
     e.target.value = '';
   };
 
   const hasInput = input.trim().length > 0;
 
-  // Filter messages for current room containing attachments
+  // Filter messages for current room
   const messages = useChatStore(state => state.messages) || [];
   const roomMessages = messages.filter(m => m.roomId === roomId);
-  const mediaMessages = roomMessages.filter(m => m.mediaUrl);
 
-  const myFiles = mediaMessages.filter(m => m.senderId === userId);
-  const theirFiles = mediaMessages.filter(m => m.senderId !== userId);
+  // Shared Media: images + videos (newest first)
+  const sharedMedia = [...roomMessages]
+    .filter(m => m.mediaUrl && (
+      m.mediaType?.startsWith('image/') || m.mediaType?.startsWith('video/') ||
+      /\.(jpeg|jpg|gif|png|webp|svg|mp4|mov|webm)$/i.test(m.mediaUrl)
+    ))
+    .reverse();
 
-  const sharedMedia = mediaMessages.filter(m => 
-    m.mediaType?.startsWith('image/') || 
-    (m.mediaUrl && m.mediaUrl.match(/\.(jpeg|jpg|gif|png|webp)/i))
-  );
+  // Links: messages with URLs in body but no media attachment (or media + url body)
+  const URL_PATTERN = /https?:\/\/[^\s<>"{}|\\^`[\]]+/gi;
+  const linkMessages = [...roomMessages]
+    .filter(m => !m.mediaUrl && URL_PATTERN.test(m.body))
+    .reverse();
+  URL_PATTERN.lastIndex = 0;
 
-  const otherFolderName = roomDetails?.type === 'dm' ? roomDetails.name : 'Others';
+  // Files: PDFs, docs, archives, etc. (not images or videos)
+  const fileMessages = [...roomMessages]
+    .filter(m => m.mediaUrl && (
+      m.mediaType?.includes('pdf') ||
+      m.mediaType?.includes('word') || m.mediaType?.includes('document') ||
+      m.mediaType?.includes('sheet') || m.mediaType?.includes('excel') ||
+      m.mediaType?.includes('presentation') || m.mediaType?.includes('powerpoint') ||
+      m.mediaType?.includes('zip') || m.mediaType?.includes('rar') || m.mediaType?.includes('archive') ||
+      m.mediaType?.includes('text') || m.mediaType?.includes('json') ||
+      m.mediaType?.startsWith('audio/') ||
+      (!m.mediaType?.startsWith('image/') && !m.mediaType?.startsWith('video/') &&
+       !/\.(jpeg|jpg|gif|png|webp|svg|mp4|mov|webm)$/i.test(m.mediaUrl))
+    ))
+    .reverse();
 
   return (
     <div style={S.chatWindow}>
@@ -321,7 +343,13 @@ export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: Ch
         <div style={S.inputBarWrapper}>
           <div style={S.inputBar}>
             {/* Attachment */}
-            <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              style={{ display: 'none' }}
+              accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.7z,.txt,.csv,.json"
+            />
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadMutation.isPending}
@@ -397,186 +425,173 @@ export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: Ch
         </div>
       </div>
 
-      {/* Right Sidebar: Cloud Assets & Shared Media */}
+      {/* Right Sidebar */}
       <aside style={{
-        width: 340,
-        background: 'rgba(13, 13, 13, 0.4)',
+        width: 300,
+        background: 'rgba(13,13,13,0.5)',
         backdropFilter: 'blur(24px)',
         WebkitBackdropFilter: 'blur(24px)',
-        borderLeft: '1px solid rgba(255, 255, 255, 0.04)',
+        borderLeft: '1px solid rgba(255,255,255,0.04)',
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
         height: '100%',
         boxSizing: 'border-box',
         zIndex: 15,
+        overflowY: 'auto',
       }}>
-        {/* Shared Media Section */}
-        <div style={{ padding: '24px 24px 16px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', color: '#adc6ff', textTransform: 'uppercase' }}>
-              Shared Media
-            </span>
-            {sharedMedia.length > 0 && (
-              <span style={{ fontSize: 11, color: 'rgba(194, 198, 214, 0.4)', fontWeight: 500 }}>
-                {sharedMedia.length} items
-              </span>
-            )}
-          </div>
-          
-          {sharedMedia.length === 0 ? (
+
+        {/* ── Presence / Profile ── */}
+        <div style={{ padding: '20px 20px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <div style={{
-              height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              border: '1px dashed rgba(255,255,255,0.05)', borderRadius: 12,
-              color: 'rgba(194, 198, 214, 0.3)', fontSize: 12
+              width: 36, height: 36, borderRadius: 10,
+              background: 'linear-gradient(135deg, #1a2744 0%, #2a3f6e 100%)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              No shared media
+              <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 18, color: '#adc6ff' }}>person</span>
             </div>
-          ) : (
-            <div className="custom-scrollbar" style={{
-              display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8,
-              maxHeight: 180, overflowY: 'auto', paddingRight: 4
-            }}>
-              {sharedMedia.map((m, idx) => (
-                <a
-                  key={m.id || idx}
-                  href={m.mediaUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    aspectRatio: '1', borderRadius: 8, overflow: 'hidden',
-                    border: '1px solid rgba(255,255,255,0.05)', display: 'block',
-                    background: 'rgba(255,255,255,0.02)'
-                  }}
-                >
-                  <img
-                    src={m.mediaUrl}
-                    alt="shared"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'opacity 0.2s' }}
-                    onMouseEnter={e => { e.currentTarget.style.opacity = '0.8'; }}
-                    onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
-                  />
-                </a>
-              ))}
+            <div>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#e2e2e2' }}>
+                {roomDetails?.name || 'Chat'}
+              </p>
+              <p style={{ margin: 0, fontSize: 11, color: 'rgba(194,198,214,0.5)' }}>
+                {roomDetails?.type === 'dm' ? 'Direct Message' : 'Group Channel'}
+              </p>
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Divider */}
-        <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: '0 24px' }} />
+        <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: '0 16px' }} />
 
-        {/* Cloud Assets Section */}
-        <div style={{ flex: 1, padding: 24, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', color: '#adc6ff', textTransform: 'uppercase', marginBottom: 16 }}>
-            Cloud Assets
-          </span>
-
-          {/* Folder Tabs */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
-            {/* You Folder */}
-            <div
-              onClick={() => setActiveFolder('you')}
-              style={{
-                background: activeFolder === 'you' ? 'rgba(173, 198, 255, 0.06)' : 'transparent',
-                border: activeFolder === 'you' ? '1px solid rgba(173, 198, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.03)',
-                borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 8,
-                cursor: 'pointer', transition: 'all 0.2s'
-              }}
-            >
-              <span style={{
-                fontFamily: "'Material Symbols Outlined'", fontSize: 20,
-                color: activeFolder === 'you' ? '#4d8eff' : 'rgba(194, 198, 214, 0.4)',
-                fontVariationSettings: "'FILL' 1"
-              }}>
-                folder
-              </span>
-              <span style={{
-                fontSize: 13, fontWeight: 600,
-                color: activeFolder === 'you' ? '#e2e2e2' : 'rgba(194, 198, 214, 0.6)'
-              }}>
-                You
-              </span>
+        {/* ── Shared Media (images + videos) ── */}
+        <SidebarSection title="Shared Media" icon="perm_media" count={sharedMedia.length}>
+          {sharedMedia.length === 0 ? (
+            <EmptySlot label="No shared media yet" />
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6 }}>
+              {sharedMedia.map((m, idx) => {
+                const isImg = m.mediaType?.startsWith('image/') || /\.(jpeg|jpg|gif|png|webp|svg)$/i.test(m.mediaUrl || '');
+                return (
+                  <a
+                    key={m.id || idx}
+                    href={m.mediaUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      aspectRatio: '1', borderRadius: 8, overflow: 'hidden',
+                      border: '1px solid rgba(255,255,255,0.05)', display: 'block',
+                      background: 'rgba(255,255,255,0.02)', position: 'relative',
+                    }}
+                  >
+                    {isImg ? (
+                      <img src={m.mediaUrl} alt="" loading="lazy"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{
+                        width: '100%', height: '100%', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center',
+                        background: 'rgba(77,142,255,0.1)',
+                      }}>
+                        <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 22, color: '#4d8eff' }}>movie</span>
+                      </div>
+                    )}
+                  </a>
+                );
+              })}
             </div>
+          )}
+        </SidebarSection>
 
-            {/* Friend Folder */}
-            <div
-              onClick={() => setActiveFolder('them')}
-              style={{
-                background: activeFolder === 'them' ? 'rgba(173, 198, 255, 0.06)' : 'transparent',
-                border: activeFolder === 'them' ? '1px solid rgba(173, 198, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.03)',
-                borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 8,
-                cursor: 'pointer', transition: 'all 0.2s', overflow: 'hidden'
-              }}
-            >
-              <span style={{
-                fontFamily: "'Material Symbols Outlined'", fontSize: 20,
-                color: activeFolder === 'them' ? '#4d8eff' : 'rgba(194, 198, 214, 0.4)',
-                fontVariationSettings: "'FILL' 1"
-              }}>
-                folder
-              </span>
-              <span 
-                style={{
-                  fontSize: 13, fontWeight: 600,
-                  color: activeFolder === 'them' ? '#e2e2e2' : 'rgba(194, 198, 214, 0.6)',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                }}
-                title={otherFolderName}
-              >
-                {otherFolderName}
-              </span>
+        <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: '0 16px' }} />
+
+        {/* ── Links ── */}
+        <SidebarSection title="Links" icon="link" count={linkMessages.length}>
+          {linkMessages.length === 0 ? (
+            <EmptySlot label="No links shared yet" />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {linkMessages.map((m, idx) => {
+                const urlMatch = m.body.match(URL_PATTERN2);
+                const url = urlMatch?.[0] || '';
+                let domain = '';
+                try { domain = new URL(url).hostname.replace('www.', ''); } catch {}
+                return (
+                  <a
+                    key={m.id || idx}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 8,
+                      padding: '8px 10px', borderRadius: 10,
+                      background: 'rgba(255,255,255,0.02)',
+                      border: '1px solid rgba(255,255,255,0.04)',
+                      textDecoration: 'none', transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(77,142,255,0.06)';
+                      e.currentTarget.style.borderColor = 'rgba(77,142,255,0.2)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.04)';
+                    }}
+                  >
+                    <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 14, color: '#4d8eff', marginTop: 1, flexShrink: 0 }}>link</span>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: 11, color: '#4d8eff', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{domain || url}</p>
+                      <p style={{ margin: '2px 0 0', fontSize: 10, color: 'rgba(194,198,214,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{url}</p>
+                    </div>
+                  </a>
+                );
+              })}
             </div>
-          </div>
+          )}
+        </SidebarSection>
 
-          {/* Files List */}
-          <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 4 }}>
-            {((activeFolder === 'you' ? myFiles : theirFiles).length === 0) ? (
-              <div style={{
-                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'rgba(194, 198, 214, 0.3)', fontSize: 13, textAlign: 'center',
-                padding: 20, border: '1px dashed rgba(255,255,255,0.03)', borderRadius: 16
-              }}>
-                No files in this folder
-              </div>
-            ) : (
-              (activeFolder === 'you' ? myFiles : theirFiles).map((file, idx) => {
+        <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: '0 16px' }} />
+
+        {/* ── Files ── */}
+        <SidebarSection title="Files" icon="folder_open" count={fileMessages.length}>
+          {fileMessages.length === 0 ? (
+            <EmptySlot label="No files shared yet" />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {fileMessages.map((file, idx) => {
                 const fileName = getFileNameFromUrl(file.mediaUrl);
+                const icon = getFileIcon(file.mediaType, file.mediaUrl);
+                const iconColorMap: Record<string, string> = {
+                  picture_as_pdf: '#e85454', description: '#5b8fff',
+                  table_chart: '#4caf82', slideshow: '#f5a623',
+                  archive: '#ab82ff', audiotrack: '#ff82b2', article: '#adc6ff',
+                };
+                const iconColor = iconColorMap[icon] || '#adc6ff';
                 return (
                   <div
                     key={file.id || idx}
                     style={{
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      border: '1px solid rgba(255, 255, 255, 0.03)',
-                      borderRadius: 12, padding: '12px 14px',
+                      background: 'rgba(255,255,255,0.02)',
+                      border: '1px solid rgba(255,255,255,0.04)',
+                      borderRadius: 10, padding: '10px 12px',
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      transition: 'all 0.2s'
+                      transition: 'all 0.2s',
                     }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                      e.currentTarget.style.borderColor = 'rgba(173,198,255,0.15)';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
-                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.03)';
-                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
-                      <span style={{
-                        fontFamily: "'Material Symbols Outlined'", fontSize: 20,
-                        color: 'rgba(194, 198, 214, 0.4)'
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                        background: `${iconColor}18`, border: `1px solid ${iconColor}30`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
-                        {getFileIcon(file.mediaType, file.mediaUrl)}
-                      </span>
+                        <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 16, color: iconColor }}>{icon}</span>
+                      </div>
                       <div style={{ minWidth: 0, flex: 1 }}>
-                        <p style={{
-                          fontSize: 13, fontWeight: 650, color: '#e2e2e2',
-                          margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                        }} title={fileName}>
-                          {fileName}
-                        </p>
-                        <p style={{ fontSize: 10, color: 'rgba(194, 198, 214, 0.35)', fontWeight: 500, margin: '2px 0 0' }}>
-                          {new Date(file.ts).toLocaleDateString()}
-                        </p>
+                        <p style={{ fontSize: 12, fontWeight: 650, color: '#e2e2e2', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={fileName}>{fileName}</p>
+                        <p style={{ fontSize: 10, color: 'rgba(194,198,214,0.35)', margin: '1px 0 0' }}>{new Date(file.ts).toLocaleDateString()}</p>
                       </div>
                     </div>
                     <a
@@ -584,24 +599,56 @@ export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: Ch
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
-                        width: 32, height: 32, borderRadius: 8, display: 'flex',
+                        width: 28, height: 28, borderRadius: 7, display: 'flex', flexShrink: 0,
                         alignItems: 'center', justifyContent: 'center', color: '#4d8eff',
-                        background: 'rgba(77,142,255,0.08)', textDecoration: 'none',
-                        transition: 'all 0.2s'
+                        background: 'rgba(77,142,255,0.08)', textDecoration: 'none', transition: 'all 0.2s',
                       }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(77,142,255,0.16)'; }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(77,142,255,0.18)'; }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'rgba(77,142,255,0.08)'; }}
                     >
-                      <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 18 }}>download</span>
+                      <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 14 }}>download</span>
                     </a>
                   </div>
                 );
-              })
-            )}
-          </div>
-        </div>
+              })}
+            </div>
+          )}
+        </SidebarSection>
+
       </aside>
     </div>
+  );
+}
+
+// ─── Sidebar helpers ─────────────────────────────────────────────────────────
+const URL_PATTERN2 = /https?:\/\/[^\s<>"{}|\\^`[\]]+/gi;
+
+function SidebarSection({ title, icon, count, children }: {
+  title: string; icon: string; count: number; children: React.ReactNode;
+}) {
+  return (
+    <div style={{ padding: '16px 16px 12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 14, color: '#adc6ff' }}>{icon}</span>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', color: '#adc6ff', textTransform: 'uppercase' }}>{title}</span>
+        </div>
+        {count > 0 && (
+          <span style={{ fontSize: 10, color: 'rgba(194,198,214,0.4)', fontWeight: 500 }}>{count}</span>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function EmptySlot({ label }: { label: string }) {
+  return (
+    <div style={{
+      height: 56, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      border: '1px dashed rgba(255,255,255,0.05)', borderRadius: 10,
+      color: 'rgba(194,198,214,0.3)', fontSize: 11,
+    }}>{label}</div>
   );
 }
 

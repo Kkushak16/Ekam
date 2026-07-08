@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools, persist, createJSONStorage } from 'zustand/middleware';
 import Pusher from 'pusher-js';
+import { io as ioConnect, Socket } from 'socket.io-client';
 import axios from 'axios';
 import { Message, PresenceMap } from '../types';
 
@@ -298,6 +299,60 @@ export const useChatStore = create<ChatState>()(
             selfUserId = payload.id || payload.sub || '';
           } catch {}
 
+          // ── Real Socket.IO connection for presence events ──────────────────
+          const ioSocket: Socket = ioConnect(API_URL, {
+            auth: { token: jwt },
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionDelay: 2000,
+            reconnectionAttempts: 10,
+          });
+
+          ioSocket.on('connect', () => {
+            set({ connectionStatus: 'connected' });
+            // Seed self as online immediately
+            if (selfUserId) {
+              set(state => ({
+                presence: { ...state.presence, [selfUserId]: { online: true } }
+              }));
+            }
+          });
+
+          ioSocket.on('disconnect', () => {
+            set({ connectionStatus: 'disconnected' });
+          });
+
+          // Server sends a snapshot of all currently online contacts on connect
+          ioSocket.on('presence.snapshot', (data: { onlineUsers: { userId: string; status: string }[] }) => {
+            const updates: PresenceMap = {};
+            (data.onlineUsers || []).forEach(({ userId, status }) => {
+              updates[userId] = { online: status === 'online' };
+            });
+            // Also always mark self as online
+            if (selfUserId) updates[selfUserId] = { online: true };
+            set(state => ({ presence: { ...state.presence, ...updates } }));
+          });
+
+          // Server broadcasts any presence change
+          ioSocket.on('presence.changed', (data: { userId: string; status: string; lastSeen?: number }) => {
+            set(state => ({
+              presence: {
+                ...state.presence,
+                [data.userId]: { online: data.status === 'online', lastSeen: data.lastSeen },
+              }
+            }));
+          });
+
+          // Handle read receipts via Socket.IO as well
+          ioSocket.on('messages_read', (data: any) => {
+            const ids: string[] = data.messageIds || [];
+            if (ids.length > 0) get().markMessagesRead(ids);
+          });
+
+          // Store the real socket so ChatPage can emit mark_read etc.
+          // Wrap in a compatible interface that works with both Pusher and Socket.IO
+          const realSocket = ioSocket;
+
           const pusherKey = import.meta.env.VITE_PUSHER_KEY;
           const pusherCluster = import.meta.env.VITE_PUSHER_CLUSTER || 'ap2';
 
@@ -435,22 +490,22 @@ export const useChatStore = create<ChatState>()(
             get().subscribeToRoom(activeRoom);
           }
 
-          // Create a mock socket interface for backward compatibility in components
+          // Expose a unified socket interface used by ChatPage for emitting events
           const mockSocket = {
             emit: (event: string, data: any) => {
+              // Forward mark_read, typing etc. to real Socket.IO
+              realSocket.emit(event, data);
+              // Also trigger Pusher client events for typing indicators
               if (event === 'typing') {
-                const targetRoomId = data.roomId || get().activeRoomId || defaultRoomId;
-                const activePresence = pusher.channel(`presence-room-${targetRoomId}`);
-                if (activePresence) {
-                  activePresence.trigger('client-typing', {
-                    userId: data.userId || '',
-                    isTyping: data.isTyping,
-                  });
+                const targetRoomId = data.roomId || get().activeRoomId;
+                if (targetRoomId) {
+                  const ch = pusher.channel(`presence-room-${targetRoomId}`);
+                  if (ch) ch.trigger('client-typing', { userId: data.userId, isTyping: data.isTyping });
                 }
               }
-              // mark_read: send via REST (handled in ChatPage)
             },
             disconnect: () => {
+              ioSocket.disconnect();
               pusher.disconnect();
             }
           };

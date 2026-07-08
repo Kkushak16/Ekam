@@ -83,7 +83,14 @@ export function useUploadMutation() {
           'Content-Type': 'multipart/form-data',
         },
       });
-      return data as { secure_url: string; resource_type: string; public_id: string };
+      return data as {
+        secure_url: string;
+        resource_type: string;
+        public_id: string;
+        media_type: string;   // original MIME type from server
+        file_size: number;
+        original_name: string;
+      };
     },
   });
 }

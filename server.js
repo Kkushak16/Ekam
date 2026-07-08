@@ -136,8 +136,31 @@ const userUploadLimiter = rateLimit({
 });
 
 const allowedMimeTypes = [
-  'image/jpeg', 'image/png', 'image/webp', 'image/gif',
-  'video/mp4', 'video/quicktime', 'application/pdf'
+  // Images
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml', 'image/avif',
+  // Video
+  'video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo', 'video/x-matroska',
+  // Audio
+  'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/aac', 'audio/mp4',
+  // Documents
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  // Archives
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/x-rar-compressed',
+  'application/x-7z-compressed',
+  'application/gzip',
+  'application/x-tar',
+  // Text
+  'text/plain',
+  'text/csv',
+  'application/json',
 ];
 
 const upload = multer({
@@ -147,7 +170,7 @@ const upload = multer({
     if (allowedMimeTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Allowed: JPEG, PNG, WEBP, GIF, MP4, MOV, PDF'), false);
+      cb(new Error(`Unsupported file type: ${file.mimetype}. Supported: images, videos, PDFs, documents, archives, text files.`), false);
     }
   }
 });
@@ -1384,22 +1407,40 @@ app.get('/messages', requireAuth, async (req, res) => {
 app.post('/api/upload', requireAuth, ipUploadLimiter, userUploadLimiter, (req, res) => {
   upload.single('file')(req, res, (err) => {
     if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'File too large. Maximum size is 50MB.' });
+      }
       return res.status(400).json({ error: err.message });
     }
     if (!req.file) {
-      return res.status(400).json({ error: 'No file selected' });
+      return res.status(400).json({ error: 'No file selected. Please choose a file to upload.' });
     }
 
-    // Enforce 10MB size limit for images
-    if (req.file.mimetype.startsWith('image/') && req.file.size > 10 * 1024 * 1024) {
-      return res.status(400).json({ error: 'Image file size exceeds the 10MB limit' });
-    }
+    const mimeType = req.file.mimetype;
+    const fileSizeMB = (req.file.size / (1024 * 1024)).toFixed(1);
+
+    // Determine Cloudinary resource_type
+    let resourceType = 'auto';
+    if (mimeType.startsWith('video/')) resourceType = 'video';
+    else if (mimeType.startsWith('image/')) resourceType = 'image';
+    else resourceType = 'raw'; // documents, archives, text
 
     const uploadStream = cloudinary.uploader.upload_stream(
-      { folder: 'ekam/messages', resource_type: 'auto' },
+      { folder: 'ekam/messages', resource_type: resourceType },
       (error, result) => {
-        if (error) return res.status(500).json({ error: 'Cloudinary error: ' + error.message });
-        res.json({ secure_url: result.secure_url, public_id: result.public_id, resource_type: result.resource_type || 'image' });
+        if (error) {
+          console.error('[Cloudinary Upload Error]', error);
+          return res.status(500).json({ error: 'Upload failed: ' + error.message });
+        }
+        res.json({
+          secure_url: result.secure_url,
+          public_id: result.public_id,
+          resource_type: result.resource_type || resourceType,
+          // Return the original MIME type so the frontend can display it correctly
+          media_type: mimeType,
+          file_size: req.file.size,
+          original_name: req.file.originalname,
+        });
       }
     );
     uploadStream.end(req.file.buffer);
