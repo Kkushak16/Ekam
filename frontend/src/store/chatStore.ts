@@ -349,6 +349,19 @@ export const useChatStore = create<ChatState>()(
             if (ids.length > 0) get().markMessagesRead(ids);
           });
 
+          // Handle real-time social and room updates via Socket.IO
+          ioSocket.on('friendship.added', (data: any) => {
+            window.dispatchEvent(new CustomEvent('friendship-changed', { detail: data }));
+          });
+
+          ioSocket.on('friendship.removed', (data: any) => {
+            window.dispatchEvent(new CustomEvent('friendship-changed', { detail: data }));
+          });
+
+          ioSocket.on('room.membership_updated', (data: any) => {
+            window.dispatchEvent(new CustomEvent('room-membership-changed', { detail: data }));
+          });
+
           // Store the real socket so ChatPage can emit mark_read etc.
           // Wrap in a compatible interface that works with both Pusher and Socket.IO
           const realSocket = ioSocket;

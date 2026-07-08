@@ -587,6 +587,10 @@ async function acceptFriendship(userId, friendId, friendshipId, res) {
     ]);
   }
 
+  if (ioInstance) {
+    ioInstance.emit('friendship.added', { userId, friendId });
+  }
+
   return res.status(200).json({ message: 'Friend request accepted', room_id: roomId });
 }
 
@@ -863,6 +867,10 @@ app.delete('/api/friends/:friendId', requireAuth, async (req, res) => {
       }
     }
 
+    if (ioInstance) {
+      ioInstance.emit('friendship.removed', { userId, friendId });
+    }
+
     return res.json({ success: true, message: 'Friend removed successfully' });
   } catch (err) {
     console.error('Error removing friend:', err.message);
@@ -941,7 +949,7 @@ app.get('/api/rooms/groups', requireAuth, async (req, res) => {
   try {
     const { data: rooms, error } = await supabaseAdmin
       .from('rooms')
-      .select('id, name, created_by, type, created_at')
+      .select('id, name, created_by, type, created_at, description')
       .eq('type', 'group');
     if (error) throw error;
     return res.json({ rooms });
@@ -1091,7 +1099,7 @@ app.get('/api/rooms/:roomId', requireAuth, async (req, res) => {
   try {
     const { data: room, error } = await supabaseAdmin
       .from('rooms')
-      .select('id, name, type, created_by')
+      .select('id, name, type, created_by, description')
       .eq('id', roomId)
       .single();
 
@@ -1174,6 +1182,10 @@ app.post('/api/rooms/:roomId/members', requireAuth, async (req, res) => {
       await redisRest.del(`user_rooms:${uid}`);
     }
 
+    if (ioInstance) {
+      ioInstance.emit('room.membership_updated', { roomId });
+    }
+
     return res.json({ success: true });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -1183,16 +1195,137 @@ app.post('/api/rooms/:roomId/members', requireAuth, async (req, res) => {
 // Leave group
 app.post('/api/rooms/:roomId/leave', requireAuth, async (req, res) => {
   const { roomId } = req.params;
+  const userId = req.user.id;
   try {
-    const { error } = await supabaseAdmin
+    // 1. Fetch caller membership role
+    const { data: member, error: memberErr } = await supabaseAdmin
       .from('room_members')
-      .delete()
+      .select('role')
+      .eq('room_id', roomId)
+      .eq('user_id', userId)
+      .single();
+
+    if (memberErr || !member) {
+      return res.status(403).json({ error: 'You are not a member of this group' });
+    }
+
+    if (member.role === 'admin') {
+      // Fetch all members of this group
+      const { data: allMembers, error: membersErr } = await supabaseAdmin
+        .from('room_members')
+        .select('user_id')
+        .eq('room_id', roomId);
+
+      if (membersErr) throw membersErr;
+
+      const otherMembers = (allMembers || []).filter(m => m.user_id !== userId);
+
+      if (otherMembers.length === 0) {
+        // Owner is the last member, delete the room
+        const { error: deleteRoomErr } = await supabaseAdmin
+          .from('rooms')
+          .delete()
+          .eq('id', roomId);
+        if (deleteRoomErr) throw deleteRoomErr;
+
+        await redisRest.del(`room_members:${roomId}`);
+        await redisRest.del(`user_rooms:${userId}`);
+
+        if (ioInstance) {
+          ioInstance.emit('room.membership_updated', { roomId });
+        }
+
+        return res.json({ success: true, roomDeleted: true });
+      } else {
+        // There are other members, owner must transfer ownership first
+        return res.status(400).json({ error: 'You must transfer ownership to another member before leaving the group.' });
+      }
+    } else {
+      // Normal member can just leave
+      const { error } = await supabaseAdmin
+        .from('room_members')
+        .delete()
+        .eq('room_id', roomId)
+        .eq('user_id', userId);
+      if (error) throw error;
+
+      await redisRest.del(`room_members:${roomId}`);
+      await redisRest.del(`user_rooms:${userId}`);
+
+      if (ioInstance) {
+        ioInstance.emit('room.membership_updated', { roomId });
+      }
+
+      return res.json({ success: true });
+    }
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Transfer ownership of a group (admin role required)
+app.post('/api/rooms/:roomId/transfer-ownership', requireAuth, async (req, res) => {
+  const { roomId } = req.params;
+  const { targetUserId } = req.body;
+  if (!targetUserId) {
+    return res.status(400).json({ error: 'targetUserId is required' });
+  }
+
+  try {
+    // 1. Fetch caller membership
+    const { data: caller, error: callerErr } = await supabaseAdmin
+      .from('room_members')
+      .select('role')
+      .eq('room_id', roomId)
+      .eq('user_id', req.user.id)
+      .single();
+    if (callerErr || !caller || caller.role !== 'admin') {
+      return res.status(403).json({ error: 'Only the primary admin/owner can transfer ownership' });
+    }
+
+    // 2. Fetch target membership
+    const { data: target, error: targetErr } = await supabaseAdmin
+      .from('room_members')
+      .select('role')
+      .eq('room_id', roomId)
+      .eq('user_id', targetUserId)
+      .single();
+    if (targetErr || !target) {
+      return res.status(404).json({ error: 'Target member is not in this group' });
+    }
+
+    // 3. Update target role to admin
+    const { error: updateTargetErr } = await supabaseAdmin
+      .from('room_members')
+      .update({ role: 'admin' })
+      .eq('room_id', roomId)
+      .eq('user_id', targetUserId);
+    if (updateTargetErr) throw updateTargetErr;
+
+    // 4. Update caller role to member
+    const { error: updateCallerErr } = await supabaseAdmin
+      .from('room_members')
+      .update({ role: 'member' })
       .eq('room_id', roomId)
       .eq('user_id', req.user.id);
-    if (error) throw error;
+    if (updateCallerErr) throw updateCallerErr;
 
+    // 5. Update the room's created_by field
+    const { error: updateRoomErr } = await supabaseAdmin
+      .from('rooms')
+      .update({ created_by: targetUserId })
+      .eq('id', roomId);
+    if (updateRoomErr) throw updateRoomErr;
+
+    // 6. Clear caches
     await redisRest.del(`room_members:${roomId}`);
     await redisRest.del(`user_rooms:${req.user.id}`);
+    await redisRest.del(`user_rooms:${targetUserId}`);
+
+    // 7. Broadcast socket update
+    if (ioInstance) {
+      ioInstance.emit('room.membership_updated', { roomId });
+    }
 
     return res.json({ success: true });
   } catch (err) {
@@ -1242,6 +1375,10 @@ app.post('/api/rooms/:roomId/kick', requireAuth, async (req, res) => {
     await redisRest.del(`room_members:${roomId}`);
     await redisRest.del(`user_rooms:${userId}`);
 
+    if (ioInstance) {
+      ioInstance.emit('room.membership_updated', { roomId });
+    }
+
     return res.json({ success: true });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -1287,6 +1424,10 @@ app.post('/api/rooms/:roomId/mute', requireAuth, async (req, res) => {
       .eq('user_id', userId);
     if (error) throw error;
 
+    if (ioInstance) {
+      ioInstance.emit('room.membership_updated', { roomId });
+    }
+
     return res.json({ success: true });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -1320,6 +1461,10 @@ app.post('/api/rooms/:roomId/promote', requireAuth, async (req, res) => {
       .eq('room_id', roomId)
       .eq('user_id', userId);
     if (error) throw error;
+
+    if (ioInstance) {
+      ioInstance.emit('room.membership_updated', { roomId });
+    }
 
     return res.json({ success: true });
   } catch (err) {
