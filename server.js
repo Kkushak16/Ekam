@@ -1774,8 +1774,8 @@ async function startServer() {
         await redisRest.sadd(`sessions:${userId}`, socket.id);
         const sessionCount = await redisRest.scard(`sessions:${userId}`);
         
+        await redisRest.set(`presence:${userId}`, 'online', { ex: 30 });
         if (sessionCount === 1) {
-          await redisRest.set(`presence:${userId}`, 'online', { ex: 30 });
           io.emit('presence.changed', { userId, status: 'online' });
         }
       } catch (err) { console.error('Socket init error:', err.message); }
@@ -2068,6 +2068,34 @@ async function startServer() {
     });
   }, 5000);
 
+  // Heartbeat presence updater loop
+  const presenceInterval = setInterval(async () => {
+    try {
+      const activeUserIds = new Set();
+      if (io && io.sockets && io.sockets.sockets) {
+        for (const [_, socket] of io.sockets.sockets) {
+          if (socket.user && socket.user.id) {
+            activeUserIds.add(socket.user.id);
+          }
+        }
+      }
+      if (wss && wss.clients) {
+        wss.clients.forEach((ws) => {
+          if (ws.userId) {
+            activeUserIds.add(ws.userId);
+          }
+        });
+      }
+      if (activeUserIds.size > 0) {
+        for (const uId of activeUserIds) {
+          await redisRest.set(`presence:${uId}`, 'online', { ex: 30 });
+        }
+      }
+    } catch (err) {
+      console.error('Error refreshing Redis presence in interval:', err.message);
+    }
+  }, 10000);
+
   // Parse Redis URI safely for BullMQ setup engine
   const redisUrl = process.env.REDIS_URL ? new URL(process.env.REDIS_URL) : null;
   const pushQueue = new Queue('pushNotifications', {
@@ -2091,6 +2119,7 @@ async function startServer() {
 
   process.on('SIGTERM', async () => {
     clearInterval(sweeperInterval);
+    clearInterval(presenceInterval);
     wss.close();
     await closeRedis();
     process.exit(0);

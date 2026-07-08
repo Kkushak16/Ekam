@@ -41,6 +41,30 @@ export function MessageList({ roomId }: MessageListProps) {
     }
   }, [messages.length]);
 
+  // Scroll to specific message from sidebar interaction
+  useEffect(() => {
+    const handleScrollTo = (e: Event) => {
+      const { messageId } = (e as CustomEvent).detail;
+      const index = messages.findIndex(m => m.id === messageId || m.clientMessageId === messageId);
+      if (index !== -1) {
+        rowVirtualizer.scrollToIndex(index, { align: 'center' });
+        setTimeout(() => {
+          const el = parentRef.current?.querySelector(`[data-index="${index}"]`);
+          if (el) {
+            el.classList.add('highlight-flash');
+            setTimeout(() => {
+              el.classList.remove('highlight-flash');
+            }, 2000);
+          }
+        }, 100);
+      }
+    };
+    window.addEventListener('scroll-to-message', handleScrollTo);
+    return () => {
+      window.removeEventListener('scroll-to-message', handleScrollTo);
+    };
+  }, [messages, rowVirtualizer]);
+
   return (
     <div 
       className="message-list custom-scrollbar" 

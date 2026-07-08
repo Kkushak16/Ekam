@@ -134,6 +134,17 @@ const getFileIcon = (type?: string, url?: string) => {
   return 'description';
 };
 
+const getFileExtension = (url?: string, type?: string) => {
+  if (!url) return 'FILE';
+  const ext = url.split('.').pop()?.split('?')[0].split('#')[0].toLowerCase() || '';
+  if (ext && ext.length <= 4) return ext.toUpperCase();
+  if (type) {
+    const parts = type.split('/');
+    if (parts[1] && parts[1].length <= 4) return parts[1].toUpperCase();
+  }
+  return 'FILE';
+};
+
 interface ChatPageProps {
   roomId?: string;
 }
@@ -160,6 +171,31 @@ export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: Ch
   // Right Sidebar states and effects
   const [roomDetails, setRoomDetails] = useState<{ type: string; name: string } | null>(null);
   const [activeFolder, setActiveFolder] = useState<'you' | 'them'>('you');
+  const [membersMap, setMembersMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!token || !roomId) return;
+    apiClient.get(`/api/rooms/${roomId}/members`)
+      .then(({ data }) => {
+        const map: Record<string, string> = {};
+        if (data && Array.isArray(data.members)) {
+          data.members.forEach((m: any) => {
+            if (m.users) {
+              map[m.users.id] = m.users.display_name || m.users.username || m.users.email || 'Unknown User';
+            }
+          });
+        }
+        setMembersMap(map);
+      })
+      .catch(err => {
+        console.error('Failed to fetch room members:', err);
+      });
+  }, [roomId, token]);
+
+  const getSenderName = (senderId: string) => {
+    if (senderId === userId) return 'You';
+    return membersMap[senderId] || 'Unknown';
+  };
 
   // Emit read receipts when this room is opened
   useEffect(() => {
@@ -291,34 +327,16 @@ export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: Ch
   const messages = useChatStore(state => state.messages) || [];
   const roomMessages = messages.filter(m => m.roomId === roomId);
 
-  // Shared Media: images + videos (newest first)
-  const sharedMedia = [...roomMessages]
-    .filter(m => m.mediaUrl && (
-      m.mediaType?.startsWith('image/') || m.mediaType?.startsWith('video/') ||
-      /\.(jpeg|jpg|gif|png|webp|svg|mp4|mov|webm)$/i.test(m.mediaUrl)
-    ))
-    .reverse();
-
-  // Links: messages with URLs in body but no media attachment (or media + url body)
+  // Links: messages with URLs in body but no media attachment
   const URL_PATTERN = /https?:\/\/[^\s<>"{}|\\^`[\]]+/gi;
   const linkMessages = [...roomMessages]
     .filter(m => !m.mediaUrl && URL_PATTERN.test(m.body))
     .reverse();
   URL_PATTERN.lastIndex = 0;
 
-  // Files: PDFs, docs, archives, etc. (not images or videos)
-  const fileMessages = [...roomMessages]
-    .filter(m => m.mediaUrl && (
-      m.mediaType?.includes('pdf') ||
-      m.mediaType?.includes('word') || m.mediaType?.includes('document') ||
-      m.mediaType?.includes('sheet') || m.mediaType?.includes('excel') ||
-      m.mediaType?.includes('presentation') || m.mediaType?.includes('powerpoint') ||
-      m.mediaType?.includes('zip') || m.mediaType?.includes('rar') || m.mediaType?.includes('archive') ||
-      m.mediaType?.includes('text') || m.mediaType?.includes('json') ||
-      m.mediaType?.startsWith('audio/') ||
-      (!m.mediaType?.startsWith('image/') && !m.mediaType?.startsWith('video/') &&
-       !/\.(jpeg|jpg|gif|png|webp|svg|mp4|mov|webm)$/i.test(m.mediaUrl))
-    ))
+  // Photos & Files: all attachments (images, videos, docs, pdfs, etc.)
+  const photosAndFiles = [...roomMessages]
+    .filter(m => !!m.mediaUrl)
     .reverse();
 
   return (
@@ -465,47 +483,6 @@ export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: Ch
 
         <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: '0 16px' }} />
 
-        {/* ── Shared Media (images + videos) ── */}
-        <SidebarSection title="Shared Media" icon="perm_media" count={sharedMedia.length}>
-          {sharedMedia.length === 0 ? (
-            <EmptySlot label="No shared media yet" />
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6 }}>
-              {sharedMedia.map((m, idx) => {
-                const isImg = m.mediaType?.startsWith('image/') || /\.(jpeg|jpg|gif|png|webp|svg)$/i.test(m.mediaUrl || '');
-                return (
-                  <a
-                    key={m.id || idx}
-                    href={m.mediaUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      aspectRatio: '1', borderRadius: 8, overflow: 'hidden',
-                      border: '1px solid rgba(255,255,255,0.05)', display: 'block',
-                      background: 'rgba(255,255,255,0.02)', position: 'relative',
-                    }}
-                  >
-                    {isImg ? (
-                      <img src={m.mediaUrl} alt="" loading="lazy"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      <div style={{
-                        width: '100%', height: '100%', display: 'flex',
-                        alignItems: 'center', justifyContent: 'center',
-                        background: 'rgba(77,142,255,0.1)',
-                      }}>
-                        <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 22, color: '#4d8eff' }}>movie</span>
-                      </div>
-                    )}
-                  </a>
-                );
-              })}
-            </div>
-          )}
-        </SidebarSection>
-
-        <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: '0 16px' }} />
-
         {/* ── Links ── */}
         <SidebarSection title="Links" icon="link" count={linkMessages.length}>
           {linkMessages.length === 0 ? (
@@ -513,22 +490,25 @@ export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: Ch
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {linkMessages.map((m, idx) => {
-                const urlMatch = m.body.match(URL_PATTERN2);
+                const urlMatch = m.body.match(URL_PATTERN);
                 const url = urlMatch?.[0] || '';
                 let domain = '';
                 try { domain = new URL(url).hostname.replace('www.', ''); } catch {}
+                const senderName = getSenderName(m.senderId);
                 return (
-                  <a
+                  <div
                     key={m.id || idx}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    onClick={() => {
+                      const event = new CustomEvent('scroll-to-message', { detail: { messageId: m.id || m.clientMessageId } });
+                      window.dispatchEvent(event);
+                    }}
                     style={{
                       display: 'flex', alignItems: 'flex-start', gap: 8,
                       padding: '8px 10px', borderRadius: 10,
                       background: 'rgba(255,255,255,0.02)',
                       border: '1px solid rgba(255,255,255,0.04)',
                       textDecoration: 'none', transition: 'all 0.2s',
+                      cursor: 'pointer',
                     }}
                     onMouseEnter={e => {
                       e.currentTarget.style.background = 'rgba(77,142,255,0.06)';
@@ -540,11 +520,25 @@ export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: Ch
                     }}
                   >
                     <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 14, color: '#4d8eff', marginTop: 1, flexShrink: 0 }}>link</span>
-                    <div style={{ minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: 11, color: '#4d8eff', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{domain || url}</p>
-                      <p style={{ margin: '2px 0 0', fontSize: 10, color: 'rgba(194,198,214,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{url}</p>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <p style={{ margin: 0, fontSize: 11, color: '#4d8eff', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {domain || url}
+                      </p>
+                      <a 
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ margin: '2px 0 0', fontSize: 10, color: 'rgba(194,198,214,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block', textDecoration: 'none' }}
+                      >
+                        {url}
+                      </a>
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 2 }}>
+                        <span style={{ fontSize: 9, color: 'rgba(194,198,214,0.35)', fontWeight: 500 }}>Shared by:</span>
+                        <span style={{ fontSize: 9, color: '#4d8eff', fontWeight: 600 }}>{senderName}</span>
+                      </div>
                     </div>
-                  </a>
+                  </div>
                 );
               })}
             </div>
@@ -553,55 +547,105 @@ export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: Ch
 
         <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: '0 16px' }} />
 
-        {/* ── Files ── */}
-        <SidebarSection title="Files" icon="folder_open" count={fileMessages.length}>
-          {fileMessages.length === 0 ? (
-            <EmptySlot label="No files shared yet" />
+        {/* ── Photos & Files (merged) ── */}
+        <SidebarSection title="Photos & Files" icon="folder_open" count={photosAndFiles.length}>
+          {photosAndFiles.length === 0 ? (
+            <EmptySlot label="No photos or files shared yet" />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {fileMessages.map((file, idx) => {
+              {photosAndFiles.map((file, idx) => {
                 const fileName = getFileNameFromUrl(file.mediaUrl);
-                const icon = getFileIcon(file.mediaType, file.mediaUrl);
-                const iconColorMap: Record<string, string> = {
-                  picture_as_pdf: '#e85454', description: '#5b8fff',
-                  table_chart: '#4caf82', slideshow: '#f5a623',
-                  archive: '#ab82ff', audiotrack: '#ff82b2', article: '#adc6ff',
-                };
-                const iconColor = iconColorMap[icon] || '#adc6ff';
+                const fileExt = getFileExtension(file.mediaUrl, file.mediaType);
+                const senderName = getSenderName(file.senderId);
+                const isImg = file.mediaType?.startsWith('image/') || /\.(jpeg|jpg|gif|png|webp|svg)$/i.test(file.mediaUrl || '');
+                const isVid = file.mediaType?.startsWith('video/') || /\.(mp4|mov|webm)$/i.test(file.mediaUrl || '');
+
+                let leftItem = null;
+                if (isImg) {
+                  leftItem = (
+                    <img src={file.mediaUrl} alt="" loading="lazy"
+                      style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+                  );
+                } else if (isVid) {
+                  leftItem = (
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+                      background: 'rgba(77,142,255,0.15)', border: '1px solid rgba(77,142,255,0.25)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 18, color: '#4d8eff' }}>movie</span>
+                    </div>
+                  );
+                } else {
+                  const icon = getFileIcon(file.mediaType, file.mediaUrl);
+                  const iconColorMap: Record<string, string> = {
+                    picture_as_pdf: '#e85454', description: '#5b8fff',
+                    table_chart: '#4caf82', slideshow: '#f5a623',
+                    archive: '#ab82ff', audiotrack: '#ff82b2', article: '#adc6ff',
+                  };
+                  const iconColor = iconColorMap[icon] || '#adc6ff';
+                  leftItem = (
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+                      background: `${iconColor}18`, border: `1px solid ${iconColor}30`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 18, color: iconColor }}>{icon}</span>
+                    </div>
+                  );
+                }
+
                 return (
                   <div
                     key={file.id || idx}
+                    onClick={() => {
+                      const event = new CustomEvent('scroll-to-message', { detail: { messageId: file.id || file.clientMessageId } });
+                      window.dispatchEvent(event);
+                    }}
                     style={{
                       background: 'rgba(255,255,255,0.02)',
                       border: '1px solid rgba(255,255,255,0.04)',
                       borderRadius: 10, padding: '10px 12px',
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       transition: 'all 0.2s',
+                      cursor: 'pointer',
                     }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1 }}>
-                      <div style={{
-                        width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                        background: `${iconColor}18`, border: `1px solid ${iconColor}30`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}>
-                        <span style={{ fontFamily: "'Material Symbols Outlined'", fontSize: 16, color: iconColor }}>{icon}</span>
-                      </div>
+                      {leftItem}
                       <div style={{ minWidth: 0, flex: 1 }}>
-                        <p style={{ fontSize: 12, fontWeight: 650, color: '#e2e2e2', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={fileName}>{fileName}</p>
-                        <p style={{ fontSize: 10, color: 'rgba(194,198,214,0.35)', margin: '1px 0 0' }}>{new Date(file.ts).toLocaleDateString()}</p>
+                        <p style={{ fontSize: 12, fontWeight: 650, color: '#e2e2e2', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={fileName}>
+                          {fileName}
+                        </p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+                          <span style={{
+                            background: 'rgba(255,255,255,0.06)', color: 'rgba(194,198,214,0.7)',
+                            borderRadius: 4, padding: '1px 4px', fontSize: 9, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase'
+                          }}>
+                            {fileExt}
+                          </span>
+                          <span style={{ fontSize: 10, color: 'rgba(194,198,214,0.4)', fontWeight: 500 }}>
+                            {new Date(file.ts).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 1 }}>
+                          <span style={{ fontSize: 9, color: 'rgba(194,198,214,0.35)', fontWeight: 500 }}>By:</span>
+                          <span style={{ fontSize: 9, color: '#4d8eff', fontWeight: 600 }}>{senderName}</span>
+                        </div>
                       </div>
                     </div>
                     <a
                       href={file.mediaUrl}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                       style={{
                         width: 28, height: 28, borderRadius: 7, display: 'flex', flexShrink: 0,
                         alignItems: 'center', justifyContent: 'center', color: '#4d8eff',
                         background: 'rgba(77,142,255,0.08)', textDecoration: 'none', transition: 'all 0.2s',
+                        marginLeft: 8,
                       }}
                       onMouseEnter={e => { e.currentTarget.style.background = 'rgba(77,142,255,0.18)'; }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'rgba(77,142,255,0.08)'; }}
