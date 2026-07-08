@@ -18,6 +18,7 @@ const API_URL = getApiUrl().replace(/\/$/, '');
 
 export interface ChatState {
   token: string | null;
+  username: string | null;
   setToken: (token: string | null) => void;
   clearAuth: () => void;
 
@@ -37,7 +38,12 @@ export interface ChatState {
   loadingOlder: boolean;
   setLoadingOlder: (status: boolean) => void;
   addMessage: (msg: Message) => void;
+  /** Update status of a message by clientMessageId */
   updateMessageStatus: (clientMessageId: string, status: Message['status']) => void;
+  /** Merge fields into a message by clientMessageId (for resolving optimistic messages) */
+  updateMessageById: (clientMessageId: string, fields: Partial<Message>) => void;
+  /** Bulk-update status of messages by server id */
+  markMessagesRead: (messageIds: string[]) => void;
   loadOlderMessages: (roomId: string, beforeId: string | null) => Promise<void>;
   syncMissingMessages: (roomId: string, lastSeenId: string) => Promise<void>;
 
@@ -57,7 +63,17 @@ export const useChatStore = create<ChatState>()(
       (set, get) => ({
         // ----- Auth -----
         token: null,
-        setToken: (token) => set({ token }),
+        username: null,
+        setToken: (token) => {
+          set({ token });
+          if (token) {
+            try {
+              const payload = get().parseJwt(token);
+              const uname = payload.username || payload.preferred_username || payload.email?.split('@')[0] || null;
+              set({ username: uname });
+            } catch {}
+          }
+        },
         clearAuth: () => {
           const { disconnectSocket, disconnectSSE } = get();
           disconnectSocket();
@@ -88,6 +104,14 @@ export const useChatStore = create<ChatState>()(
             set({ sseSource: null });
           }
 
+          // Get the current user's id so we can skip their own messages from SSE
+          // (they're already in state as the optimistic copy)
+          let currentUserId = '';
+          try {
+            const payload = get().parseJwt(token);
+            currentUserId = payload.id || payload.sub || '';
+          } catch {}
+
           // Open a new SSE connection — authenticates via query param since EventSource can't set headers
           const url = `${API_URL}/api/sse/room/${encodeURIComponent(roomId)}?token=${encodeURIComponent(token)}`;
           const es = new EventSource(url);
@@ -95,13 +119,46 @@ export const useChatStore = create<ChatState>()(
           es.addEventListener('new-message', (e: MessageEvent) => {
             try {
               const data = JSON.parse(e.data);
+              const senderId = data.sender_id || '';
+
+              // If the message came from the current user, it's already in state as an optimistic message.
+              // Just update the existing entry with the server id — do NOT add a duplicate.
+              if (senderId === currentUserId) {
+                const clientId = data.clientMessageId || '';
+                const serverId = String(data._id || '');
+                if (clientId) {
+                  get().updateMessageById(clientId, { id: serverId, status: 'sent' });
+                } else if (serverId) {
+                  // No clientMessageId — try to match by server id (already resolved)
+                  // If not found, this is a duplicate we should ignore.
+                  const existing = get().messages.some(m => m.id === serverId);
+                  if (!existing) {
+                    // Edge case: add it (e.g. sent from another device/tab)
+                    const msg: Message = {
+                      id: serverId,
+                      clientMessageId: serverId,
+                      roomId: data.room_id || roomId,
+                      senderId: senderId,
+                      body: data.body || '',
+                      status: 'sent',
+                      ts: data.ts || Date.now(),
+                      mediaUrl: data.media_url,
+                      mediaType: data.media_type,
+                    };
+                    get().addMessage(msg);
+                  }
+                }
+                return;
+              }
+
+              // Message from another user — add it (addMessage handles dedup by id)
               const msg: Message = {
                 id: String(data._id || ''),
                 clientMessageId: String(data.clientMessageId || data._id || ''),
                 roomId: data.room_id || roomId,
-                senderId: data.sender_id || '',
+                senderId: senderId,
                 body: data.body || '',
-                status: 'sent',
+                status: 'delivered',  // Received = delivered
                 ts: data.ts || Date.now(),
                 mediaUrl: data.media_url,
                 mediaType: data.media_type,
@@ -110,6 +167,17 @@ export const useChatStore = create<ChatState>()(
             } catch (err) {
               console.error('[SSE] Failed to parse message event:', err);
             }
+          });
+
+          // Handle read receipts from SSE
+          es.addEventListener('messages_read', (e: MessageEvent) => {
+            try {
+              const data = JSON.parse(e.data);
+              const ids: string[] = data.messageIds || [];
+              if (ids.length > 0) {
+                get().markMessagesRead(ids);
+              }
+            } catch {}
           });
 
           es.onerror = () => {
@@ -132,6 +200,13 @@ export const useChatStore = create<ChatState>()(
 
           const generalRoomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
 
+          // Get current user id for dedup
+          let currentUserId = '';
+          try {
+            const payload = get().parseJwt(get().token || '');
+            currentUserId = payload.id || payload.sub || '';
+          } catch {}
+
           // Unsubscribe from other rooms (except the new room and the general room)
           if (pusher.channels && pusher.channels.channels) {
             const channels = Object.keys(pusher.channels.channels);
@@ -150,13 +225,16 @@ export const useChatStore = create<ChatState>()(
           if (!pusher.channel(msgChannelName)) {
             const msgChannel = pusher.subscribe(msgChannelName);
             msgChannel.bind('new-message', (data: any) => {
+              const senderId = data.sender_id || '';
+              // Skip messages sent by current user — already have optimistic copy
+              if (senderId === currentUserId) return;
               const msg: Message = {
                 id: data._id,
                 clientMessageId: data.clientMessageId || data._id,
                 roomId: data.room_id,
-                senderId: data.sender_id,
+                senderId: senderId,
                 body: data.body,
-                status: 'sent',
+                status: 'delivered',
                 ts: data.ts || Date.now(),
                 mediaUrl: data.media_url,
                 mediaType: data.media_type,
@@ -170,9 +248,9 @@ export const useChatStore = create<ChatState>()(
           if (!pusher.channel(presenceChannelName)) {
             const presenceChannel = pusher.subscribe(presenceChannelName);
 
-            presenceChannel.bind('pusher:subscription_succeeded', () => {
+            (presenceChannel as any).bind('pusher:subscription_succeeded', () => {
               const initialPresence: PresenceMap = {};
-              presenceChannel.members.each((member: any) => {
+              (presenceChannel as any).members?.each((member: any) => {
                 initialPresence[member.id] = { online: true, info: member.info };
               });
               set((state) => ({
@@ -213,6 +291,13 @@ export const useChatStore = create<ChatState>()(
 
           set({ connectionStatus: 'connecting' });
 
+          // Parse JWT to get userId early for presence seeding
+          let selfUserId = '';
+          try {
+            const payload = get().parseJwt(jwt);
+            selfUserId = payload.id || payload.sub || '';
+          } catch {}
+
           const pusherKey = import.meta.env.VITE_PUSHER_KEY;
           const pusherCluster = import.meta.env.VITE_PUSHER_CLUSTER || 'ap2';
 
@@ -236,6 +321,15 @@ export const useChatStore = create<ChatState>()(
           pusher.connection.bind('state_change', (states: { current: string }) => {
             if (states.current === 'connected') {
               set({ connectionStatus: 'connected' });
+              // Seed own presence immediately when connected
+              if (selfUserId) {
+                set(state => ({
+                  presence: {
+                    ...state.presence,
+                    [selfUserId]: { online: true },
+                  }
+                }));
+              }
             } else if (states.current === 'connecting') {
               set({ connectionStatus: 'connecting' });
             } else {
@@ -245,29 +339,30 @@ export const useChatStore = create<ChatState>()(
 
           set({ pusherInstance: pusher });
 
-          // Parse JWT to subscribe to user's private channel for real-time delivery
-          try {
-            const payload = get().parseJwt(jwt);
-            const userId = payload.id || payload.sub;
-            if (userId) {
-              const userChannel = pusher.subscribe(`user-${userId}`);
-              userChannel.bind('new-message', (data: any) => {
-                const msg: Message = {
-                  id: data._id,
-                  clientMessageId: data.clientMessageId || data._id,
-                  roomId: data.room_id,
-                  senderId: data.sender_id,
-                  body: data.body,
-                  status: 'sent',
-                  ts: data.ts || Date.now(),
-                  mediaUrl: data.media_url,
-                  mediaType: data.media_type,
-                };
-                get().addMessage(msg);
-              });
-            }
-          } catch (e) {
-            console.error('Failed to subscribe to user private channel:', e);
+          // Subscribe to user's private channel for real-time delivery
+          if (selfUserId) {
+            const userChannel = pusher.subscribe(`user-${selfUserId}`);
+            userChannel.bind('new-message', (data: any) => {
+              // This is a background message (user not in that room)
+              const senderId = data.sender_id || '';
+              if (senderId === selfUserId) return; // skip own
+              const msg: Message = {
+                id: data._id,
+                clientMessageId: data.clientMessageId || data._id,
+                roomId: data.room_id,
+                senderId: senderId,
+                body: data.body,
+                status: 'delivered',
+                ts: data.ts || Date.now(),
+                mediaUrl: data.media_url,
+                mediaType: data.media_type,
+              };
+              get().addMessage(msg);
+            });
+            userChannel.bind('messages_read', (data: any) => {
+              const ids: string[] = data.messageIds || [];
+              if (ids.length > 0) get().markMessagesRead(ids);
+            });
           }
 
           // Subscribe to the default general room
@@ -275,13 +370,15 @@ export const useChatStore = create<ChatState>()(
           
           const msgChannel = pusher.subscribe(`room-${defaultRoomId}`);
           msgChannel.bind('new-message', (data: any) => {
+            const senderId = data.sender_id || '';
+            if (senderId === selfUserId) return;
             const msg: Message = {
               id: data._id,
               clientMessageId: data.clientMessageId || data._id,
               roomId: data.room_id,
-              senderId: data.sender_id,
+              senderId: senderId,
               body: data.body,
-              status: 'sent',
+              status: 'delivered',
               ts: data.ts || Date.now(),
               mediaUrl: data.media_url,
               mediaType: data.media_type,
@@ -290,11 +387,15 @@ export const useChatStore = create<ChatState>()(
           });
 
           const presenceChannel = pusher.subscribe(`presence-room-${defaultRoomId}`);
-          presenceChannel.bind('pusher:subscription_succeeded', () => {
+          (presenceChannel as any).bind('pusher:subscription_succeeded', () => {
             const initialPresence: PresenceMap = {};
-            presenceChannel.members.each((member: any) => {
+            (presenceChannel as any).members?.each((member: any) => {
               initialPresence[member.id] = { online: true, info: member.info };
             });
+            // Always include self as online
+            if (selfUserId) {
+              initialPresence[selfUserId] = { online: true };
+            }
             set({ presence: initialPresence });
           });
 
@@ -324,6 +425,10 @@ export const useChatStore = create<ChatState>()(
             }
           });
 
+          // Handle presence.changed events for Socket.IO-based presence
+          // (Pusher has its own presence, but Socket.IO also broadcasts)
+          // We listen via a meta-channel approach through the socket below
+
           // Subscribe to the active room if it is different from general
           const activeRoom = get().activeRoomId;
           if (activeRoom && activeRoom !== defaultRoomId) {
@@ -343,6 +448,7 @@ export const useChatStore = create<ChatState>()(
                   });
                 }
               }
+              // mark_read: send via REST (handled in ChatPage)
             },
             disconnect: () => {
               pusher.disconnect();
@@ -369,17 +475,22 @@ export const useChatStore = create<ChatState>()(
         addMessage: (msg) => {
           set((state) => {
             const safeMessages = Array.isArray(state.messages) ? state.messages : [];
-            const exists = safeMessages.some(
+            // Dedup: match by server id OR clientMessageId
+            const existingIdx = safeMessages.findIndex(
               (m) =>
-                m.clientMessageId === msg.clientMessageId ||
-                (m.id && msg.id && m.id === msg.id)
+                (msg.id && m.id && m.id === msg.id) ||
+                (msg.clientMessageId && m.clientMessageId && m.clientMessageId === msg.clientMessageId)
             );
-            if (exists) {
-              return {
-                messages: safeMessages.map((m) =>
-                  m.clientMessageId === msg.clientMessageId ? { ...m, ...msg } : m
-                ),
-              };
+            if (existingIdx !== -1) {
+              // Update the existing entry (merge, keeping the higher-priority status)
+              const existing = safeMessages[existingIdx];
+              const statusPriority = { sending: 0, sent: 1, delivered: 2, read: 3, failed: -1 };
+              const existingPriority = statusPriority[existing.status] ?? 0;
+              const newPriority = statusPriority[msg.status] ?? 0;
+              const mergedStatus = newPriority > existingPriority ? msg.status : existing.status;
+              const updated = [...safeMessages];
+              updated[existingIdx] = { ...existing, ...msg, status: mergedStatus };
+              return { messages: updated };
             }
             return { messages: [...safeMessages, msg] };
           });
@@ -390,6 +501,29 @@ export const useChatStore = create<ChatState>()(
             return {
               messages: safeMessages.map((m) =>
                 m.clientMessageId === clientMessageId ? { ...m, status } : m
+              ),
+            };
+          });
+        },
+        updateMessageById: (clientMessageId, fields) => {
+          set((state) => {
+            const safeMessages = Array.isArray(state.messages) ? state.messages : [];
+            return {
+              messages: safeMessages.map((m) =>
+                m.clientMessageId === clientMessageId ? { ...m, ...fields } : m
+              ),
+            };
+          });
+        },
+        markMessagesRead: (messageIds) => {
+          set((state) => {
+            const safeMessages = Array.isArray(state.messages) ? state.messages : [];
+            const idSet = new Set(messageIds);
+            return {
+              messages: safeMessages.map((m) =>
+                (m.id && idSet.has(m.id)) || (m.supabaseId && idSet.has(m.supabaseId))
+                  ? { ...m, status: 'read' as const }
+                  : m
               ),
             };
           });
@@ -420,8 +554,8 @@ export const useChatStore = create<ChatState>()(
               }));
               const safeMessages = Array.isArray(state.messages) ? state.messages : [];
               // Dedup by id (since old messages won't have clientMessageId)
-              const currentIds = new Set(safeMessages.map((m) => m.id || m.clientMessageId));
-              const filteredNew = incomingMessages.filter((m) => !currentIds.has(m.id) && !currentIds.has(m.clientMessageId));
+              const currentIds = new Set(safeMessages.map((m) => m.id ?? m.clientMessageId));
+              const filteredNew = incomingMessages.filter((m) => !currentIds.has(m.id ?? '') && !currentIds.has(m.clientMessageId));
               return { messages: [...filteredNew, ...safeMessages] };
             });
           } catch (error) {
@@ -452,8 +586,8 @@ export const useChatStore = create<ChatState>()(
                 supabaseId: m.supabaseId || m.supabase_id,
               }));
               const safeMessages = Array.isArray(state.messages) ? state.messages : [];
-              const currentIds = new Set(safeMessages.map((m) => m.id || m.clientMessageId));
-              const filteredNew = incomingMessages.filter((m) => !currentIds.has(m.id) && !currentIds.has(m.clientMessageId));
+              const currentIds = new Set(safeMessages.map((m) => m.id ?? m.clientMessageId));
+              const filteredNew = incomingMessages.filter((m) => !currentIds.has(m.id ?? '') && !currentIds.has(m.clientMessageId));
               return { messages: [...safeMessages, ...filteredNew] };
             });
           } catch (error) {

@@ -13,6 +13,7 @@ interface Friend {
   isFavorite?: boolean;
   avatarColor: string;
   avatarBg: string;
+  activity_description?: string;
 }
 
 interface SuggestedConnect {

@@ -161,6 +161,18 @@ export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: Ch
   const [roomDetails, setRoomDetails] = useState<{ type: string; name: string } | null>(null);
   const [activeFolder, setActiveFolder] = useState<'you' | 'them'>('you');
 
+  // Emit read receipts when this room is opened
+  useEffect(() => {
+    if (!token || !roomId || !userId) return;
+    // Notify server that current user has read all messages in this room
+    const { socket: sock } = useChatStore.getState();
+    if (sock && typeof sock.emit === 'function') {
+      sock.emit('mark_read', { roomId, userId });
+    }
+    // Also call REST endpoint to update DB
+    apiClient.post('/api/messages/read', { room_id: roomId }).catch(() => {});
+  }, [roomId, token, userId]);
+
   // Load messages when room changes — via HTTP, no socket dependency
   useEffect(() => {
     if (!token) return;
@@ -202,27 +214,36 @@ export function ChatPage({ roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' }: Ch
     if (!input.trim() && !mediaUrl) return;
     if (!token) return;
     const clientMessageId = crypto.randomUUID();
+    const messageBody = input.trim();
     const message = {
       clientMessageId,
       roomId: roomId,
       senderId: userId,
-      body: input.trim(),
+      body: messageBody,
       ts: Date.now(),
       status: 'sending' as const,
       mediaUrl,
       mediaType,
     };
+    // 1. Optimistic add — shows immediately in UI
     useChatStore.getState().addMessage(message);
     setInput('');
     try {
       const { data } = await apiClient.post('/api/messages', {
         room_id: roomId,
-        body: message.body,
+        body: messageBody,
         media_url: mediaUrl,
         media_type: mediaType,
+        clientMessageId, // send clientMessageId so SSE can echo it back
       });
       if (data) {
-        useChatStore.getState().addMessage({ ...message, id: data._id, status: 'sent', supabaseId: data.supabase_id });
+        // 2. Update the existing optimistic message with server id + status
+        //    Do NOT call addMessage again — just update status
+        useChatStore.getState().updateMessageById(clientMessageId, {
+          id: String(data._id),
+          status: 'sent',
+          supabaseId: data.supabase_id,
+        });
       }
     } catch (err) {
       useChatStore.getState().updateMessageStatus(clientMessageId, 'failed');

@@ -1422,7 +1422,7 @@ async function isRateLimited(userId) {
 
 // Complete Transactional Write Flow
 app.post('/api/messages', requireAuth, async (req, res) => {
-  let { room_id, body, media_url, media_type } = req.body;
+  let { room_id, body, media_url, media_type, clientMessageId } = req.body;
   if (!room_id || !body) return res.status(400).json({ error: 'Missing payload requirements' });
   if (room_id === 'general') room_id = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
 
@@ -1437,8 +1437,8 @@ app.post('/api/messages', requireAuth, async (req, res) => {
   let mongoDoc = null;
 
   try {
-    // Step 2: Write to MongoDB
-    mongoDoc = await insertMessage({ room_id, sender_id, body, media_url, media_type, status: 'sent' });
+    // Step 2: Write to MongoDB (store clientMessageId for dedup)
+    mongoDoc = await insertMessage({ room_id, sender_id, body, media_url, media_type, status: 'sent', clientMessageId: clientMessageId || null });
 
     // Step 3: Write to relational database layer (Supabase) using admin client to bypass token mismatch issues
     const embeddingStr = JSON.stringify(generateMockEmbedding(body));
@@ -1453,31 +1453,42 @@ app.post('/api/messages', requireAuth, async (req, res) => {
     const { db } = await connectToDatabase();
     await db.collection('messages').updateOne({ _id: mongoDoc._id }, { $set: { supabase_id: supabaseMessage.id } });
 
+    // Check which room members are online to determine delivery status
+    const members = await getRoomMembers(room_id);
+    const onlineMembers = [];
+    if (members.length > 0) {
+      const values = await redisRest.mget(...members.map(id => `presence:${id}`)).catch(() => []);
+      members.forEach((id, idx) => {
+        if (id !== sender_id && values[idx] === 'online') onlineMembers.push(id);
+      });
+    }
+    // If any recipient is online → delivered, else → sent
+    const initialStatus = onlineMembers.length > 0 ? 'delivered' : 'sent';
+
     // Step 5: Broadcast real-time packet state over serverless web-hubs (Pusher)
+    const broadcastPayloadBase = {
+      _id: String(mongoDoc._id),
+      clientMessageId: clientMessageId || null,
+      room_id,
+      sender_id,
+      body,
+      supabase_id: supabaseMessage.id,
+      ts: Date.now(),
+      media_url: media_url || null,
+      media_type: media_type || null,
+    };
+
     if (pusher) {
       // Broadcast to room channel (for users currently viewing the room)
-      await pusher.trigger(`room-${room_id}`, 'new-message', {
-        _id: mongoDoc._id,
-        room_id,
-        sender_id,
-        body,
-        supabase_id: supabaseMessage.id,
-        ts: Date.now()
-      }).catch(e => console.error("Realtime Broadcast Skip:", e.message));
+      await pusher.trigger(`room-${room_id}`, 'new-message', broadcastPayloadBase)
+        .catch(e => console.error("Realtime Broadcast Skip:", e.message));
 
-      // Broadcast to each room member's private user channel (so they get it in background/sidebar)
+      // Broadcast to each room member's private user channel (background/sidebar)
       try {
-        const members = await getRoomMembers(room_id);
         for (const memberId of members) {
           if (memberId !== sender_id) {
-            await pusher.trigger(`user-${memberId}`, 'new-message', {
-              _id: mongoDoc._id,
-              room_id,
-              sender_id,
-              body,
-              supabase_id: supabaseMessage.id,
-              ts: Date.now()
-            }).catch(e => console.error(`Pusher background trigger for ${memberId} failed:`, e.message));
+            await pusher.trigger(`user-${memberId}`, 'new-message', broadcastPayloadBase)
+              .catch(e => console.error(`Pusher background trigger for ${memberId} failed:`, e.message));
           }
         }
       } catch (err) {
@@ -1488,24 +1499,67 @@ app.post('/api/messages', requireAuth, async (req, res) => {
     }
 
     // Always broadcast via SSE (works without any external credentials)
-    const ssePayload = {
-      _id: String(mongoDoc._id),
-      room_id,
-      sender_id,
-      body,
-      supabase_id: supabaseMessage.id,
-      ts: Date.now(),
-      media_url: media_url || null,
-      media_type: media_type || null,
-    };
-    broadcastToSSE(room_id, 'new-message', ssePayload);
+    broadcastToSSE(room_id, 'new-message', broadcastPayloadBase);
 
-    return res.status(201).json({ ...mongoDoc, supabase_id: supabaseMessage.id });
+    return res.status(201).json({ ...mongoDoc, supabase_id: supabaseMessage.id, status: initialStatus, clientMessageId: clientMessageId || null });
   } catch (err) {
     if (mongoDoc) {
       await deleteMessage(mongoDoc._id).catch(() => {});
     }
     return res.status(500).json({ error: 'Serverless execution rollback triggered: ' + err.message });
+  }
+});
+
+// Mark messages as read and broadcast read receipts
+app.post('/api/messages/read', requireAuth, async (req, res) => {
+  let { room_id } = req.body;
+  if (!room_id) return res.status(400).json({ error: 'room_id is required' });
+  if (room_id === 'general') room_id = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
+
+  const reader_id = req.user.id;
+
+  try {
+    const { db } = await connectToDatabase();
+    // Find all unread messages in this room not sent by the reader
+    const unreadMessages = await db.collection('messages').find({
+      room_id,
+      sender_id: { $ne: reader_id },
+      status: { $ne: 'read' }
+    }).toArray();
+
+    if (unreadMessages.length === 0) {
+      return res.json({ success: true, updated: 0 });
+    }
+
+    const messageIds = unreadMessages.map(m => String(m._id));
+
+    // Update status to read in MongoDB
+    await db.collection('messages').updateMany(
+      { room_id, sender_id: { $ne: reader_id }, status: { $ne: 'read' } },
+      { $set: { status: 'read', read_at: new Date() } }
+    );
+
+    // Broadcast read receipts to the room so senders see the update instantly
+    const readReceiptPayload = { messageIds, reader_id, room_id, ts: Date.now() };
+    broadcastToSSE(room_id, 'messages_read', readReceiptPayload);
+
+    if (pusher) {
+      // Find the senders and notify them on their private channels
+      const senderIds = [...new Set(unreadMessages.map(m => m.sender_id).filter(Boolean))];
+      for (const senderId of senderIds) {
+        if (senderId !== reader_id) {
+          await pusher.trigger(`user-${senderId}`, 'messages_read', readReceiptPayload)
+            .catch(e => console.error(`Pusher read receipt for ${senderId} failed:`, e.message));
+        }
+      }
+      await pusher.trigger(`room-${room_id}`, 'messages_read', readReceiptPayload)
+        .catch(e => console.error('Pusher room read receipt failed:', e.message));
+    }
+
+    return res.json({ success: true, updated: messageIds.length });
+  } catch (err) {
+    console.error('Error marking messages as read:', err.message);
+    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -1699,6 +1753,35 @@ async function startServer() {
       } catch (err) { console.error('Socket join_room error:', err.message); }
     });
 
+    // Mark messages as read via Socket.IO
+    socket.on('mark_read', async (payload) => {
+      try {
+        let roomId = payload?.roomId || payload?.room_id;
+        if (!roomId) return;
+        if (roomId === 'general') roomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
+        const { db } = await connectToDatabase();
+        const unreadMessages = await db.collection('messages').find({
+          room_id: roomId,
+          sender_id: { $ne: userId },
+          status: { $ne: 'read' }
+        }).toArray();
+        if (unreadMessages.length === 0) return;
+        const messageIds = unreadMessages.map(m => String(m._id));
+        await db.collection('messages').updateMany(
+          { room_id: roomId, sender_id: { $ne: userId }, status: { $ne: 'read' } },
+          { $set: { status: 'read', read_at: new Date() } }
+        );
+        const readReceiptPayload = { messageIds, reader_id: userId, room_id: roomId, ts: Date.now() };
+        broadcastToSSE(roomId, 'messages_read', readReceiptPayload);
+        // Notify senders via Socket.IO
+        const senderIds = [...new Set(unreadMessages.map(m => m.sender_id).filter(Boolean))];
+        for (const senderId of senderIds) {
+          if (senderId !== userId) io.to(senderId).emit('messages_read', readReceiptPayload);
+        }
+        io.to(roomId).emit('messages_read', readReceiptPayload);
+      } catch (err) { console.error('Socket mark_read error:', err.message); }
+    });
+
     // Send message with Zod payload validation & Redis rate limiting
     socket.on('send_message', async (message, ack) => {
       try {
@@ -1749,14 +1832,22 @@ async function startServer() {
         await db.collection('messages').updateOne({ _id: mongoDoc._id }, { $set: { supabase_id: supabaseMessage.id } });
 
         const members = await getRoomMembers(roomId);
-        
-        const ackData = { success: true, clientMessageId, status: 'sent', messageId: mongoDoc._id };
+
+        // Check online members to set delivery status
+        let initialStatus = 'sent';
+        if (members.length > 0) {
+          const values = await redisRest.mget(...members.map(id => `presence:${id}`)).catch(() => []);
+          const hasOnlineRecipient = members.some((id, idx) => id !== userId && values[idx] === 'online');
+          if (hasOnlineRecipient) initialStatus = 'delivered';
+        }
+
+        const ackData = { success: true, clientMessageId, status: initialStatus, messageId: String(mongoDoc._id) };
         if (typeof ack === 'function') ack(ackData);
         socket.emit('message_ack', ackData);
 
         const broadcastPayload = {
-          _id: mongoDoc._id, clientMessageId, room_id: roomId, sender_id: userId,
-          body, ts: Date.now(), status: 'sent', media_url: mediaUrl || null,
+          _id: String(mongoDoc._id), clientMessageId, room_id: roomId, sender_id: userId,
+          body, ts: Date.now(), status: initialStatus, media_url: mediaUrl || null,
           media_type: mediaType || null, supabase_id: supabaseMessage.id
         };
 

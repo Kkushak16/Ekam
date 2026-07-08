@@ -192,7 +192,7 @@ export function GroupsPage() {
       const filtered = (data.rooms || []).filter((r: any) => !preGroupIds.includes(r.id));
       setGroups(filtered);
       
-      const isActiveGroup = filtered.some(g => g.id === selectedGroupId);
+      const isActiveGroup = filtered.some((g: any) => g.id === selectedGroupId);
       if (!isActiveGroup) {
         if (selectedGroupId === 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' && filtered.length > 0) {
           setSelectedGroupId(filtered[0].id);

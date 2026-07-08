@@ -7,6 +7,47 @@ interface MessageItemProps {
   currentUserId: string;
 }
 
+/**
+ * Returns the underline style for the message bubble based on delivery status.
+ * State 1 — Delivered (grey full underline)
+ * State 2 — Sent but not delivered (half-grey underline via gradient)
+ * State 3 — Read (blue underline)
+ */
+function getStatusUnderline(status: Message['status']): React.CSSProperties {
+  switch (status) {
+    case 'read':
+      // Blue full underline
+      return {
+        borderBottom: '2px solid #4d8eff',
+        boxShadow: '0 2px 8px rgba(77,142,255,0.3)',
+      };
+    case 'delivered':
+      // Full grey underline
+      return {
+        borderBottom: '2px solid rgba(194,198,214,0.45)',
+      };
+    case 'sent':
+      // Half-grey underline via linear-gradient on the border
+      return {
+        borderBottom: '2px solid transparent',
+        backgroundImage: 'linear-gradient(135deg, #1f1f1f 0%, #131313 100%), linear-gradient(to right, rgba(194,198,214,0.4) 50%, transparent 50%)',
+        backgroundClip: 'padding-box, border-box',
+        backgroundOrigin: 'padding-box, border-box',
+      };
+    case 'sending':
+      // Faint dashed — pending
+      return {
+        borderBottom: '2px dashed rgba(194,198,214,0.2)',
+      };
+    case 'failed':
+      return {
+        borderBottom: '2px solid rgba(255,99,99,0.5)',
+      };
+    default:
+      return {};
+  }
+}
+
 export function MessageItem({ message, currentUserId }: MessageItemProps) {
   const isMe = message.senderId === currentUserId;
 
@@ -130,15 +171,27 @@ export function MessageItem({ message, currentUserId }: MessageItemProps) {
     );
   };
 
-  const StatusIcon = () => {
+  // Status label shown next to timestamp (only for sender)
+  const StatusLabel = () => {
     if (!isMe) return null;
-    if (message.status === 'sending') return <span className="material-symbols-outlined text-[12px] text-[#424754]">schedule</span>;
-    if (message.status === 'sent') return <span className="material-symbols-outlined text-[12px] text-[#c2c6d6]/50">check</span>;
-    if (message.status === 'delivered') return <span className="material-symbols-outlined text-[12px] text-[#c2c6d6]/70">done_all</span>;
-    if (message.status === 'read') return <span className="material-symbols-outlined text-[12px] text-[#adc6ff]">done_all</span>;
-    if (message.status === 'failed') return <span className="material-symbols-outlined text-[12px] text-[#ffb4ab]" title="Failed to send">error</span>;
-    return null;
+    switch (message.status) {
+      case 'sending':
+        return <span style={{ color: 'rgba(194,198,214,0.3)', fontSize: 10 }}>Sending…</span>;
+      case 'sent':
+        return <span style={{ color: 'rgba(194,198,214,0.4)', fontSize: 10 }}>Sent</span>;
+      case 'delivered':
+        return <span style={{ color: 'rgba(194,198,214,0.55)', fontSize: 10 }}>Delivered</span>;
+      case 'read':
+        return <span style={{ color: '#4d8eff', fontSize: 10, fontWeight: 600 }}>Read</span>;
+      case 'failed':
+        return <span style={{ color: '#ff6b6b', fontSize: 10 }}>Failed</span>;
+      default:
+        return null;
+    }
   };
+
+  // Underline styles only applied to my messages
+  const bubbleUnderline = isMe ? getStatusUnderline(message.status) : {};
 
   return (
     <div
@@ -158,12 +211,12 @@ export function MessageItem({ message, currentUserId }: MessageItemProps) {
           background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <span className="material-symbols-outlined text-[#c2c6d6]/40 text-[16px]">person</span>
+          <span className="material-symbols-outlined" style={{ color: 'rgba(194,198,214,0.4)', fontSize: '16px' }}>person</span>
         </div>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', gap: '4px', minWidth: 0 }}>
-        {/* Bubble */}
+        {/* Bubble with underline status indicator */}
         <div
           style={{
             padding: '12px 18px',
@@ -180,7 +233,9 @@ export function MessageItem({ message, currentUserId }: MessageItemProps) {
             color: '#e2e2e2',
             wordBreak: 'break-word',
             whiteSpace: 'pre-wrap',
-            transition: 'transform 0.2s ease',
+            transition: 'transform 0.2s ease, border-bottom 0.3s ease, box-shadow 0.3s ease',
+            // Merge underline styles for delivery state
+            ...bubbleUnderline,
           }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
@@ -189,17 +244,14 @@ export function MessageItem({ message, currentUserId }: MessageItemProps) {
           {renderMedia()}
         </div>
 
-        {/* Time + status */}
+        {/* Time + status label */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: '4px',
+          display: 'flex', alignItems: 'center', gap: '5px',
           fontSize: '10px', color: 'rgba(194,198,214,0.4)',
-          fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase',
+          fontWeight: 500, letterSpacing: '0.05em',
         }}>
-          {isMe && <StatusIcon />}
+          {isMe && <StatusLabel />}
           <span>{timeStr}</span>
-          {isMe && message.status === 'read' && (
-            <span style={{ color: '#adc6ff', marginLeft: '2px' }}>• Read</span>
-          )}
         </div>
       </div>
     </div>

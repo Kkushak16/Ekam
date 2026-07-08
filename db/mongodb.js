@@ -248,7 +248,7 @@ function validateStringParam(paramName, value) {
 }
 
 // Helper: Insert Message
-export async function insertMessage({ room_id, sender_id, body, media_url, media_type, status = 'sent', ts = new Date(), supabase_id }) {
+export async function insertMessage({ room_id, sender_id, body, media_url, media_type, status = 'sent', ts = new Date(), supabase_id, clientMessageId }) {
   validateStringParam('room_id', room_id);
   validateStringParam('sender_id', sender_id);
   validateStringParam('body', body);
@@ -274,6 +274,8 @@ export async function insertMessage({ room_id, sender_id, body, media_url, media
   if (media_url) doc.media_url = media_url;
   if (media_type) doc.media_type = media_type;
   if (supabase_id) doc.supabase_id = supabase_id;
+  // Store clientMessageId so SSE can echo it back for deduplication
+  if (clientMessageId && typeof clientMessageId === 'string') doc.clientMessageId = clientMessageId;
 
   await db.collection('messages').insertOne(doc);
   return doc;
