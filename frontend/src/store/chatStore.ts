@@ -112,6 +112,7 @@ export const useChatStore = create<ChatState>()(
           if (roomId) {
             get().subscribeToRoom(roomId);
             get().connectSSE(roomId);
+            get().socket?.emit('join_room', { roomId });
           }
         },
         connectSSE: (roomId) => {
@@ -393,51 +394,74 @@ export const useChatStore = create<ChatState>()(
           const pusherKey = import.meta.env.VITE_PUSHER_KEY;
           const pusherCluster = import.meta.env.VITE_PUSHER_CLUSTER || 'ap2';
 
-          if (!pusherKey) {
-            console.error('[Pusher] VITE_PUSHER_KEY is not set. Real-time messaging will not work. Set this in your Vercel environment variables.');
-            set({ connectionStatus: 'disconnected' });
-            return;
-          }
+          let pusher: any = null;
 
-          const pusher = new Pusher(pusherKey, {
-            cluster: pusherCluster,
-            forceTLS: true,
-            authEndpoint: `${API_URL}/api/pusher/auth`,
-            auth: {
-              headers: {
-                Authorization: `Bearer ${jwt}`,
+          if (pusherKey) {
+            pusher = new Pusher(pusherKey, {
+              cluster: pusherCluster,
+              forceTLS: true,
+              authEndpoint: `${API_URL}/api/pusher/auth`,
+              auth: {
+                headers: {
+                  Authorization: `Bearer ${jwt}`,
+                },
               },
-            },
-          });
+            });
 
-          pusher.connection.bind('state_change', (states: { current: string }) => {
-            if (states.current === 'connected') {
-              set({ connectionStatus: 'connected' });
-              // Seed own presence immediately when connected
-              if (selfUserId) {
-                set(state => ({
-                  presence: {
-                    ...state.presence,
-                    [selfUserId]: { online: true },
-                  }
-                }));
+            pusher.connection.bind('state_change', (states: { current: string }) => {
+              if (states.current === 'connected') {
+                set({ connectionStatus: 'connected' });
+                // Seed own presence immediately when connected
+                if (selfUserId) {
+                  set(state => ({
+                    presence: {
+                      ...state.presence,
+                      [selfUserId]: { online: true },
+                    }
+                  }));
+                }
+              } else if (states.current === 'connecting') {
+                set({ connectionStatus: 'connecting' });
+              } else {
+                set({ connectionStatus: 'disconnected' });
               }
-            } else if (states.current === 'connecting') {
-              set({ connectionStatus: 'connecting' });
-            } else {
-              set({ connectionStatus: 'disconnected' });
+            });
+
+            set({ pusherInstance: pusher });
+
+            // Subscribe to user's private channel for real-time delivery
+            if (selfUserId) {
+              const userChannel = pusher.subscribe(`user-${selfUserId}`);
+              userChannel.bind('new-message', (data: any) => {
+                // This is a background message (user not in that room)
+                const senderId = data.sender_id || '';
+                if (senderId === selfUserId) return; // skip own
+                const msg: Message = {
+                  id: data._id,
+                  clientMessageId: data.clientMessageId || data._id,
+                  roomId: data.room_id,
+                  senderId: senderId,
+                  body: data.body,
+                  status: 'delivered',
+                  ts: data.ts || Date.now(),
+                  mediaUrl: data.media_url,
+                  mediaType: data.media_type,
+                };
+                get().addMessage(msg);
+              });
+              userChannel.bind('messages_read', (data: any) => {
+                const ids: string[] = data.messageIds || [];
+                if (ids.length > 0) get().markMessagesRead(ids);
+              });
             }
-          });
 
-          set({ pusherInstance: pusher });
-
-          // Subscribe to user's private channel for real-time delivery
-          if (selfUserId) {
-            const userChannel = pusher.subscribe(`user-${selfUserId}`);
-            userChannel.bind('new-message', (data: any) => {
-              // This is a background message (user not in that room)
+            // Subscribe to the default general room
+            const defaultRoomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
+            
+            const msgChannel = pusher.subscribe(`room-${defaultRoomId}`);
+            msgChannel.bind('new-message', (data: any) => {
               const senderId = data.sender_id || '';
-              if (senderId === selfUserId) return; // skip own
+              if (senderId === selfUserId) return;
               const msg: Message = {
                 id: data._id,
                 clientMessageId: data.clientMessageId || data._id,
@@ -451,77 +475,60 @@ export const useChatStore = create<ChatState>()(
               };
               get().addMessage(msg);
             });
-            userChannel.bind('messages_read', (data: any) => {
-              const ids: string[] = data.messageIds || [];
-              if (ids.length > 0) get().markMessagesRead(ids);
+
+            const presenceChannel = pusher.subscribe(`presence-room-${defaultRoomId}`);
+            (presenceChannel as any).bind('pusher:subscription_succeeded', () => {
+              const initialPresence: PresenceMap = {};
+              (presenceChannel as any).members?.each((member: any) => {
+                initialPresence[member.id] = { online: true, info: member.info };
+              });
+              // Always include self as online
+              if (selfUserId) {
+                initialPresence[selfUserId] = { online: true };
+              }
+              set({ presence: initialPresence });
             });
+
+            presenceChannel.bind('pusher:member_added', (member: any) => {
+              set((state) => ({
+                presence: {
+                  ...state.presence,
+                  [member.id]: { online: true, info: member.info },
+                },
+              }));
+            });
+
+            presenceChannel.bind('pusher:member_removed', (member: any) => {
+              set((state) => ({
+                presence: {
+                  ...state.presence,
+                  [member.id]: { online: false, info: member.info },
+                },
+              }));
+            });
+
+            presenceChannel.bind('client-typing', (data: { userId: string; isTyping: boolean }) => {
+              if (data.isTyping) {
+                get().addTypingUser(defaultRoomId, data.userId);
+              } else {
+                get().removeTypingUser(defaultRoomId, data.userId);
+              }
+            });
+          } else {
+            console.warn('[Pusher] VITE_PUSHER_KEY is not set. Real-time messaging will fall back to SSE and Socket.IO.');
           }
 
-          // Subscribe to the default general room
-          const defaultRoomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
-          
-          const msgChannel = pusher.subscribe(`room-${defaultRoomId}`);
-          msgChannel.bind('new-message', (data: any) => {
-            const senderId = data.sender_id || '';
-            if (senderId === selfUserId) return;
-            const msg: Message = {
-              id: data._id,
-              clientMessageId: data.clientMessageId || data._id,
-              roomId: data.room_id,
-              senderId: senderId,
-              body: data.body,
-              status: 'delivered',
-              ts: data.ts || Date.now(),
-              mediaUrl: data.media_url,
-              mediaType: data.media_type,
-            };
-            get().addMessage(msg);
-          });
-
-          const presenceChannel = pusher.subscribe(`presence-room-${defaultRoomId}`);
-          (presenceChannel as any).bind('pusher:subscription_succeeded', () => {
-            const initialPresence: PresenceMap = {};
-            (presenceChannel as any).members?.each((member: any) => {
-              initialPresence[member.id] = { online: true, info: member.info };
-            });
-            // Always include self as online
-            if (selfUserId) {
-              initialPresence[selfUserId] = { online: true };
-            }
-            set({ presence: initialPresence });
-          });
-
-          presenceChannel.bind('pusher:member_added', (member: any) => {
-            set((state) => ({
-              presence: {
-                ...state.presence,
-                [member.id]: { online: true, info: member.info },
-              },
-            }));
-          });
-
-          presenceChannel.bind('pusher:member_removed', (member: any) => {
-            set((state) => ({
-              presence: {
-                ...state.presence,
-                [member.id]: { online: false, info: member.info },
-              },
-            }));
-          });
-
-          presenceChannel.bind('client-typing', (data: { userId: string; isTyping: boolean }) => {
+          // Listen for typing events on Socket.IO (always active)
+          ioSocket.on('typing.changed', (data: { roomId: string; userId: string; isTyping: boolean }) => {
             if (data.isTyping) {
-              get().addTypingUser(defaultRoomId, data.userId);
+              get().addTypingUser(data.roomId, data.userId);
             } else {
-              get().removeTypingUser(defaultRoomId, data.userId);
+              get().removeTypingUser(data.roomId, data.userId);
             }
           });
-
-          // Handle presence.changed events for Socket.IO-based presence
-          // (Pusher has its own presence, but Socket.IO also broadcasts)
-          // We listen via a meta-channel approach through the socket below
 
           // Subscribe to the active room if it is different from general
+          const defaultRoomId = 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a';
           const activeRoom = get().activeRoomId;
           if (activeRoom && activeRoom !== defaultRoomId) {
             get().subscribeToRoom(activeRoom);
@@ -533,7 +540,7 @@ export const useChatStore = create<ChatState>()(
               // Forward mark_read, typing etc. to real Socket.IO
               realSocket.emit(event, data);
               // Also trigger Pusher client events for typing indicators
-              if (event === 'typing') {
+              if (event === 'typing' && pusher) {
                 const targetRoomId = data.roomId || get().activeRoomId;
                 if (targetRoomId) {
                   const ch = pusher.channel(`presence-room-${targetRoomId}`);
@@ -543,11 +550,16 @@ export const useChatStore = create<ChatState>()(
             },
             disconnect: () => {
               ioSocket.disconnect();
-              pusher.disconnect();
+              if (pusher) pusher.disconnect();
             }
           };
 
           set({ socket: mockSocket });
+
+          // Join current active room on socket.io
+          if (activeRoom) {
+            mockSocket.emit('join_room', { roomId: activeRoom });
+          }
         },
 
         disconnectSocket: () => {
