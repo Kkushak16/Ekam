@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <title>Ekam Pricing: Affordable Secure Chat Workspace Plans</title>
+    <meta name="description" content="Compare Ekam pricing plans. Select from Free, Developer, and Enterprise tiers for secure real-time messaging, database integrations, and audits." />
+    <link rel="canonical" href="https://ekam-woad.vercel.app/pricing" />
+    
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#4d8eff" />
+
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="alternate" type="application/rss+xml" title="Ekam Platform Updates" href="/rss.xml" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+    <style>
+      body {
+        margin: 0;
+        background-color: #000000;
+        color: #e2e2e2;
+        font-family: 'Hanken Grotesk', sans-serif;
+      }
+      .layout {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      .header {
+        position: sticky;
+        top: 0;
+        background: rgba(10, 10, 10, 0.75);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 16px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 100;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 800;
+        font-size: 20px;
+        color: #e2e2e2;
+        text-decoration: none;
+      }
+      .brand-icon {
+        color: #4d8eff;
+      }
+      .nav {
+        display: flex;
+        gap: 24px;
+      }
+      .nav a {
+        color: rgba(194, 198, 214, 0.7);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .nav a:hover {
+        color: #4d8eff;
+      }
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 60px 24px;
+        line-height: 1.8;
+        color: rgba(194, 198, 214, 0.8);
+        flex: 1;
+      }
+      h1 {
+        font-size: 38px;
+        font-weight: 800;
+        color: #e2e2e2;
+        margin-bottom: 16px;
+        letter-spacing: -0.03em;
+        text-align: center;
+      }
+      p {
+        margin-bottom: 32px;
+        font-size: 16px;
+        text-align: center;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 24px;
+        margin-top: 24px;
+      }
+      .card {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 24px;
+        padding: 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        position: relative;
+      }
+      .card-featured {
+        background: rgba(77, 142, 255, 0.03);
+        border: 1px solid rgba(77, 142, 255, 0.25);
+        border-radius: 24px;
+        padding: 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        position: relative;
+        box-shadow: 0 10px 30px rgba(77, 142, 255, 0.05);
+      }
+      .badge {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: #4d8eff;
+        color: #00285d;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      .title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #e2e2e2;
+        margin: 0;
+      }
+      .price {
+        font-size: 36px;
+        font-weight: 800;
+        color: #e2e2e2;
+        margin: 8px 0;
+      }
+      .price-sub {
+        font-size: 12px;
+        color: rgba(194,198,214,0.4);
+        font-weight: normal;
+      }
+      .list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        font-size: 14px;
+        flex: 1;
+      }
+      .list-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn {
+        background: rgba(255, 255, 255, 0.03);
+        color: #e2e2e2;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 12px 24px;
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none;
+      }
+      .btn-featured {
+        background: #4d8eff;
+        color: #00285d;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none;
+      }
+      .footer {
+        background: #070707;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 40px 24px;
+        text-align: center;
+        font-size: 14px;
+        color: rgba(194, 198, 214, 0.5);
+      }
+      .footer a {
+        color: rgba(194, 198, 214, 0.7);
+        text-decoration: none;
+        margin: 0 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <header class="header">
+        <a href="/" class="brand">
+          <span class="brand-icon">&#9670;</span> Ekam
+        </a>
+        <nav class="nav" aria-label="Main Navigation">
+          <a href="/features">Features</a>
+          <a href="/pricing">Pricing</a>
+          <a href="/about">About</a>
+          <a href="/docs">Docs</a>
+          <a href="/contact">Contact</a>
+          <a href="/login" style="border: 1px solid rgba(173,198,255,0.2); padding: 6px 16px; border-radius: 999px; background: rgba(173,198,255,0.1); color: #adc6ff;">Launch App</a>
+        </nav>
+      </header>
+
+      <main class="container">
+        <h1>Ekam Pricing: Affordable Secure Chat Workspace Plans</h1>
+        <p>
+          Select a pricing plan that fits your security and scalability goals. From personal messaging to enterprise deployments, we have you covered.
+        </p>
+
+        <div class="grid">
+          <!-- Tier 1: Free -->
+          <div class="card">
+            <h2 class="title">Free Plan</h2>
+            <div class="price">
+              $0<span class="price-sub">/month</span>
+            </div>
+            <p style="margin: 0; font-size: 13px; color: rgba(194,198,214,0.5);">Ideal for friends and small teams experimenting with secure messaging.</p>
+            <ul class="list">
+              <li class="list-item">&#10003; Up to 10 active rooms</li>
+              <li class="list-item">&#10003; Sub-second message delivery</li>
+              <li class="list-item">&#10003; Basic group moderation tools</li>
+              <li class="list-item">&#10003; 7-day message archive history</li>
+            </ul>
+            <a href="/login" class="btn">Get Started</a>
+          </div>
+
+          <!-- Tier 2: Pro -->
+          <div class="card-featured">
+            <span class="badge">Popular</span>
+            <h2 class="title">Pro Developer</h2>
+            <div class="price">
+              $9<span class="price-sub">/month</span>
+            </div>
+            <p style="margin: 0; font-size: 13px; color: rgba(194,198,214,0.5);">Perfect for growing teams, startups, and intensive chat workloads.</p>
+            <ul class="list">
+              <li class="list-item">&#10003; Unlimited active rooms</li>
+              <li class="list-item">&#10003; Enhanced group owner tools</li>
+              <li class="list-item">&#10003; Infinite message history archive</li>
+              <li class="list-item">&#10003; Dedicated WebSocket pipelines</li>
+              <li class="list-item">&#10003; Priority developer support</li>
+            </ul>
+            <a href="/login" class="btn-featured">Go Pro Now</a>
+          </div>
+
+          <!-- Tier 3: Enterprise -->
+          <div class="card">
+            <h2 class="title">Enterprise</h2>
+            <div class="price">Custom</div>
+            <p style="margin: 0; font-size: 13px; color: rgba(194,198,214,0.5);">Tailored solutions for compliance, self-hosting, and isolated databases.</p>
+            <ul class="list">
+              <li class="list-item">&#10003; Self-hosted option (On-Premises)</li>
+              <li class="list-item">&#10003; Isolated PostgreSQL &amp; MongoDB</li>
+              <li class="list-item">&#10003; Custom SSO &amp; SAML integration</li>
+              <li class="list-item">&#10003; 24/7 SLA uptime guarantee</li>
+              <li class="list-item">&#10003; Auditable database schemas</li>
+            </ul>
+            <a href="/contact" class="btn">Contact Sales</a>
+          </div>
+        </div>
+      </main>
+
+      <footer class="footer">
+        <p>&copy; 2026 Ekam Inc. All rights reserved.</p>
+        <p>
+          <a href="/features">Features</a> | 
+          <a href="/pricing">Pricing</a> | 
+          <a href="/docs">Docs</a> | 
+          <a href="/about">About Us</a> | 
+          <a href="/contact">Contact Support</a> | 
+          <a href="/privacy">Privacy Policy</a> | 
+          <a href="/terms">Terms of Service</a>
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>

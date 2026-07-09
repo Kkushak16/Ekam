@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /contact
+Allow: /privacy
+Allow: /terms
+Allow: /features
+Allow: /pricing
+Allow: /docs
+Disallow: /dm
+Disallow: /groups
+Disallow: /settings
+
+Sitemap: https://ekam-woad.vercel.app/sitemap.xml

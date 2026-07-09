@@ -5,6 +5,17 @@ import DirectMessages from './pages/DirectMessages';
 import LoginForm from './components/LoginForm';
 import { useChatStore } from './store/chatStore';
 
+// Public SEO pages
+import LandingPage from './pages/LandingPage';
+import AboutPage from './pages/AboutPage';
+import ContactPage from './pages/ContactPage';
+import PrivacyPage from './pages/PrivacyPage';
+import TermsPage from './pages/TermsPage';
+import FeaturesPage from './pages/FeaturesPage';
+import PricingPage from './pages/PricingPage';
+import DocsPage from './pages/DocsPage';
+import PublicLayout from './components/PublicLayout';
+
 /* ─── Inline Styles ───────────────────────────────────────────────────────── */
 const S: Record<string, React.CSSProperties> = {
   layout: {
@@ -171,17 +182,78 @@ export function App() {
   const activeRoomId = useChatStore((state) => state.activeRoomId);
   const isConnected = connectionStatus === 'connected';
 
-  const path = window.location.pathname;
-  const defaultTab = path.includes('groups') ? 'groups' : path.includes('settings') ? 'settings' : 'dm';
-  const [activeTab, setActiveTab] = useState(defaultTab);
+  const hasToken = token && typeof token === 'string' && token.trim().length > 0;
+
+  const getTabFromPath = (pathname: string) => {
+    if (pathname.includes('groups')) return 'groups';
+    if (pathname.includes('settings')) return 'settings';
+    if (pathname.includes('about')) return 'about';
+    if (pathname.includes('contact')) return 'contact';
+    if (pathname.includes('privacy')) return 'privacy';
+    if (pathname.includes('terms')) return 'terms';
+    if (pathname.includes('features')) return 'features';
+    if (pathname.includes('pricing')) return 'pricing';
+    if (pathname.includes('docs')) return 'docs';
+    if (pathname.includes('login')) return 'login';
+    if (pathname.includes('dm')) return 'dm';
+    return hasToken ? 'dm' : 'landing';
+  };
+
+  const [activeTab, setActiveTab] = useState(() => getTabFromPath(window.location.pathname));
 
   useEffect(() => {
-    if (token && typeof token === 'string' && token.trim().length > 0) {
+    if (hasToken) {
       initializeSocket(token);
     } else {
       disconnectSocket();
     }
-  }, [token, initializeSocket, disconnectSocket]);
+  }, [token, hasToken, initializeSocket, disconnectSocket]);
+
+  // URL route history synchronizer
+  useEffect(() => {
+    const routeMap: Record<string, string> = {
+      landing: '/',
+      login: '/login',
+      about: '/about',
+      contact: '/contact',
+      privacy: '/privacy',
+      terms: '/terms',
+      features: '/features',
+      pricing: '/pricing',
+      docs: '/docs',
+      dm: '/dm',
+      groups: '/groups',
+      settings: '/settings'
+    };
+    const targetPath = routeMap[activeTab] || '/';
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState(null, '', targetPath);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const routeMap: Record<string, string> = {
+      landing: '/',
+      login: '/login',
+      about: '/about',
+      contact: '/contact',
+      privacy: '/privacy',
+      terms: '/terms',
+      features: '/features',
+      pricing: '/pricing',
+      docs: '/docs',
+      dm: '/dm',
+      groups: '/groups',
+      settings: '/settings'
+    };
+    const handlePopState = () => {
+      const currentPath = window.location.pathname;
+      const matchingTab = Object.keys(routeMap).find(key => routeMap[key] === currentPath) || (token ? 'dm' : 'landing');
+      setActiveTab(matchingTab);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [token]);
 
   // Pointer-following glow effect
   useEffect(() => {
@@ -193,8 +265,37 @@ export function App() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
+  const isPublicPage = ['landing', 'about', 'contact', 'privacy', 'terms', 'features', 'pricing', 'docs'].includes(activeTab);
+
   if (!token) {
-    return <LoginForm />;
+    switch (activeTab) {
+      case 'login': return <LoginForm />;
+      case 'about': return <PublicLayout onNavigate={setActiveTab}><AboutPage onNavigate={setActiveTab} /></PublicLayout>;
+      case 'contact': return <PublicLayout onNavigate={setActiveTab}><ContactPage /></PublicLayout>;
+      case 'privacy': return <PublicLayout onNavigate={setActiveTab}><PrivacyPage /></PublicLayout>;
+      case 'terms': return <PublicLayout onNavigate={setActiveTab}><TermsPage /></PublicLayout>;
+      case 'features': return <PublicLayout onNavigate={setActiveTab}><FeaturesPage /></PublicLayout>;
+      case 'pricing': return <PublicLayout onNavigate={setActiveTab}><PricingPage /></PublicLayout>;
+      case 'docs': return <PublicLayout onNavigate={setActiveTab}><DocsPage /></PublicLayout>;
+      case 'landing':
+      default:
+        return <PublicLayout onNavigate={setActiveTab}><LandingPage onNavigate={setActiveTab} /></PublicLayout>;
+    }
+  }
+
+  if (isPublicPage) {
+    switch (activeTab) {
+      case 'about': return <PublicLayout onNavigate={setActiveTab}><AboutPage onNavigate={setActiveTab} /></PublicLayout>;
+      case 'contact': return <PublicLayout onNavigate={setActiveTab}><ContactPage /></PublicLayout>;
+      case 'privacy': return <PublicLayout onNavigate={setActiveTab}><PrivacyPage /></PublicLayout>;
+      case 'terms': return <PublicLayout onNavigate={setActiveTab}><TermsPage /></PublicLayout>;
+      case 'features': return <PublicLayout onNavigate={setActiveTab}><FeaturesPage /></PublicLayout>;
+      case 'pricing': return <PublicLayout onNavigate={setActiveTab}><PricingPage /></PublicLayout>;
+      case 'docs': return <PublicLayout onNavigate={setActiveTab}><DocsPage /></PublicLayout>;
+      case 'landing':
+      default:
+        return <PublicLayout onNavigate={setActiveTab}><LandingPage onNavigate={setActiveTab} /></PublicLayout>;
+    }
   }
 
   const renderMainContent = () => {

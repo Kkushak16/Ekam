@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+  <title>Ekam Chat Platform Updates</title>
+  <link>https://ekam-woad.vercel.app</link>
+  <description>Stay updated with the latest secure features, architectural enhancements, and news from Ekam Chat Platform.</description>
+  <language>en-us</language>
+  <lastBuildDate>Thu, 09 Jul 2026 00:00:00 GMT</lastBuildDate>
+  <atom:link href="https://ekam-woad.vercel.app/rss.xml" rel="self" type="application/rss+xml" />
+  
+  <item>
+    <title>Ekam Evolution: Multi-Room Group Management &amp; Real-time Presence Restored</title>
+    <link>https://ekam-woad.vercel.app/features</link>
+    <description>Ekam introduces state-of-the-art multi-room group management, member moderation, and real-time presence indicators via native WebSocket/SSE integration.</description>
+    <pubDate>Wed, 08 Jul 2026 12:00:00 GMT</pubDate>
+    <guid>https://ekam-woad.vercel.app/features#evolution</guid>
+  </item>
+
+  <item>
+    <title>Securing Ekam Workspace: End-to-End Authentication Security Upgrades</title>
+    <link>https://ekam-woad.vercel.app/docs</link>
+    <description>A detailed guide explaining the latest updates to security schemas, identifier mapping, and Supabase integration to guarantee authentication and privacy.</description>
+    <pubDate>Mon, 30 Jun 2026 10:00:00 GMT</pubDate>
+    <guid>https://ekam-woad.vercel.app/docs#security-upgrades</guid>
+  </item>
+</channel>
+</rss>

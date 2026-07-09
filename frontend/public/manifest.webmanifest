@@ -1,0 +1,26 @@
+{
+  "name": "Ekam Chat Platform",
+  "short_name": "Ekam",
+  "description": "Experience the next frontier of secure, high-fidelity communication. Minimalist by design, powerful by nature.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c0c0c",
+  "theme_color": "#4d8eff",
+  "icons": [
+    {
+      "src": "/favicon-16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

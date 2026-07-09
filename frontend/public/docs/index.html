@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <title>Ekam Documentation: Developer Setup &amp; API Guides</title>
+    <meta name="description" content="Read the official developer guides for Ekam Chat Platform. Configure Postgres migrations, MongoDB connections, and real-time Socket.io servers." />
+    <link rel="canonical" href="https://ekam-woad.vercel.app/docs" />
+    
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#4d8eff" />
+
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="alternate" type="application/rss+xml" title="Ekam Platform Updates" href="/rss.xml" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+    <style>
+      body {
+        margin: 0;
+        background-color: #000000;
+        color: #e2e2e2;
+        font-family: 'Hanken Grotesk', sans-serif;
+      }
+      .layout {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      .header {
+        position: sticky;
+        top: 0;
+        background: rgba(10, 10, 10, 0.75);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 16px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 100;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 800;
+        font-size: 20px;
+        color: #e2e2e2;
+        text-decoration: none;
+      }
+      .brand-icon {
+        color: #4d8eff;
+      }
+      .nav {
+        display: flex;
+        gap: 24px;
+      }
+      .nav a {
+        color: rgba(194, 198, 214, 0.7);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .nav a:hover {
+        color: #4d8eff;
+      }
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 60px 24px;
+        line-height: 1.8;
+        color: rgba(194, 198, 214, 0.8);
+        flex: 1;
+      }
+      h1 {
+        font-size: 38px;
+        font-weight: 800;
+        color: #e2e2e2;
+        margin-bottom: 16px;
+        letter-spacing: -0.03em;
+      }
+      h2 {
+        font-size: 24px;
+        font-weight: 700;
+        color: #e2e2e2;
+        margin-top: 40px;
+        margin-bottom: 16px;
+        letter-spacing: -0.02em;
+      }
+      h3 {
+        font-size: 18px;
+        font-weight: 600;
+        color: #adc6ff;
+        margin-top: 24px;
+        margin-bottom: 8px;
+      }
+      p {
+        margin-bottom: 20px;
+        font-size: 16px;
+      }
+      .code-block {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 20px;
+        font-family: monospace;
+        font-size: 14px;
+        color: #adc6ff;
+        overflow-x: auto;
+        margin-bottom: 20px;
+      }
+      .footer {
+        background: #070707;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 40px 24px;
+        text-align: center;
+        font-size: 14px;
+        color: rgba(194, 198, 214, 0.5);
+      }
+      .footer a {
+        color: rgba(194, 198, 214, 0.7);
+        text-decoration: none;
+        margin: 0 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <header class="header">
+        <a href="/" class="brand">
+          <span class="brand-icon">&#9670;</span> Ekam
+        </a>
+        <nav class="nav" aria-label="Main Navigation">
+          <a href="/features">Features</a>
+          <a href="/pricing">Pricing</a>
+          <a href="/about">About</a>
+          <a href="/docs">Docs</a>
+          <a href="/contact">Contact</a>
+          <a href="/login" style="border: 1px solid rgba(173,198,255,0.2); padding: 6px 16px; border-radius: 999px; background: rgba(173,198,255,0.1); color: #adc6ff;">Launch App</a>
+        </nav>
+      </header>
+
+      <main class="container">
+        <h1>Ekam Documentation: Developer Setup &amp; API Guides</h1>
+        <p>
+          Welcome to the official developer documentation for Ekam. This guide helps you configure your development environment, connect to transactional databases, run migration schemas, and start the local chat server.
+        </p>
+
+        <h2>1. Quick Start Installation</h2>
+        <p>
+          To run Ekam locally, ensure you have Node.js (version 18 or above) and npm installed. Clone the repository and install core dependencies in the root directory:
+        </p>
+        <div class="code-block">
+          cd Ekam<br />
+          npm install<br />
+          cd frontend<br />
+          npm install
+        </div>
+
+        <h2>2. Database Schemas Configuration</h2>
+        <p>
+          Ekam relies on a dual-database design to support heavy user traffic and protect transactional integrity. Set up your local databases using the instructions below:
+        </p>
+
+        <h3>A. PostgreSQL Setup via Supabase</h3>
+        <p>
+          Configure user profiles, usernames, room relations, and friendship associations inside PostgreSQL. Apply the SQL schema migrations located in the migration folder:
+        </p>
+        <div class="code-block">
+          -- Example Username migration<br />
+          ALTER TABLE profiles ADD COLUMN username VARCHAR(255) UNIQUE;
+        </div>
+
+        <h3>B. MongoDB Setup</h3>
+        <p>
+          All high-throughput messaging content is routed and stored inside a MongoDB collection. Make sure you set your connection URL string in the root environment configuration file:
+        </p>
+        <div class="code-block">
+          MONGODB_URI=mongodb://localhost:27017/ekam_db
+        </div>
+
+        <h2>3. Running the Server</h2>
+        <p>
+          Start the nodemon backend developer server. The server runs on port 5000 by default and handles WebSocket, SSE, and HTTP REST routes:
+        </p>
+        <div class="code-block">
+          npm run dev
+        </div>
+        <p>
+          To launch the interactive frontend Vite application, run:
+        </p>
+        <div class="code-block">
+          npm run dev --prefix frontend
+        </div>
+        <p>
+          For additional API routes and details about specific WebPush notification channels, refer to the files under the root <code>services</code> and <code>routes</code> folders.
+        </p>
+      </main>
+
+      <footer class="footer">
+        <p>&copy; 2026 Ekam Inc. All rights reserved.</p>
+        <p>
+          <a href="/features">Features</a> | 
+          <a href="/pricing">Pricing</a> | 
+          <a href="/docs">Docs</a> | 
+          <a href="/about">About Us</a> | 
+          <a href="/contact">Contact Support</a> | 
+          <a href="/privacy">Privacy Policy</a> | 
+          <a href="/terms">Terms of Service</a>
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>

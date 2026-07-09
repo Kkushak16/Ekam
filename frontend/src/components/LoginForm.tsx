@@ -647,9 +647,29 @@ export function LoginForm() {
               {/* ToS */}
               <p style={S.tosText}>
                 By signing in, you agree to our{" "}
-                <a href="#" style={S.tosLink}>Terms of Service</a>
+                <a 
+                  href="/terms" 
+                  style={S.tosLink}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.history.pushState(null, '', '/terms');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }}
+                >
+                  Terms of Service
+                </a>
                 {" "}and{" "}
-                <a href="#" style={S.tosLink}>Privacy Policy</a>.
+                <a 
+                  href="/privacy" 
+                  style={S.tosLink}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.history.pushState(null, '', '/privacy');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  }}
+                >
+                  Privacy Policy
+                </a>.
               </p>
             </>
 
