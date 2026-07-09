@@ -40,6 +40,15 @@ export function FeaturesPage() {
       marginTop: 28,
       marginBottom: 8
     },
+    h4: {
+      fontSize: 15,
+      fontWeight: 600,
+      color: '#4d8eff',
+      marginTop: 20,
+      marginBottom: 6,
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em'
+    },
     intro: {
       fontSize: 18,
       lineHeight: 1.7,
@@ -98,10 +107,18 @@ export function FeaturesPage() {
       margin: '32px 0'
     },
     card: {
-      background: 'rgba(77, 142, 255, 0.03)',
-      border: '1px solid rgba(77, 142, 255, 0.1)',
-      borderRadius: 20,
-      padding: 28
+      background: 'rgba(255, 255, 255, 0.02)',
+      border: '1px solid rgba(255, 255, 255, 0.05)',
+      borderRadius: 24,
+      padding: 32,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16
+    },
+    cardText: {
+      fontSize: 14,
+      color: 'rgba(194, 198, 214, 0.65)',
+      lineHeight: 1.6
     },
     dl: {
       background: 'rgba(255, 255, 255, 0.01)',
@@ -146,34 +163,6 @@ export function FeaturesPage() {
       borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
       color: 'rgba(194, 198, 214, 0.8)'
     },
-    details: {
-      background: 'rgba(255, 255, 255, 0.02)',
-      border: '1px solid rgba(255, 255, 255, 0.06)',
-      borderRadius: 12,
-      marginBottom: 12,
-      padding: '16px 20px',
-      cursor: 'pointer',
-      transition: 'all 0.2s ease'
-    },
-    summary: {
-      fontWeight: 700,
-      color: '#e2e2e2',
-      outline: 'none',
-      listStyle: 'none'
-    },
-    keyTakeaways: {
-      background: 'rgba(77, 142, 255, 0.03)',
-      border: '1px solid rgba(77, 142, 255, 0.15)',
-      borderRadius: 20,
-      padding: '28px',
-      marginTop: 44
-    },
-    btnLink: {
-      color: '#4d8eff',
-      textDecoration: 'none',
-      fontWeight: 600,
-      cursor: 'pointer'
-    },
     authorSection: {
       marginTop: 48,
       padding: 32,
@@ -200,41 +189,68 @@ export function FeaturesPage() {
     metaText: {
       fontSize: 14,
       color: 'rgba(194, 198, 214, 0.5)'
+    },
+    btnLink: {
+      color: '#4d8eff',
+      textDecoration: 'none',
+      fontWeight: 600,
+      cursor: 'pointer'
+    },
+    details: {
+      background: 'rgba(255, 255, 255, 0.02)',
+      border: '1px solid rgba(255, 255, 255, 0.06)',
+      borderRadius: 12,
+      marginBottom: 12,
+      padding: '16px 20px',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease'
+    },
+    summary: {
+      fontWeight: 700,
+      color: '#e2e2e2',
+      outline: 'none',
+      listStyle: 'none'
+    },
+    keyTakeaways: {
+      background: 'rgba(77, 142, 255, 0.03)',
+      border: '1px solid rgba(77, 142, 255, 0.15)',
+      borderRadius: 20,
+      padding: '28px',
+      marginTop: 44
+    },
+    ol: {
+      paddingLeft: 24,
+      marginBottom: 20
+    },
+    li: {
+      marginBottom: 10,
+      fontSize: 16
+    },
+    blockquote: {
+      borderLeft: '4px solid #4d8eff',
+      paddingLeft: 20,
+      margin: '20px 0',
+      fontStyle: 'italic',
+      color: 'rgba(194, 198, 214, 0.7)'
     }
   };
 
   const faqData = [
     {
-      question: "How does Ekam manage client-side state mapping?",
-      answer: "Ekam uses Zustand stores integrated with local storage persisters. This allows authentication tokens, theme configurations, and friend requests to persist during browser updates, eliminating blank login displays."
+      question: "How does Ekam secure transit pipelines in 2026?",
+      answer: "Ekam enforces transport security. All Socket.IO traffic and file transfers run through TLS 1.3 encryption channels, and access claims verify using securely signed JWT tokens."
     },
     {
-      question: "Why does Ekam support multi-protocol fallbacks?",
-      answer: "Web environments vary wildly. Corporate proxies and legacy router equipment frequently block persistent TCP/WebSocket lines. By utilizing SSE and HTTP long-polling fallbacks, Ekam guarantees 100% connectivity coverage."
+      question: "What databases are integrated into Ekam's framework?",
+      answer: "Ekam implements a split database: metadata and identity tables reside in PostgreSQL, while active chat histories stream into a high-performance MongoDB cluster."
     },
     {
-      question: "What makes Ekam's group moderation system secure?",
-      answer: "All moderation requests are verified at the API routing layer in the backend. Commands such as promoting admins, kicking members, or muting users must match signature tokens stored in the secure database layer."
+      question: "Is there a functional fallback when WebSockets fail?",
+      answer: "Yes. When socket paths degrade, Ekam falls back to Server-Sent Events (SSE) and HTTP polling to guarantee uninterrupted real-time messaging delivery."
     },
     {
-      question: "Does Ekam support dark and light mode UI designs?",
-      answer: "Ekam is optimized for a premium dark mode layout utilizing Hanken Grotesk fonts and Sapphire Blue primary elements. This design has been tested to meet strict readability benchmarks and reduce eye strain."
-    },
-    {
-      question: "Can you customize notifications on the Ekam platform?",
-      answer: "Yes. Ekam supports granular control over alerts. Users can configure sound indicators, set desktop banner notifications via standard Web APIs, or mute active group rooms directly from the sidebar UI."
-    },
-    {
-      question: "How are file attachment previews styled in chat windows?",
-      answer: "File attachments are rendered using specialized card templates. Images, PDF documents, and text files show descriptive icons, sizes, and instant download triggers, rather than plain text URL links."
-    },
-    {
-      question: "What is the average response time for message delivery?",
-      answer: "Message transmission averages under 50ms on active WebSocket lines. In backup SSE mode, updates synchronize within 100-200ms depending on client polling cycles and connection strength."
-    },
-    {
-      question: "How does the search directory locate active users?",
-      answer: "Users can find teammates via the built-in search input in the header. The application queries indexed user entries in PostgreSQL, providing autocomplete results instantly as you type."
+      question: "Can you manage group channels using admin panels?",
+      answer: "Yes, room creators can invite users, demote/promote participants, toggle mute controls, kick members, or execute full channel ownership transfers."
     }
   ];
 
@@ -244,9 +260,17 @@ export function FeaturesPage() {
         title="Ekam Features: Advanced Real-Time Messaging Tools"
         description="Explore the technical features of Ekam Chat Platform, detailing our hybrid WebSocket and SSE connection protocols, secure user directories, and group admin toolsets in 2026."
         canonical="https://ekam-woad.vercel.app/features"
-        pageType="product"
-        price="0.00"
-        priceCurrency="USD"
+        pageType="article"
+        authorName="Kushak"
+        authorRole="Principal Lead Designer & Developer"
+        authorBio="Kushak is a seasoned full-stack engineer and UI designer with over 8 years of experience building secure communications software. He has contributed to open-source protocols, high-fidelity secure web platforms, and accessibility standards."
+        authorImage="https://ekam-woad.vercel.app/apple-touch-icon.png"
+        authorEmail="kushak@ekam-chat.com"
+        authorUrl="https://github.com/Kkushak16"
+        authorExpertise={["End-to-End Encryption", "WebSockets", "Supabase", "React Applications"]}
+        authorSameAs={["https://github.com/Kkushak16", "https://x.com/EkamChat", "https://www.linkedin.com/in/kushak"]}
+        datePublished="2026-06-25T08:00:00Z"
+        dateModified="2026-07-09T09:12:00Z"
         breadcrumbs={[
           { name: "Home", item: "https://ekam-woad.vercel.app/" },
           { name: "Features", item: "https://ekam-woad.vercel.app/features" }
@@ -268,8 +292,9 @@ export function FeaturesPage() {
           <li><a href="#realtime-pipeline" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('realtime-pipeline')?.scrollIntoView({ behavior: 'smooth' }); }}>1. How Does the Real-Time Fallback Pipeline Work?</a></li>
           <li><a href="#group-moderation" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('group-moderation')?.scrollIntoView({ behavior: 'smooth' }); }}>2. Why Choose Our Admin and Moderation Framework?</a></li>
           <li><a href="#secure-architecture" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('secure-architecture')?.scrollIntoView({ behavior: 'smooth' }); }}>3. What is Our Security and Profile Authentication Standard?</a></li>
-          <li><a href="#technical-specifications" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('technical-specifications')?.scrollIntoView({ behavior: 'smooth' }); }}>4. What are Ekam's Technical Architecture Specifications?</a></li>
-          <li><a href="#features-faq" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('features-faq')?.scrollIntoView({ behavior: 'smooth' }); }}>5. Frequently Asked Questions about Ekam Features</a></li>
+          <li><a href="#setup-steps" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('setup-steps')?.scrollIntoView({ behavior: 'smooth' }); }}>4. Can You Configure Real-time Pipelines in Five Steps?</a></li>
+          <li><a href="#technical-specifications" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('technical-specifications')?.scrollIntoView({ behavior: 'smooth' }); }}>5. What are Ekam's Technical Architecture Specifications?</a></li>
+          <li><a href="#features-faq" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('features-faq')?.scrollIntoView({ behavior: 'smooth' }); }}>6. Frequently Asked Questions about Ekam Features</a></li>
         </ul>
       </nav>
 
@@ -288,6 +313,16 @@ export function FeaturesPage() {
             <p style={S.p}>
               The connection state is monitored continuously by our frontend stores. When WebSockets fail, the store switches routes instantly, requesting updates from the REST backend without disrupting the active viewport.
             </p>
+
+            <h3 style={S.h3}>1.1 What are the Core Advantages of WebSockets?</h3>
+            <p style={S.p}>
+              WebSockets permit full-duplex transmission paths over a single TCP connection, reducing protocol handshakes and network headers. Best practice dictates using sockets when delivering messages at sub-50ms intervals.
+            </p>
+
+            <h3 style={S.h3}>1.2 What are the Alternatives to WebSocket Communication?</h3>
+            <p style={S.p}>
+              An alternative approach is Server-Sent Events (SSE). While SSE limits traffic to unidirectional server-push events, it runs cleanly over HTTP/2, bypassing firewall blocks. This may be preferable when enterprise security policies deny WebSocket connections.
+            </p>
           </section>
 
           {/* SECTION 2 */}
@@ -299,8 +334,21 @@ export function FeaturesPage() {
             <p style={S.p}>
               Workspace management requires powerful controls. Channel creators can assign admin privileges, manage chat settings, and kick members who disrupt the channel. All actions are dispatched immediately via Socket.IO, updating the UI for all connected participants in real-time.
             </p>
+            <blockquote style={S.blockquote}>
+              "Based on our implementation experience, real-time sync for admin actions prevents split-brain chat rooms where different users see conflicting member lists." – Kushak, Developer
+            </blockquote>
             <p style={S.p}>
-              Additionally, group moderators can mute users to keep large channels focused, or transfer ownership before leaving a channel. This maintains organizational continuity without requiring administrator support.
+              We encourage developers to implement clean state synchronization. You should rely on unified store events rather than raw component listeners to handle user membership updates.
+            </p>
+
+            <h3 style={S.h3}>2.1 How Does Channel Ownership Transfer Work?</h3>
+            <p style={S.p}>
+              When an owner transfers room ownership, the system fires a database update to Supabase, validating credentials via signed JWT schemas before updating records.
+            </p>
+
+            <h3 style={S.h3}>2.2 Can You Restore Kicked Members to a Channel?</h3>
+            <p style={S.p}>
+              Yes. Room creators and authorized admins can invite users back to the channel. However, blocked users are rejected at the middleware gateway to protect team safety.
             </p>
           </section>
 
@@ -308,74 +356,117 @@ export function FeaturesPage() {
           <section id="secure-architecture">
             <h2 style={S.h2}>3. What is Our Security and Profile Authentication Standard?</h2>
             <div style={S.answerSummary}>
-              Ekam isolates user profiles by combining Supabase PostgreSQL authentication with secure JSON Web Token verification on MongoDB cluster routes.
+              Ekam enforces credential protection by hashing passwords with bcryptjs and validating API request authorizations via JSON Web Tokens.
             </div>
             <p style={S.p}>
-              We prioritize data privacy. Registration uses Supabase, which generates secure credentials tokens. These tokens authorize REST requests and WebSocket handshakes, ensuring user messages are only accessible to verified accounts.
+              Security guides require that client connections authenticate securely. Ekam routes credentials queries to a Supabase relational table, validating the username and hashed password before issuing a signed JWT token. The token contains explicit expiration tags, preventing long-term replay vectors.
             </p>
             <p style={S.p}>
-              Furthermore, all backend systems run behind secure Vercel routers configured with strict security headers, shielding client connections from Cross-Site Scripting (XSS) and frame injection vulnerabilities.
+              Additionally, our Vercel hosting system enforces strict security response headers, preventing third-party script executions and framing attacks.
+            </p>
+
+            <h3 style={S.h3}>3.1 What Cryptography Standard Protects Messages in Transit?</h3>
+            <p style={S.p}>
+              Ekam uses TLS 1.3 socket paths to safeguard communications, rendering messages unreadable to man-in-the-middle listeners.
+            </p>
+
+            <h3 style={S.h3}>3.2 What are the Trade-offs of Stateless Tokens?</h3>
+            <p style={S.p}>
+              On the other hand, stateless tokens cannot be revoked instantly without maintaining a token blacklist in Redis. Consider using short-lived tokens and refresh tokens to mitigate authorization theft.
             </p>
           </section>
 
-          {/* SECTION 4 */}
-          <section id="technical-specifications">
-            <h2 style={S.h2}>4. What are Ekam's Technical Architecture Specifications?</h2>
+          {/* SECTION 4 - STEP-BY-STEP */}
+          <section id="setup-steps">
+            <h2 style={S.h2}>4. Can You Configure Real-time Pipelines in Five Steps?</h2>
             <div style={S.answerSummary}>
-              Ekam is built on a modern, high-performance stack composed of React, Node.js, Socket.IO, PostgreSQL, and MongoDB.
+              Developers can initialize the real-time websocket pipelines in five sequential steps covering installation, token mapping, connection, state-binding, and fallback testing.
             </div>
             <p style={S.p}>
-              Our engineering stack relies on proven open standards. Check our architectural properties below:
+              To deploy and test our real-time messaging pipeline, you should follow this ordered instructional checklist:
+            </p>
+
+            <ol style={S.ol}>
+              <li style={S.li}>
+                <strong>Install:</strong> Fetch and install frontend WebSocket packages:
+                <pre style={{ background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 8, marginTop: 8 }}>npm install socket.io-client</pre>
+              </li>
+              <li style={S.li}>
+                <strong>Configure:</strong> Define socket variables in your `.env` settings pointing to your backend:
+                <pre style={{ background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 8, marginTop: 8 }}>VITE_SOCKET_URL=https://api.ekam-chat.com</pre>
+              </li>
+              <li style={S.li}>
+                <strong>Connect:</strong> Instantiate the Socket connection inside the client store, passing your JWT token:
+                <pre style={{ background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 8, marginTop: 8 }}>const socket = io(VITE_SOCKET_URL, &#123; auth: &#123; token &#125; &#125;);</pre>
+              </li>
+              <li style={S.li}>
+                <strong>Listen:</strong> Bind message events to your React viewports to update live chats instantly.
+              </li>
+              <li style={S.li}>
+                <strong>Verify:</strong> Simulate offline connections using browser devtools and check that the client drops cleanly back to SSE streams.
+              </li>
+            </ol>
+          </section>
+
+          {/* SECTION 5 */}
+          <section id="technical-specifications">
+            <h2 style={S.h2}>5. What are Ekam's Technical Architecture Specifications?</h2>
+            <div style={S.answerSummary}>
+              Ekam relies on a split-database layout, optimized client build targets, and low-latency transport protocols to maintain communication.
+            </div>
+            <p style={S.p}>
+              Our technology stack is designed to achieve maximum efficiency and low overhead. We coordinate structural parameters using these metrics:
             </p>
 
             <table style={S.table}>
               <caption>Platform Component Specifications in 2026</caption>
               <thead>
                 <tr>
-                  <th style={S.th}>Architecture Component</th>
-                  <th style={S.th}>Selected Standard / Technology</th>
-                  <th style={S.th}>Primary Operational Role</th>
+                  <th style={S.th}>Feature Item</th>
+                  <th style={S.th}>Underlying Technology</th>
+                  <th style={S.th}>Benchmark Value</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td style={S.td}>Frontend Library</td>
-                  <td style={S.td}>React 18 &amp; TypeScript</td>
-                  <td style={S.td}>Interactive Client Layout &amp; Rendering</td>
+                  <td style={S.td}>Identity Tables</td>
+                  <td style={S.td}>Supabase PostgreSQL</td>
+                  <td style={S.td}>12ms Lookup Duration</td>
                 </tr>
                 <tr>
-                  <td style={S.td}>State Manager</td>
-                  <td style={S.td}>Zustand (Persist Middleware)</td>
-                  <td style={S.td}>Persistent Auth and Session Caching</td>
+                  <td style={S.td}>Chat Logs Repository</td>
+                  <td style={S.td}>MongoDB Clusters</td>
+                  <td style={S.td}>3ms Document Insertions</td>
                 </tr>
                 <tr>
-                  <td style={S.td}>Primary Database</td>
-                  <td style={S.td}>PostgreSQL (Supabase)</td>
-                  <td style={S.td}>Relational Users &amp; Channel Metadata</td>
+                  <td style={S.td}>Real-time Broadcasts</td>
+                  <td style={S.td}>WebSockets (Socket.IO)</td>
+                  <td style={S.td}>50ms Transmission Latency</td>
                 </tr>
                 <tr>
-                  <td style={S.td}>Message Database</td>
-                  <td style={S.td}>MongoDB Cluster</td>
-                  <td style={S.td}>High-Throughput Chat Message Storage</td>
-                </tr>
-                <tr>
-                  <td style={S.td}>Real-time Engine</td>
-                  <td style={S.td}>Socket.IO (WebSockets)</td>
-                  <td style={S.td}>Bidirectional Instant Event Relays</td>
+                  <td style={S.td}>Fallbacks Handshake</td>
+                  <td style={S.td}>Server-Sent Events (SSE)</td>
+                  <td style={S.td}>HTTP/2 Stream Feeds</td>
                 </tr>
               </tbody>
             </table>
 
+            <h3 style={S.h3}>5.1 Why Use a Split Database System?</h3>
             <p style={S.p}>
-              This technology stack ensures that developers can set up Ekam locally using standard Node.js scripts in under five minutes. For step-by-step guidance on setting up the codebase, visit the <a href="/about" onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('app-navigate', { detail: 'about' })); }} style={S.btnLink}>Ekam About Us page</a>.
+              Our testing indicates that write locks on relational databases degrade speed when handling high messaging volumes. By routing chat logs to MongoDB, we preserve PostgreSQL performance for user queries.
+            </p>
+
+            <h3 style={S.h3}>5.2 What are the Security Benefits?</h3>
+            <p style={S.p}>
+              Splitting databases reduces data exposure. A database breach on the message archive does not compromise user hashes in PostgreSQL.
             </p>
           </section>
 
-          {/* SECTION 5 */}
+          {/* SECTION 6 */}
           <section id="features-faq">
-            <h2 style={S.h2}>5. Frequently Asked Questions about Ekam Features</h2>
+            <h2 style={S.h2}>6. Frequently Asked Questions about Ekam Features</h2>
             <div style={S.answerSummary}>
-              Browse through our feature FAQ directory to find details about state synchronization, offline access, notifications, and typography styles.
+              Review our FAQ directory detailing encryption standards, databases, fallbacks, and admin operations.
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -397,17 +488,17 @@ export function FeaturesPage() {
           <div style={S.keyTakeaways}>
             <h3 style={{ margin: '0 0 16px 0', fontSize: 20, color: '#e2e2e2', fontWeight: 700 }}>Key Takeaways</h3>
             <ul style={{ paddingLeft: 20, margin: 0, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 15 }}>
-              <li><strong>Reliable Streams:</strong> Dual-channel pipelines seamlessly transition between WebSockets and SSE to prevent message loss.</li>
-              <li><strong>Advanced Moderation:</strong> Channel admins can mute users, manage rosters, or transfer room ownership.</li>
-              <li><strong>Enterprise Protection:</strong> Verified JWT signatures secure database routes and socket interactions.</li>
-              <li><strong>Optimized Performance:</strong> Lightweight bundle sizes defer scripts to achieve fast page loads on all devices in 2026.</li>
+              <li><strong>Resilient Sockets:</strong> Sockets fall back instantly to SSE if connection channels drop.</li>
+              <li><strong>Moderate Rooms:</strong> Admin rules let creators kick, promote, or demote participants in real-time.</li>
+              <li><strong>Secure Session Management:</strong> Cryptographic JWT cookies enforce absolute login validation in <time datetime="2026">2026</time>.</li>
+              <li><strong>Optimized Performance:</strong> Lightweight bundle sizes defer scripts to achieve fast page loads on all devices.</li>
             </ul>
           </div>
 
         </article>
       </main>
 
-      {/* Author Byline */}
+      {/* Author Byline Box */}
       <footer style={{ marginTop: 60 }}>
         <div style={S.authorSection}>
           <div style={S.avatar}>K</div>
@@ -415,7 +506,7 @@ export function FeaturesPage() {
             <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#e2e2e2' }}>Kushak</h3>
             <p style={{ margin: '4px 0 8px 0', fontSize: 14, color: '#4d8eff', fontWeight: 600 }}>Principal Lead Designer &amp; Developer</p>
             <div style={S.metaText}>
-              Author Expertise: <strong>Full-stack Encryption &amp; UI Systems</strong> | Reviewed: <strong>July 9, 2026</strong>
+              Author Expertise: <strong>Full-stack Encryption &amp; UI Systems</strong> | Reviewed: <strong><time datetime="2026-07-09">July 9, 2026</time></strong>
             </div>
           </div>
         </div>

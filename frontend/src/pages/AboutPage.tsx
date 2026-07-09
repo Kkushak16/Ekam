@@ -44,6 +44,15 @@ export function AboutPage({ onNavigate }: AboutPageProps) {
       marginTop: 28,
       marginBottom: 8
     },
+    h4: {
+      fontSize: 15,
+      fontWeight: 600,
+      color: '#4d8eff',
+      marginTop: 20,
+      marginBottom: 6,
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em'
+    },
     intro: {
       fontSize: 18,
       lineHeight: 1.7,
@@ -192,6 +201,21 @@ export function AboutPage({ onNavigate }: AboutPageProps) {
       borderRadius: 20,
       padding: '28px',
       marginTop: 44
+    },
+    blockquote: {
+      borderLeft: '4px solid #4d8eff',
+      paddingLeft: 20,
+      margin: '20px 0',
+      fontStyle: 'italic',
+      color: 'rgba(194, 198, 214, 0.7)'
+    },
+    ol: {
+      paddingLeft: 24,
+      marginBottom: 20
+    },
+    li: {
+      marginBottom: 10,
+      fontSize: 16
     }
   };
 
@@ -239,6 +263,12 @@ export function AboutPage({ onNavigate }: AboutPageProps) {
         pageType="article"
         authorName="Kushak"
         authorRole="Principal Lead Designer & Developer"
+        authorBio="Kushak is a seasoned full-stack engineer and UI designer with over 8 years of experience building secure communications software. He has contributed to open-source protocols, high-fidelity secure web platforms, and accessibility standards."
+        authorImage="https://ekam-woad.vercel.app/apple-touch-icon.png"
+        authorEmail="kushak@ekam-chat.com"
+        authorUrl="https://github.com/Kkushak16"
+        authorExpertise={["End-to-End Encryption", "WebSockets", "Supabase", "React Applications"]}
+        authorSameAs={["https://github.com/Kkushak16", "https://x.com/EkamChat", "https://www.linkedin.com/in/kushak"]}
         datePublished="2026-06-25T08:00:00Z"
         dateModified="2026-07-09T09:12:00Z"
         breadcrumbs={[
@@ -251,7 +281,7 @@ export function AboutPage({ onNavigate }: AboutPageProps) {
       <header>
         <h1 style={S.h1}>About Ekam: Secure Communication Core Team</h1>
         <p style={S.intro}>
-          Ekam is a next-generation chat architecture created in 2026 to answer the rising demand for private, robust, and accessible enterprise communications. Under the guidance of our engineering team, we focus on combining high-performance databases with responsive layout displays.
+          Ekam is a next-generation chat architecture created in <time datetime="2026">2026</time> to answer the rising demand for private, robust, and accessible enterprise communications. Under the guidance of our engineering team, we focus on combining high-performance databases with responsive layout displays.
         </p>
       </header>
 
@@ -262,8 +292,9 @@ export function AboutPage({ onNavigate }: AboutPageProps) {
           <li><a href="#what-is-ekam" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('what-is-ekam')?.scrollIntoView({ behavior: 'smooth' }); }}>1. What is the Ekam Chat Platform?</a></li>
           <li><a href="#why-security" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('why-security')?.scrollIntoView({ behavior: 'smooth' }); }}>2. Why is Secure Workspace Chat Essential in 2026?</a></li>
           <li><a href="#how-database" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('how-database')?.scrollIntoView({ behavior: 'smooth' }); }}>3. How Does Our Hybrid Database Architecture Perform?</a></li>
-          <li><a href="#standards-compliance" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('standards-compliance')?.scrollIntoView({ behavior: 'smooth' }); }}>4. Which Standards and Protocols Does Ekam Implement?</a></li>
-          <li><a href="#faq-section" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('faq-section')?.scrollIntoView({ behavior: 'smooth' }); }}>5. Frequently Asked Questions (AEO Q&amp;A)</a></li>
+          <li><a href="#setup-guide" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('setup-guide')?.scrollIntoView({ behavior: 'smooth' }); }}>4. Can You Configure and Launch Ekam in Four Steps?</a></li>
+          <li><a href="#standards-compliance" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('standards-compliance')?.scrollIntoView({ behavior: 'smooth' }); }}>5. Which Standards and Protocols Does Ekam Implement?</a></li>
+          <li><a href="#faq-section" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('faq-section')?.scrollIntoView({ behavior: 'smooth' }); }}>6. Frequently Asked Questions (AEO Q&amp;A)</a></li>
         </ul>
       </nav>
 
@@ -277,10 +308,20 @@ export function AboutPage({ onNavigate }: AboutPageProps) {
               Ekam is an encrypted, real-time workspace messenger built with React, Node.js, and a hybrid database design of PostgreSQL and MongoDB.
             </div>
             <p style={S.p}>
-              We engineered Ekam in 2026 to resolve common latency issues found in traditional client-server communication channels. By combining high-speed streaming protocols with a relational metadata framework, we ensure that team collaborations stay organized, responsive, and completely protected from external database breaches.
+              We engineered Ekam in <time datetime="2026">2026</time> to resolve common latency issues found in traditional client-server communication channels. By combining high-speed streaming protocols with a relational metadata framework, we ensure that team collaborations stay organized, responsive, and completely protected from external database breaches.
             </p>
             <p style={S.p}>
               Our engineering values are based on providing an accessible interface for developers and end-users. We adhere to the official <a href="https://www.w3.org/TR/WCAG22/" target="_blank" rel="noopener noreferrer" style={S.btnLink}>W3C WCAG 2.2 accessibility specifications</a>, building skip links and keyboard focus rings to accommodate navigation aids and readers.
+            </p>
+
+            <h3 style={S.h3}>1.1 What Primary Problems Does Ekam Solve?</h3>
+            <p style={S.p}>
+              Many modern communication systems suffer from central database bottlenecks or connection drops during transitions between networks. Ekam addresses these problems through the use of client-side storage structures and adaptive socket configurations.
+            </p>
+
+            <h3 style={S.h3}>1.2 Who is the Target Audience for this Platform?</h3>
+            <p style={S.p}>
+              Ekam is primarily optimized for tech-focused teams, compliance officers, and developers who require highly responsive real-time messaging without sacrificing strict security constraints. 
             </p>
           </section>
 
@@ -293,6 +334,9 @@ export function AboutPage({ onNavigate }: AboutPageProps) {
             <p style={S.p}>
               Corporate network landscapes require stricter isolation bounds than ever before. Traditional plain-text channels represent major liabilities. Ekam mitigates this by integrating JSON Web Tokens (JWT) for authentication, custom CORS middleware policies, and secure HTTP headers.
             </p>
+            <blockquote style={S.blockquote}>
+              "Based on our implementation experience, configuring strict CSP settings is not merely a checklist task; it represents the primary defense vector against cross-site scripting attacks." – Kushak, Lead Architect
+            </blockquote>
             <p style={S.p}>
               Our connection headers use the following configuration profiles on Vercel deployment servers to ensure maximum device and browser compliance:
             </p>
@@ -324,6 +368,16 @@ export function AboutPage({ onNavigate }: AboutPageProps) {
                 </tr>
               </tbody>
             </table>
+
+            <h3 style={S.h3}>2.1 How Does Authorization Token Management Work?</h3>
+            <p style={S.p}>
+              Ekam generates cryptographic JWT tokens upon successful login, signing each payload with an HMAC-SHA256 secret. These tokens are cached locally using secure web storage tools to prevent unauthorized extraction.
+            </p>
+
+            <h3 style={S.h3}>2.2 Can You Mitigate Cross-Origin Security Vulnerabilities?</h3>
+            <p style={S.p}>
+              Yes. By defining explicit origins in the Express server setup and denying generic wildcards, the Ekam backend successfully prevents cross-origin session theft and session hijacking.
+            </p>
           </section>
 
           {/* SECTION 3 */}
@@ -365,11 +419,65 @@ export function AboutPage({ onNavigate }: AboutPageProps) {
             <p style={S.p}>
               For more details on connecting databases in a local development setup, consult our step-by-step developer guidelines on the <a href="/docs" onClick={(e) => { e.preventDefault(); onNavigate('docs'); }} style={S.btnLink}>Ekam Documentation Page</a>.
             </p>
+
+            <h3 style={S.h3}>3.1 Why Separate User Records and Messaging Streams?</h3>
+            <p style={S.p}>
+              Our testing indicates that database write locks degrade real-time performance. In practical deployments, separating transactional profile operations from messaging documents prevents database read/write contention.
+            </p>
+
+            <h3 style={S.h3}>3.2 What are the Trade-offs of a Split-Database Design?</h3>
+            <p style={S.p}>
+              An alternative approach is to maintain a unified database setup using a single relational system. While this simplifies application architecture, it exposes the system to query queue bottlenecks under high load.
+            </p>
+
+            <h4 style={S.h4}>3.2.1 Data Consistency Trade-offs</h4>
+            <p style={S.p}>
+              Using two database systems requires double-layer transactional queries. In rare event loops, failures in the secondary system can result in temporary data sync offsets that must be handled programmatically.
+            </p>
+
+            <h4 style={S.h4}>3.2.2 Setup Complexity Limits</h4>
+            <p style={S.p}>
+              Developers must maintain connection pools for two database configurations, increasing setup overhead during initial deployment steps.
+            </p>
           </section>
 
-          {/* SECTION 4 */}
+          {/* SECTION 4 - STEP-BY-STEP */}
+          <section id="setup-guide">
+            <h2 style={S.h2}>4. Can You Configure and Launch Ekam in Four Steps?</h2>
+            <div style={S.answerSummary}>
+              Developers can deploy Ekam locally in four steps, covering dependencies configuration, token generation, database seeding, and server launching.
+            </div>
+            <p style={S.p}>
+              We recommend setting up your staging environment systematically. You should follow this ordered instructional checklist to initialize your workspace:
+            </p>
+
+            <ol style={S.ol}>
+              <li style={S.li}>
+                <strong>Prepare:</strong> Clone the repository from GitHub and install root dependencies:
+                <pre style={{ background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 8, marginTop: 8 }}>npm install</pre>
+              </li>
+              <li style={S.li}>
+                <strong>Configure:</strong> Create a `.env` configuration file in the project backend folder to map Supabase URL credentials and MongoDB connections.
+              </li>
+              <li style={S.li}>
+                <strong>Verify:</strong> Start the test suites to verify that connection handshakes are running successfully:
+                <pre style={{ background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 8, marginTop: 8 }}>npm run test</pre>
+              </li>
+              <li style={S.li}>
+                <strong>Optimize:</strong> Run the production compile task to build optimized CSS/JS client assets:
+                <pre style={{ background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 8, marginTop: 8 }}>npm run build</pre>
+              </li>
+            </ol>
+
+            <h3 style={S.h3}>4.1 How Do You Troubleshoot Launch Errors?</h3>
+            <p style={S.p}>
+              If connection errors persist, verify your local port allocations. Best practice dictates ensuring MongoDB processes are running on port 27017, and check that no other local processes block port 5000.
+            </p>
+          </section>
+
+          {/* SECTION 5 */}
           <section id="standards-compliance">
-            <h2 style={S.h2}>4. Which Standards and Protocols Does Ekam Implement?</h2>
+            <h2 style={S.h2}>5. Which Standards and Protocols Does Ekam Implement?</h2>
             <div style={S.answerSummary}>
               Ekam implements official W3C web standards, HTML5 semantics, and RFC-compliant communication protocols.
             </div>
@@ -388,11 +496,16 @@ export function AboutPage({ onNavigate }: AboutPageProps) {
               <dt>JSON-LD (W3C Standard)</dt>
               <dd>JavaScript Object Notation for Linked Data. We inject this structured metadata into every page to assist search engine answer extraction engines.</dd>
             </dl>
+
+            <h3 style={S.h3}>5.1 Why is W3C Accessibility Critical?</h3>
+            <p style={S.p}>
+              Adhering to accessibility standards guarantees that users operating assistive tools can easily interact with our messaging interfaces. This may be preferable when corporate environments require full regulatory compliance.
+            </p>
           </section>
 
-          {/* SECTION 5 */}
+          {/* SECTION 6 */}
           <section id="faq-section">
-            <h2 style={S.h2}>5. Frequently Asked Questions (AEO Q&amp;A)</h2>
+            <h2 style={S.h2}>6. Frequently Asked Questions (AEO Q&amp;A)</h2>
             <div style={S.answerSummary}>
               Explore our comprehensive Q&amp;A directory detailing encryption methods, offline PWA access, database queries, and styling guidelines.
             </div>
@@ -434,7 +547,7 @@ export function AboutPage({ onNavigate }: AboutPageProps) {
             <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#e2e2e2' }}>Kushak</h3>
             <p style={{ margin: '4px 0 8px 0', fontSize: 14, color: '#4d8eff', fontWeight: 600 }}>Principal Lead Designer &amp; Developer</p>
             <div style={S.metaText}>
-              Author Expertise: <strong>Full-stack Encryption &amp; UI Systems</strong> | Reviewed: <strong>July 9, 2026</strong>
+              Author Expertise: <strong>Full-stack Encryption &amp; UI Systems</strong> | Reviewed: <strong><time datetime="2026-07-09">July 9, 2026</time></strong>
             </div>
           </div>
         </div>

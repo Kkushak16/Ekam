@@ -12,6 +12,12 @@ interface SEOMetaProps {
   pageType?: 'article' | 'product' | 'howto' | 'webpage';
   authorName?: string;
   authorRole?: string;
+  authorBio?: string;
+  authorImage?: string;
+  authorExpertise?: string[];
+  authorEmail?: string;
+  authorUrl?: string;
+  authorSameAs?: string[];
   datePublished?: string;
   dateModified?: string;
   steps?: Array<{ name: string; text: string }>;
@@ -31,6 +37,12 @@ export function SEOMeta({
   pageType = 'webpage',
   authorName,
   authorRole,
+  authorBio,
+  authorImage,
+  authorExpertise,
+  authorEmail,
+  authorUrl,
+  authorSameAs,
   datePublished,
   dateModified,
   steps,
@@ -183,11 +195,19 @@ export function SEOMeta({
         "@id": authorId,
         "name": authorName,
         "jobTitle": authorRole || "Contributor",
+        "description": authorBio || "Expert contributor at Ekam Chat Platform.",
+        "image": authorImage || "https://ekam-woad.vercel.app/apple-touch-icon.png",
+        "email": authorEmail || "kushak@ekam-chat.com",
+        "url": authorUrl || "https://github.com/Kkushak16",
         "worksFor": {
-          "@id": organizationId
+          "@type": "Organization",
+          "@id": organizationId,
+          "name": "Ekam"
         },
-        "sameAs": [
-          "https://github.com/Kkushak16"
+        "knowsAbout": authorExpertise || ["Secure Real-Time Messaging", "Web Engineering", "Data Safety"],
+        "sameAs": authorSameAs || [
+          "https://github.com/Kkushak16",
+          "https://x.com/EkamChat"
         ]
       });
     }

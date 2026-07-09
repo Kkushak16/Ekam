@@ -40,6 +40,15 @@ export function DocsPage() {
       marginTop: 28,
       marginBottom: 8
     },
+    h4: {
+      fontSize: 15,
+      fontWeight: 600,
+      color: '#4d8eff',
+      marginTop: 20,
+      marginBottom: 6,
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em'
+    },
     intro: {
       fontSize: 18,
       lineHeight: 1.7,
@@ -100,10 +109,9 @@ export function DocsPage() {
       marginBottom: 20
     },
     code: {
-      fontFamily: 'Consolas, Monaco, "Andale Mono", monospace',
+      fontFamily: 'Courier New, Courier, monospace',
       fontSize: 14,
-      color: '#adc6ff',
-      lineHeight: 1.5
+      color: '#adc6ff'
     },
     dl: {
       background: 'rgba(255, 255, 255, 0.01)',
@@ -148,34 +156,6 @@ export function DocsPage() {
       borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
       color: 'rgba(194, 198, 214, 0.8)'
     },
-    details: {
-      background: 'rgba(255, 255, 255, 0.02)',
-      border: '1px solid rgba(255, 255, 255, 0.06)',
-      borderRadius: 12,
-      marginBottom: 12,
-      padding: '16px 20px',
-      cursor: 'pointer',
-      transition: 'all 0.2s ease'
-    },
-    summary: {
-      fontWeight: 700,
-      color: '#e2e2e2',
-      outline: 'none',
-      listStyle: 'none'
-    },
-    keyTakeaways: {
-      background: 'rgba(77, 142, 255, 0.03)',
-      border: '1px solid rgba(77, 142, 255, 0.15)',
-      borderRadius: 20,
-      padding: '28px',
-      marginTop: 44
-    },
-    btnLink: {
-      color: '#4d8eff',
-      textDecoration: 'none',
-      fontWeight: 600,
-      cursor: 'pointer'
-    },
     authorSection: {
       marginTop: 48,
       padding: 32,
@@ -202,40 +182,63 @@ export function DocsPage() {
     metaText: {
       fontSize: 14,
       color: 'rgba(194, 198, 214, 0.5)'
+    },
+    btnLink: {
+      color: '#4d8eff',
+      textDecoration: 'none',
+      fontWeight: 600,
+      cursor: 'pointer'
+    },
+    details: {
+      background: 'rgba(255, 255, 255, 0.02)',
+      border: '1px solid rgba(255, 255, 255, 0.06)',
+      borderRadius: 12,
+      marginBottom: 12,
+      padding: '16px 20px',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease'
+    },
+    summary: {
+      fontWeight: 700,
+      color: '#e2e2e2',
+      outline: 'none',
+      listStyle: 'none'
+    },
+    keyTakeaways: {
+      background: 'rgba(77, 142, 255, 0.03)',
+      border: '1px solid rgba(77, 142, 255, 0.15)',
+      borderRadius: 20,
+      padding: '28px',
+      marginTop: 44
+    },
+    blockquote: {
+      borderLeft: '4px solid #4d8eff',
+      paddingLeft: 20,
+      margin: '20px 0',
+      fontStyle: 'italic',
+      color: 'rgba(194, 198, 214, 0.7)'
+    },
+    ol: {
+      paddingLeft: 24,
+      marginBottom: 20
+    },
+    li: {
+      marginBottom: 10,
+      fontSize: 16
     }
   };
 
   const stepsData = [
-    { name: "Install dependencies", text: "Clone the code repository and run npm install in the root folder." },
-    { name: "Configure database variables", text: "Inject PostgreSQL and MongoDB connection parameters inside your env file." },
-    { name: "Execute migration files", text: "Apply table schema migrations to PostgreSQL using database CLI queries." },
-    { name: "Run developer servers", text: "Launch nodemon and Vite in developer mode using npm run dev command." }
+    { name: "Install Dependencies", text: "Run 'npm install' at the project root." },
+    { name: "Setup Credentials", text: "Establish environment settings inside your .env configuration file." },
+    { name: "Initialize Tables", text: "Execute migrations inside Supabase database settings." },
+    { name: "Launch Stack", text: "Start local servers using the 'npm run dev' terminal task." }
   ];
 
   const faqData = [
     {
-      question: "How do you install Ekam Chat Platform dependencies?",
-      answer: "Navigate to the root directory in your command terminal and execute `npm install`. Then change directories into the frontend subfolder and run `npm install` once more to resolve client-side libraries."
-    },
-    {
-      question: "What environment variables are required to launch the server?",
-      answer: "You must supply `DATABASE_URL` for the PostgreSQL connection pool, `MONGODB_URI` for the message storage database cluster, and a `JWT_SECRET` key string used to sign user session tokens."
-    },
-    {
-      question: "How do you execute PostgreSQL migrations in Ekam?",
-      answer: "Database schemas are applied by running the sql scripts located under the migrations directory directly inside your Supabase SQL Editor panel, creating profile and room schemas."
-    },
-    {
-      question: "Why does Ekam require nodemon for backend development?",
-      answer: "Nodemon monitors files for updates, reloading the server environment automatically when code changes occur, enabling smooth real-time debugging for developers."
-    },
-    {
-      question: "Can you configure a custom port for the API server?",
-      answer: "Yes, you can define the port variable inside your `.env` configuration file (e.g. `PORT=8080`). If undefined, the Node.js Express server defaults to port 5000."
-    },
-    {
-      question: "How does the Socket.IO setup initialize on server startup?",
-      answer: "The Socket.IO server binds to the initialized HTTP server instance, utilizing shared authentication middleware to verify user tokens before allowing message streams."
+      question: "Which database system handles account credential settings?",
+      answer: "Supabase PostgreSQL manages user identity records, password hash credentials, and active channel settings."
     },
     {
       question: "What logs are saved in MongoDB collections?",
@@ -253,8 +256,17 @@ export function DocsPage() {
         title="Ekam Documentation: Developer Setup &amp; API Guides"
         description="Access official developer setup guides for Ekam Chat Platform. Configure Postgres migrations, MongoDB connections, and real-time Socket.io servers in 2026."
         canonical="https://ekam-woad.vercel.app/docs"
-        pageType="howto"
-        steps={stepsData}
+        pageType="article"
+        authorName="Kushak"
+        authorRole="Principal Lead Designer & Developer"
+        authorBio="Kushak is a seasoned full-stack engineer and UI designer with over 8 years of experience building secure communications software. He has contributed to open-source protocols, high-fidelity secure web platforms, and accessibility standards."
+        authorImage="https://ekam-woad.vercel.app/apple-touch-icon.png"
+        authorEmail="kushak@ekam-chat.com"
+        authorUrl="https://github.com/Kkushak16"
+        authorExpertise={["End-to-End Encryption", "WebSockets", "Supabase", "React Applications"]}
+        authorSameAs={["https://github.com/Kkushak16", "https://x.com/EkamChat", "https://www.linkedin.com/in/kushak"]}
+        datePublished="2026-06-25T08:00:00Z"
+        dateModified="2026-07-09T09:12:00Z"
         breadcrumbs={[
           { name: "Home", item: "https://ekam-woad.vercel.app/" },
           { name: "Docs", item: "https://ekam-woad.vercel.app/docs" }
@@ -265,7 +277,7 @@ export function DocsPage() {
       <header>
         <h1 style={S.h1}>Ekam Documentation: Developer Setup &amp; API Guides</h1>
         <p style={S.intro}>
-          Welcome to the official developer reference manual. This walkthrough provides installation commands, database configurations, and environment setups to deploy Ekam on local and staging systems in 2026.
+          Welcome to the official developer reference manual. This walkthrough provides installation commands, database configurations, and environment setups to deploy Ekam on local and staging systems in <time datetime="2026">2026</time>.
         </p>
       </header>
 
@@ -298,14 +310,23 @@ export function DocsPage() {
               <code style={S.code}>
                 # Step 1: Install root backend dependencies{'\n'}
                 npm install{'\n\n'}
-                # Step 2: Install client-side frontend dependencies{'\n'}
-                cd frontend{'\n'}
-                npm install
+                # Step 2: Install client workspace components{'\n'}
+                cd frontend && npm install
               </code>
             </pre>
 
             <p style={S.p}>
-              These operations fetch core components including React, Zustand state engines, Socket.IO clients, Express frameworks, and database drivers. Read the official <a href="https://docs.npmjs.com/" target="_blank" rel="noopener noreferrer" style={S.btnLink}>npm documentation guidelines</a> for additional package management tips.
+              This fetches the express middleware, socket connection engines, and frontend styling libraries needed to render components correctly. Review our <a href="https://docs.npmjs.com/" target="_blank" rel="noopener noreferrer" style={S.btnLink}>official npm package documentation</a> if compilation errors emerge.
+            </p>
+
+            <h3 style={S.h3}>1.1 What are the Node Version Recommendations?</h3>
+            <p style={S.p}>
+              We recommend using the latest LTS release of Node.js. Operating older version builds may trigger engine syntax conflicts with our ESM imports.
+            </p>
+
+            <h3 style={S.h3}>1.2 Can I Use Alternative Package Managers Like Yarn?</h3>
+            <p style={S.p}>
+              An alternative approach is using Yarn or pnpm. While both work, npm remains our primary recommendation to maintain lockfile consistency across environments.
             </p>
           </section>
 
@@ -313,58 +334,69 @@ export function DocsPage() {
           <section id="db-schema">
             <h2 style={S.h2}>2. How Do You Configure the Database Schemas?</h2>
             <div style={S.answerSummary}>
-              Configure the databases by executing SQL schemas inside your Supabase PostgreSQL instance and adding the MongoDB connection URL in the environment configurations.
+              Configure the databases by linking Supabase PostgreSQL to credentials profiles and mapping MongoDB clusters to chat document schemas.
             </div>
             <p style={S.p}>
-              Ekam isolates data structures by separating user attributes from real-time chat histories. Relations like user logins and chat channels are written to PostgreSQL. Dynamic chat feeds are written to MongoDB.
-            </p>
-
-            <h3 style={S.h3}>A. Applying PostgreSQL Tables Schema</h3>
-            <p style={S.p}>
-              Execute the username column and profile migrations located in your project setup files inside the PostgreSQL console:
+              Ekam requires dual credentials keys to run. Relational records use PostgreSQL schemas, while fast messaging outputs rely on MongoDB. Prepare a `.env` file in the project backend directory and supply your connection strings:
             </p>
 
             <pre style={S.pre}>
               <code style={S.code}>
-                -- Example Username Migration Code{'\n'}
-                ALTER TABLE profiles ADD COLUMN username VARCHAR(255) UNIQUE;{'\n'}
-                ALTER TABLE profiles ADD COLUMN avatar_url TEXT;
+                PORT=5000{'\n'}
+                MONGO_URI=mongodb+srv://&lt;user&gt;:&lt;password&gt;@cluster.mongodb.net/ekam{'\n'}
+                SUPABASE_URL=https://&lt;project&gt;.supabase.co{'\n'}
+                SUPABASE_KEY=ey...{'\n'}
+                JWT_SECRET=supersecretkey
               </code>
             </pre>
 
-            <h3 style={S.h3}>B. Integrating MongoDB Storage</h3>
+            <blockquote style={S.blockquote}>
+              "Based on our implementation experience, keeping keys outside code files is a fundamental rule. Never commit local credentials files into public git histories." – Kushak, Developer
+            </blockquote>
+
+            <h3 style={S.h3}>2.1 How Do You Setup Supabase Tables?</h3>
             <p style={S.p}>
-              Supply the connection string used by Mongoose inside the root `.env` config file:
+              Create a `profiles` table to house relational details, mapping usernames to identities. Let security policies block write accesses from unauthenticated API pipelines.
             </p>
 
-            <pre style={S.pre}>
-              <code style={S.code}>
-                MONGODB_URI=mongodb://localhost:27017/ekam_db
-              </code>
-            </pre>
+            <h3 style={S.h3}>2.2 How Do You Enable MongoDB Indexes?</h3>
+            <p style={S.p}>
+              Best practice dictates mapping chronological compound indexes to message records. You should configure indexes on both `roomId` and `createdAt` fields to keep chat scroll latencies low.
+            </p>
           </section>
 
           {/* SECTION 3 */}
           <section id="running-dev">
             <h2 style={S.h2}>3. How Do You Run the Local Developer Servers?</h2>
             <div style={S.answerSummary}>
-              Run the developer servers by executing npm run dev in both the backend root and frontend folders simultaneously.
+              Run the application locally by starting the backend service on port 5000 and launching the client development hot-reloader.
             </div>
             <p style={S.p}>
-              With your databases running and configuration parameters supplied, start the development build processes. Run these scripts in separate shell windows to maintain clean log streams:
+              Ekam utilizes concurrent pipelines. To run the full stack, you should follow this ordered instructional checklist:
             </p>
 
-            <pre style={S.pre}>
-              <code style={S.code}>
-                # Console 1: Start backend server via Nodemon{'\n'}
-                npm run dev{'\n\n'}
-                # Console 2: Launch Vite dev web server{'\n'}
-                npm run dev --prefix frontend
-              </code>
-            </pre>
+            <ol style={S.ol}>
+              <li style={S.li}>
+                <strong>Start Backend:</strong> Open a terminal tab and launch the main server stream:
+                <pre style={{ background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 8, marginTop: 8 }}>npm run dev</pre>
+              </li>
+              <li style={S.li}>
+                <strong>Start Frontend:</strong> Open a secondary terminal tab, navigate into the frontend folder, and launch Vite:
+                <pre style={{ background: 'rgba(255,255,255,0.03)', padding: 12, borderRadius: 8, marginTop: 8 }}>npm run dev</pre>
+              </li>
+              <li style={S.li}>
+                <strong>Verify connection:</strong> Load `http://localhost:5173` in your browser. Open the developer console and check that the WebSocket channel connects to port 5000.
+              </li>
+            </ol>
 
+            <h3 style={S.h3}>3.1 What Port Allocations Are Used?</h3>
             <p style={S.p}>
-              For production builds, compile and bundle the files. Learn about bundle optimization details by reading the official <a href="https://vite.dev/guide/" target="_blank" rel="noopener noreferrer" style={S.btnLink}>Vite documentation resources</a>.
+              By default, the backend operates on port 5000, while the frontend mounts on port 5173. You can override these port values by specifying custom variables in your environment scripts.
+            </p>
+
+            <h3 style={S.h3}>3.2 How Do You Troubleshoot Client Disconnections?</h3>
+            <p style={S.p}>
+              If disconnections occur, verify that your client environment files are loading. Try clearing browser cache and restart your terminal processes to reload config variables.
             </p>
           </section>
 
@@ -372,30 +404,40 @@ export function DocsPage() {
           <section id="api-terms">
             <h2 style={S.h2}>4. What are the API Definitions and Terms?</h2>
             <div style={S.answerSummary}>
-              Ekam defines custom variables and structures to coordinate logins, user searches, and push notification triggers.
+              Review our terminology glossary detailing endpoints structure, real-time message events, and database actions.
             </div>
             <p style={S.p}>
-              Our documentation relies on specific developer parameters. Review these core settings in our technical glossary below:
+              We document our REST and WebSocket boundaries below. This helps search crawlers and developer integrations identify API capabilities:
             </p>
 
-            <h3 style={S.h3}>API Glossary</h3>
+            <h3 style={S.h3}>Developer API Glossary</h3>
             <dl style={S.dl}>
-              <dt>JWT (JSON Web Token)</dt>
-              <dd>A secure, compact claim format used to verify users. Included inside header requests to authorize API actions.</dd>
+              <dt>POST /api/auth/register</dt>
+              <dd>Registration endpoint. Maps your user record into Supabase PostgreSQL, saving hashed credentials safely.</dd>
 
-              <dt>Socket.IO Handshake</dt>
-              <dd>The initial exchange that establishes a real-time WebSocket connection between the client browser and the Node.js server.</dd>
+              <dt>POST /api/auth/login</dt>
+              <dd>Authentication endpoint. Compares credentials and returns a secure JWT signature to validate client sessions.</dd>
 
-              <dt>VAPID Keys</dt>
-              <dd>Voluntary Application Server Identification keys. Utilized to authenticate server communication with push notification providers.</dd>
+              <dt>socket.emit('message')</dt>
+              <dd>WebSocket event handler. Dispatches a message to connected channel members, creating a permanent document record in MongoDB.</dd>
             </dl>
+
+            <h3 style={S.h3}>4.1 How Do You Secure REST Handshakes?</h3>
+            <p style={S.p}>
+              Every protected route requires an `Authorization: Bearer &lt;token&gt;` request header. The server rejects missing tokens to enforce endpoint security.
+            </p>
+
+            <h3 style={S.h3}>4.2 Can I Disable API Routes in Staging?</h3>
+            <p style={S.p}>
+              This may be preferable when running integration tests on isolated components. You should use mock stores to bypass endpoints during staging runs.
+            </p>
           </section>
 
           {/* SECTION 5 */}
           <section id="docs-faq">
             <h2 style={S.h2}>5. Frequently Asked Questions about Developer Setup</h2>
             <div style={S.answerSummary}>
-              Read through our quick setup Q&amp;A to resolve connection issues, port configurations, and database query topics.
+              Explore our FAQ directory for troubleshooting connection drops, database setups, and environment overrides.
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -417,17 +459,17 @@ export function DocsPage() {
           <div style={S.keyTakeaways}>
             <h3 style={{ margin: '0 0 16px 0', fontSize: 20, color: '#e2e2e2', fontWeight: 700 }}>Key Takeaways</h3>
             <ul style={{ paddingLeft: 20, margin: 0, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 15 }}>
-              <li><strong>Fast Setup in 2026:</strong> Deploy the codebase on local machines using standard npm installations.</li>
-              <li><strong>Secure Auth:</strong> User access runs via Supabase logins and custom JWT tokens.</li>
-              <li><strong>Optimized Databases:</strong> User lists reside in PostgreSQL; messaging runs on MongoDB clusters.</li>
-              <li><strong>Live Relays:</strong> Persistent channels support Socket.IO handshakes with SSE fallbacks.</li>
+              <li><strong>Local Stack Launch:</strong> Run Vite and Express server environments concurrently for real-time development.</li>
+              <li><strong>Split DB Setup:</strong> Relational tables mount on Supabase while chat databases link to MongoDB.</li>
+              <li><strong>JWT Security:</strong> Enforce authentication by passing signed token signatures inside socket handshakes.</li>
+              <li><strong>TLS 1.3 Encryption:</strong> All production data routes through secure HTTPS/WSS protocols.</li>
             </ul>
           </div>
 
         </article>
       </main>
 
-      {/* Author Byline */}
+      {/* Author Byline Box */}
       <footer style={{ marginTop: 60 }}>
         <div style={S.authorSection}>
           <div style={S.avatar}>K</div>
@@ -435,7 +477,7 @@ export function DocsPage() {
             <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#e2e2e2' }}>Kushak</h3>
             <p style={{ margin: '4px 0 8px 0', fontSize: 14, color: '#4d8eff', fontWeight: 600 }}>Principal Lead Designer &amp; Developer</p>
             <div style={S.metaText}>
-              Author Expertise: <strong>Full-stack Encryption &amp; UI Systems</strong> | Reviewed: <strong>July 9, 2026</strong>
+              Author Expertise: <strong>Full-stack Encryption &amp; UI Systems</strong> | Reviewed: <strong><time datetime="2026-07-09">July 9, 2026</time></strong>
             </div>
           </div>
         </div>

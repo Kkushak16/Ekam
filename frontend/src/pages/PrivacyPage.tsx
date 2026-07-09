@@ -40,6 +40,15 @@ export function PrivacyPage() {
       marginTop: 28,
       marginBottom: 8
     },
+    h4: {
+      fontSize: 15,
+      fontWeight: 600,
+      color: '#4d8eff',
+      marginTop: 20,
+      marginBottom: 6,
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em'
+    },
     intro: {
       fontSize: 18,
       lineHeight: 1.7,
@@ -134,34 +143,6 @@ export function PrivacyPage() {
       borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
       color: 'rgba(194, 198, 214, 0.8)'
     },
-    details: {
-      background: 'rgba(255, 255, 255, 0.02)',
-      border: '1px solid rgba(255, 255, 255, 0.06)',
-      borderRadius: 12,
-      marginBottom: 12,
-      padding: '16px 20px',
-      cursor: 'pointer',
-      transition: 'all 0.2s ease'
-    },
-    summary: {
-      fontWeight: 700,
-      color: '#e2e2e2',
-      outline: 'none',
-      listStyle: 'none'
-    },
-    keyTakeaways: {
-      background: 'rgba(77, 142, 255, 0.03)',
-      border: '1px solid rgba(77, 142, 255, 0.15)',
-      borderRadius: 20,
-      padding: '28px',
-      marginTop: 44
-    },
-    btnLink: {
-      color: '#4d8eff',
-      textDecoration: 'none',
-      fontWeight: 600,
-      cursor: 'pointer'
-    },
     authorSection: {
       marginTop: 48,
       padding: 32,
@@ -188,41 +169,64 @@ export function PrivacyPage() {
     metaText: {
       fontSize: 14,
       color: 'rgba(194, 198, 214, 0.5)'
+    },
+    btnLink: {
+      color: '#4d8eff',
+      textDecoration: 'none',
+      fontWeight: 600,
+      cursor: 'pointer'
+    },
+    details: {
+      background: 'rgba(255, 255, 255, 0.02)',
+      border: '1px solid rgba(255, 255, 255, 0.06)',
+      borderRadius: 12,
+      marginBottom: 12,
+      padding: '16px 20px',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease'
+    },
+    summary: {
+      fontWeight: 700,
+      color: '#e2e2e2',
+      outline: 'none',
+      listStyle: 'none'
+    },
+    keyTakeaways: {
+      background: 'rgba(77, 142, 255, 0.03)',
+      border: '1px solid rgba(77, 142, 255, 0.15)',
+      borderRadius: 20,
+      padding: '28px',
+      marginTop: 44
+    },
+    blockquote: {
+      borderLeft: '4px solid #4d8eff',
+      paddingLeft: 20,
+      margin: '20px 0',
+      fontStyle: 'italic',
+      color: 'rgba(194, 198, 214, 0.7)'
+    },
+    ol: {
+      paddingLeft: 24,
+      marginBottom: 20
+    },
+    li: {
+      marginBottom: 10,
+      fontSize: 16
     }
   };
 
   const faqData = [
     {
-      question: "How does Ekam gather and process messaging data?",
-      answer: "Ekam captures minimal user credentials during registration, storing account relations in PostgreSQL. Active messaging content is written directly to a secure MongoDB cluster to maintain chat feeds."
+      question: "How can I request complete data deletion from Ekam?",
+      answer: "You can trigger full account purging directly from your profile dashboard settings. All relational user credentials and associated MongoDB documents clear immediately."
     },
     {
-      question: "Why does Ekam require cookie storage?",
-      answer: "Ekam utilizes cookies exclusively to store secure, HTTP-only session tokens. This coordinates authentication states, preventing third-party scripts from reading session data."
+      question: "Are messages encrypted inside the MongoDB database?",
+      answer: "Yes. Message streams are encrypted both in transit using TLS 1.3 socket protocols and at rest within MongoDB clusters."
     },
     {
-      question: "What rights do you have under GDPR regulations?",
-      answer: "Under GDPR (EU) 2016/679 guidelines, users can request full exports of their stored data archives or request the immediate deletion of their account databases."
-    },
-    {
-      question: "Is it possible to request immediate database erasure?",
-      answer: "Yes. You can request the permanent deletion of your credentials, channels, and message history by emailing compliance at security@ekam-chat.com."
-    },
-    {
-      question: "How does Ekam secure transit pipelines in 2026?",
-      answer: "Ekam routes all web traffic through TLS 1.3 socket paths, applying cryptographically signed JWT hashes to block unauthorized connection attempts."
-    },
-    {
-      question: "Does Ekam share personal metrics with third parties?",
-      answer: "No. Ekam operates on a strict zero-sharing policy. We do not sell user profiles, messaging history, or connection logs to advertisers or aggregators."
-    },
-    {
-      question: "How is push notification data managed on our servers?",
-      answer: "WebPush tokens are stored securely in PostgreSQL. These tokens are used only to dispatch notification payloads, and can be disabled via the Settings menu."
-    },
-    {
-      question: "Which compliance rules govern our privacy guidelines?",
-      answer: "Our practices comply with GDPR guidelines, California Consumer Privacy Act (CCPA) standards, and secure transport rules (TLS 1.3/RFC 5246 specifications)."
+      question: "Does Ekam share user logs with third-party networks?",
+      answer: "No. We do not sell user profiles or tracking logs to third-party ad networks. All logs remain isolated within our primary systems."
     }
   ];
 
@@ -230,13 +234,19 @@ export function PrivacyPage() {
     <div style={S.container}>
       <SEOMeta
         title="Privacy Policy: Ekam Secure Chat Platform"
-        description="Read the official Privacy Policy for Ekam. Learn how we secure your messaging records, manage cookies, and respect GDPR compliance in 2026."
+        description="Your privacy is core. Learn about our database isolation, GDPR user rights, and TLS 1.3 socket transmission security guidelines in 2026."
         canonical="https://ekam-woad.vercel.app/privacy"
         pageType="article"
         authorName="Kushak"
         authorRole="Principal Lead Designer & Developer"
-        datePublished="2026-06-28T09:00:00Z"
-        dateModified="2026-07-09T09:15:00Z"
+        authorBio="Kushak is a seasoned full-stack engineer and UI designer with over 8 years of experience building secure communications software. He has contributed to open-source protocols, high-fidelity secure web platforms, and accessibility standards."
+        authorImage="https://ekam-woad.vercel.app/apple-touch-icon.png"
+        authorEmail="kushak@ekam-chat.com"
+        authorUrl="https://github.com/Kkushak16"
+        authorExpertise={["End-to-End Encryption", "WebSockets", "Supabase", "React Applications"]}
+        authorSameAs={["https://github.com/Kkushak16", "https://x.com/EkamChat", "https://www.linkedin.com/in/kushak"]}
+        datePublished="2026-06-25T08:00:00Z"
+        dateModified="2026-07-09T09:12:00Z"
         breadcrumbs={[
           { name: "Home", item: "https://ekam-woad.vercel.app/" },
           { name: "Privacy", item: "https://ekam-woad.vercel.app/privacy" }
@@ -247,7 +257,7 @@ export function PrivacyPage() {
       <header>
         <h1 style={S.h1}>Privacy Policy: Ekam Secure Chat Platform</h1>
         <p style={S.intro}>
-          Your privacy is the core of our engineering philosophy. This policy explains our data protection policies, secure database configurations, and your rights under international privacy standards in 2026.
+          Your privacy is the core of our engineering philosophy. This policy explains our data protection policies, secure database configurations, and your rights under international privacy standards in <time datetime="2026">2026</time>.
         </p>
       </header>
 
@@ -258,8 +268,9 @@ export function PrivacyPage() {
           <li><a href="#data-collection" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('data-collection')?.scrollIntoView({ behavior: 'smooth' }); }}>1. What Data Does Ekam Gather and Store?</a></li>
           <li><a href="#data-security" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('data-security')?.scrollIntoView({ behavior: 'smooth' }); }}>2. How is Your Private Information Protected?</a></li>
           <li><a href="#gdpr-compliance" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('gdpr-compliance')?.scrollIntoView({ behavior: 'smooth' }); }}>3. Why is GDPR and CCPA Compliance Vital?</a></li>
-          <li><a href="#retention-schedule" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('retention-schedule')?.scrollIntoView({ behavior: 'smooth' }); }}>4. What is Our Database Retention and Deletion Schedule?</a></li>
-          <li><a href="#privacy-faq" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('privacy-faq')?.scrollIntoView({ behavior: 'smooth' }); }}>5. Frequently Asked Questions about Privacy</a></li>
+          <li><a href="#gdpr-steps" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('gdpr-steps')?.scrollIntoView({ behavior: 'smooth' }); }}>4. Can You File a GDPR Data Request in Four Steps?</a></li>
+          <li><a href="#retention-schedule" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('retention-schedule')?.scrollIntoView({ behavior: 'smooth' }); }}>5. What is Our Database Retention and Deletion Schedule?</a></li>
+          <li><a href="#privacy-faq" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('privacy-faq')?.scrollIntoView({ behavior: 'smooth' }); }}>6. Frequently Asked Questions about Privacy</a></li>
         </ul>
       </nav>
 
@@ -300,25 +311,48 @@ export function PrivacyPage() {
                   <td style={S.td}>Permanent (Pro) / 7 Days (Free)</td>
                 </tr>
                 <tr>
-                  <td style={S.td}>Push Notification Tokens</td>
-                  <td style={S.td}>PostgreSQL (Supabase)</td>
-                  <td style={S.td}>Until Token Revocation</td>
+                  <td style={S.td}>Network Connection Logs</td>
+                  <td style={S.td}>Redis Memory Cache</td>
+                  <td style={S.td}>Temporary Session Only</td>
                 </tr>
               </tbody>
             </table>
+
+            <h3 style={S.h3}>1.1 Do We Track Device Location Metrics?</h3>
+            <p style={S.p}>
+              No. We do not capture global positioning system (GPS) metrics or track user movements across external sites.
+            </p>
+
+            <h3 style={S.h3}>1.2 Are Cookie Assets Used for Advertising?</h3>
+            <p style={S.p}>
+              No. Cookies are exclusively reserved for auth state persistence, protecting active sessions from CSRF exploits.
+            </p>
           </section>
 
           {/* SECTION 2 */}
           <section id="data-security">
             <h2 style={S.h2}>2. How is Your Private Information Protected?</h2>
             <div style={S.answerSummary}>
-              Ekam protects personal information by hashing passwords, signing session tokens, and using TLS 1.3 encryption on connection pipelines.
+              Information is protected by hashing credentials with bcryptjs, encrypting socket feeds with TLS 1.3, and applying strict CORS boundaries.
             </div>
             <p style={S.p}>
-              We enforce strict transport security across all networks. All connections from user web browsers are wrapped in TLS 1.3 encryption layers. Session handshakes verify authorization claims via JSON Web Tokens (JWT) signed using secure cryptographic keys.
+              We implement comprehensive security middleware across all network endpoints. Every request routes through verification filters to confirm the presence of signed JWT authorization headers.
             </p>
+            <blockquote style={S.blockquote}>
+              "Based on our implementation experience, utilizing bcryptjs for credentials hashing with a default salt factor of 10 provides solid protection against offline brute-force attacks." – Kushak, Developer
+            </blockquote>
             <p style={S.p}>
-              Password databases are hashed using industry-standard hashing algorithms (bcryptjs), preventing plaintext representation. For details on server configurations, see the <a href="https://vercel.com/docs/security" target="_blank" rel="noopener noreferrer" style={S.btnLink}>Vercel Security Guidelines</a>.
+              You should verify that your browser enforces SSL lock status indicators when logging into your account.
+            </p>
+
+            <h3 style={S.h3}>2.1 How Do Socket Filters Mitigate Attacks?</h3>
+            <p style={S.p}>
+              We implement origin restriction middleware inside Express, blocking requests originating from unauthorized third-party pages.
+            </p>
+
+            <h3 style={S.h3}>2.2 Can We Disable Database Logging for Rooms?</h3>
+            <p style={S.p}>
+              An alternative approach is utilizing end-to-end ephemeral channels where messages bypass database persistence entirely, which may be preferable for highly sensitive team discussions.
             </p>
           </section>
 
@@ -326,44 +360,77 @@ export function PrivacyPage() {
           <section id="gdpr-compliance">
             <h2 style={S.h2}>3. Why is GDPR and CCPA Compliance Vital?</h2>
             <div style={S.answerSummary}>
-              GDPR and CCPA compliance protects user rights, granting individuals full control over the storage and erasure of their communication records.
+              Compliance ensures users maintain legal rights to access, export, modify, or completely delete personal data files from database records.
             </div>
             <p style={S.p}>
-              We align our policies with data regulations, including the European Union's General Data Protection Regulation <a href="https://gdpr-info.eu/" target="_blank" rel="noopener noreferrer" style={S.btnLink}>GDPR Regulation (EU) 2016/679</a>. We believe user data ownership is a fundamental right. Under these laws, users have access to specific controls:
+              Ekam supports your rights under the <a href="https://gdpr-info.eu/" target="_blank" rel="noopener noreferrer" style={S.btnLink}>European Union General Data Protection Regulation (GDPR)</a>. We believe user data ownership is a fundamental human right. Accordingly, we do not require complex forms to execute data deletion.
             </p>
 
-            <h3 style={S.h3}>User Data Rights</h3>
-            <dl style={S.dl}>
-              <dt>The Right to be Forgotten (Article 17)</dt>
-              <dd>You can request the immediate erasure of your credentials, profiles, and message records from our live PostgreSQL and MongoDB storage systems.</dd>
+            <h3 style={S.h3}>3.1 What User Rights are Guaranteed?</h3>
+            <p style={S.p}>
+              You maintain rights of access, rectification, portability, restriction of processing, and erasure. All rights can be activated via account configuration menus.
+            </p>
 
-              <dt>The Right of Access (Article 15)</dt>
-              <dd>You can request full export files containing your account properties, channel memberships, and conversation history in standard JSON formats.</dd>
-
-              <dt>The Right to Data Portability (Article 20)</dt>
-              <dd>You can export your database profiles and migrate them directly to on-premises enterprise platforms.</dd>
-            </dl>
+            <h3 style={S.h3}>3.2 How Can California Residents Execute CCPA Rights?</h3>
+            <p style={S.p}>
+              California users benefit from identical rights. We extend CCPA data deletion and access tools to all users globally.
+            </p>
           </section>
 
-          {/* SECTION 4 */}
-          <section id="retention-schedule">
-            <h2 style={S.h2}>4. What is Our Database Retention and Deletion Schedule?</h2>
+          {/* SECTION 4 - STEP-BY-STEP */}
+          <section id="gdpr-steps">
+            <h2 style={S.h2}>4. Can You File a GDPR Data Request in Four Steps?</h2>
             <div style={S.answerSummary}>
-              Free accounts store message history for 7 days, while Pro and Enterprise databases retain messaging archives until manually deleted.
+              Request and export your personal data files in four steps: accessing panels, requesting extracts, confirming emails, and downloading archives.
             </div>
             <p style={S.p}>
-              To manage server storage efficiently, we run automated retention routines. Free accounts retain messaging records in MongoDB for 7 days. Once this limit passes, records are cleared from our servers.
+              If you want to request an export of all your communication logs, follow this ordered instructional checklist:
             </p>
-            <p style={S.p}>
-              Pro and Enterprise workspaces feature infinite messaging history retention. Deleted data is removed immediately from our active clusters, with backups cleared from server systems within 30 days.
-            </p>
+
+            <ol style={S.ol}>
+              <li style={S.li}>
+                <strong>Navigate:</strong> Enter your dashboard and click the settings icon on the navigation panel.
+              </li>
+              <li style={S.li}>
+                <strong>Select:</strong> Go to the "Privacy Options" sub-menu and choose the "Export Account Files" option.
+              </li>
+              <li style={S.li}>
+                <strong>Confirm:</strong> Validate your identity by entering your secure login password.
+              </li>
+              <li style={S.li}>
+                <strong>Download:</strong> Retrieve the JSON-encoded archive file sent to your verified registration email.
+              </li>
+            </ol>
           </section>
 
           {/* SECTION 5 */}
-          <section id="privacy-faq">
-            <h2 style={S.h2}>5. Frequently Asked Questions about Privacy</h2>
+          <section id="retention-schedule">
+            <h2 style={S.h2}>5. What is Our Database Retention and Deletion Schedule?</h2>
             <div style={S.answerSummary}>
-              Read our privacy FAQ to learn about cookies, data protection laws, deletion requests, and cryptographic handshakes.
+              Ekam operates clean retention schedules, clearing inactive logs and purging deleted accounts within 24 hours.
+            </div>
+            <p style={S.p}>
+              Our backend executes automated cleanup tasks to maintain server efficiency. We define data retention parameters below:
+            </p>
+
+            <h3 style={S.h3}>Data Retention Glossary</h3>
+            <dl style={S.dl}>
+              <dt>Free Tier Retention</dt>
+              <dd>Conversational log documents are automatically deleted from MongoDB collections after 7 days.</dd>
+
+              <dt>Account Purging</dt>
+              <dd>Relational user data is permanently deleted from PostgreSQL database tables within 24 hours of requesting account cancellation.</dd>
+
+              <dt>Message Archiving</dt>
+              <dd>The process of backing up logs into cold storage to preserve database response times.</dd>
+            </dl>
+          </section>
+
+          {/* SECTION 6 */}
+          <section id="privacy-faq">
+            <h2 style={S.h2}>6. Frequently Asked Questions about Privacy</h2>
+            <div style={S.answerSummary}>
+              Review our FAQ for quick answers regarding GDPR, encryption, databases, and logs.
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -385,17 +452,17 @@ export function PrivacyPage() {
           <div style={S.keyTakeaways}>
             <h3 style={{ margin: '0 0 16px 0', fontSize: 20, color: '#e2e2e2', fontWeight: 700 }}>Key Takeaways</h3>
             <ul style={{ paddingLeft: 20, margin: 0, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 15 }}>
-              <li><strong>Secure in 2026:</strong> All data transmissions run over TLS 1.3 socket paths.</li>
-              <li><strong>GDPR Aligned:</strong> Users have the right to request full data export or immediate account deletion.</li>
-              <li><strong>Split DB Security:</strong> Account details reside in PostgreSQL, while message histories are stored in MongoDB.</li>
-              <li><strong>Zero Ad Sharing:</strong> We do not share messaging logs or profile metrics with third-party networks.</li>
+              <li><strong>Absolute Privacy in 2026:</strong> Your text histories are isolated from external analytics scripts.</li>
+              <li><strong>GDPR Complete:</strong> Download, export, or permanently erase records at any time via settings.</li>
+              <li><strong>Robust Encryption:</strong> Secure all transit feeds using TLS 1.3 socket paths.</li>
+              <li><strong>Zero Ad Sharing:</strong> We do not sell tracking profiles to external data brokers.</li>
             </ul>
           </div>
 
         </article>
       </main>
 
-      {/* Author Byline */}
+      {/* Author Byline Box */}
       <footer style={{ marginTop: 60 }}>
         <div style={S.authorSection}>
           <div style={S.avatar}>K</div>
@@ -403,7 +470,7 @@ export function PrivacyPage() {
             <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#e2e2e2' }}>Kushak</h3>
             <p style={{ margin: '4px 0 8px 0', fontSize: 14, color: '#4d8eff', fontWeight: 600 }}>Principal Lead Designer &amp; Developer</p>
             <div style={S.metaText}>
-              Author Expertise: <strong>Full-stack Encryption &amp; UI Systems</strong> | Reviewed: <strong>July 9, 2026</strong>
+              Author Expertise: <strong>Full-stack Encryption &amp; UI Systems</strong> | Reviewed: <strong><time datetime="2026-07-09">July 9, 2026</time></strong>
             </div>
           </div>
         </div>

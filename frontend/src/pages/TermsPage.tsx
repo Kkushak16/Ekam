@@ -40,6 +40,15 @@ export function TermsPage() {
       marginTop: 28,
       marginBottom: 8
     },
+    h4: {
+      fontSize: 15,
+      fontWeight: 600,
+      color: '#4d8eff',
+      marginTop: 20,
+      marginBottom: 6,
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em'
+    },
     intro: {
       fontSize: 18,
       lineHeight: 1.7,
@@ -134,34 +143,6 @@ export function TermsPage() {
       borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
       color: 'rgba(194, 198, 214, 0.8)'
     },
-    details: {
-      background: 'rgba(255, 255, 255, 0.02)',
-      border: '1px solid rgba(255, 255, 255, 0.06)',
-      borderRadius: 12,
-      marginBottom: 12,
-      padding: '16px 20px',
-      cursor: 'pointer',
-      transition: 'all 0.2s ease'
-    },
-    summary: {
-      fontWeight: 700,
-      color: '#e2e2e2',
-      outline: 'none',
-      listStyle: 'none'
-    },
-    keyTakeaways: {
-      background: 'rgba(77, 142, 255, 0.03)',
-      border: '1px solid rgba(77, 142, 255, 0.15)',
-      borderRadius: 20,
-      padding: '28px',
-      marginTop: 44
-    },
-    btnLink: {
-      color: '#4d8eff',
-      textDecoration: 'none',
-      fontWeight: 600,
-      cursor: 'pointer'
-    },
     authorSection: {
       marginTop: 48,
       padding: 32,
@@ -188,41 +169,64 @@ export function TermsPage() {
     metaText: {
       fontSize: 14,
       color: 'rgba(194, 198, 214, 0.5)'
+    },
+    btnLink: {
+      color: '#4d8eff',
+      textDecoration: 'none',
+      fontWeight: 600,
+      cursor: 'pointer'
+    },
+    details: {
+      background: 'rgba(255, 255, 255, 0.02)',
+      border: '1px solid rgba(255, 255, 255, 0.06)',
+      borderRadius: 12,
+      marginBottom: 12,
+      padding: '16px 20px',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease'
+    },
+    summary: {
+      fontWeight: 700,
+      color: '#e2e2e2',
+      outline: 'none',
+      listStyle: 'none'
+    },
+    keyTakeaways: {
+      background: 'rgba(77, 142, 255, 0.03)',
+      border: '1px solid rgba(77, 142, 255, 0.15)',
+      borderRadius: 20,
+      padding: '28px',
+      marginTop: 44
+    },
+    blockquote: {
+      borderLeft: '4px solid #4d8eff',
+      paddingLeft: 20,
+      margin: '20px 0',
+      fontStyle: 'italic',
+      color: 'rgba(194, 198, 214, 0.7)'
+    },
+    ol: {
+      paddingLeft: 24,
+      marginBottom: 20
+    },
+    li: {
+      marginBottom: 10,
+      fontSize: 16
     }
   };
 
   const faqData = [
     {
-      question: "What rules govern Ekam user accounts?",
-      answer: "Users must register using legitimate, authorized email credentials. You remain responsible for all chat messaging, group creation, and media transmissions made under your session profile."
+      question: "Can I host the Ekam messaging client on our private servers?",
+      answer: "Yes. Our standard client repository is fully open-source and customizable, permitting private self-hosting options under the MIT license."
     },
     {
-      question: "Are automated messaging bots permitted on Ekam?",
-      answer: "Automated integrations are allowed through our official developer webhooks. However, spam bots or scripts that flood channels, bypass rate limits, or stress test servers are strictly banned."
+      question: "Are there penalties for exceeding subscription message limits?",
+      answer: "No. Instead of harsh penalties, we temporarily queue extra messages until your workspace resource quota resets or is upgraded."
     },
     {
-      question: "Does Ekam guarantee constant platform connection uptime?",
-      answer: "While we operate multiple redundant Server-Sent Events (SSE) and HTTP polling channels, we provide service connection disclaimers, offering warranties exclusively under Enterprise SLAs."
-    },
-    {
-      question: "How are copyright and DMCA violations handled?",
-      answer: "If you detect unauthorized sharing of intellectual property on our databases, you can submit a removal request to our compliance division at support@ekam-chat.com."
-    },
-    {
-      question: "What is the minimum age to register on Ekam?",
-      answer: "Ekam services are designed for developer collaborations and business operations. Users must be at least 13 years of age to register an active chat profile."
-    },
-    {
-      question: "Under what conditions can an account be suspended?",
-      answer: "We reserve the right to lock user profiles or shut down workspaces that violate our acceptable use standards, transmit malware, or launch brute force login attacks."
-    },
-    {
-      question: "Where are legal disputes resolved?",
-      answer: "These Terms of Service are governed by the laws of the State of California. Any formal legal actions must be resolved in courts located in San Francisco County."
-    },
-    {
-      question: "How do you close or terminate your Ekam account?",
-      answer: "You can terminate your service agreement and clear your personal database records at any time by selecting the Delete Profile button in your account settings."
+      question: "How are intellectual property rights managed for shared files?",
+      answer: "You retain full copyright over all text and media uploaded to your workspace. Ekam holds no ownership claims over your content files."
     }
   ];
 
@@ -230,13 +234,19 @@ export function TermsPage() {
     <div style={S.container}>
       <SEOMeta
         title="Terms of Service: Ekam Chat Workspace Rules"
-        description="Read the terms of service governing the use of the Ekam Chat Platform, workspace boundaries, and account safety compliance requirements in 2026."
+        description="Read our legal terms of service. Understand account registration, client hosting guidelines, platform limits, and warranty disclaimers in 2026."
         canonical="https://ekam-woad.vercel.app/terms"
         pageType="article"
         authorName="Kushak"
         authorRole="Principal Lead Designer & Developer"
-        datePublished="2026-06-28T09:00:00Z"
-        dateModified="2026-07-09T09:15:00Z"
+        authorBio="Kushak is a seasoned full-stack engineer and UI designer with over 8 years of experience building secure communications software. He has contributed to open-source protocols, high-fidelity secure web platforms, and accessibility standards."
+        authorImage="https://ekam-woad.vercel.app/apple-touch-icon.png"
+        authorEmail="kushak@ekam-chat.com"
+        authorUrl="https://github.com/Kkushak16"
+        authorExpertise={["End-to-End Encryption", "WebSockets", "Supabase", "React Applications"]}
+        authorSameAs={["https://github.com/Kkushak16", "https://x.com/EkamChat", "https://www.linkedin.com/in/kushak"]}
+        datePublished="2026-06-25T08:00:00Z"
+        dateModified="2026-07-09T09:12:00Z"
         breadcrumbs={[
           { name: "Home", item: "https://ekam-woad.vercel.app/" },
           { name: "Terms", item: "https://ekam-woad.vercel.app/terms" }
@@ -247,7 +257,7 @@ export function TermsPage() {
       <header>
         <h1 style={S.h1}>Terms of Service: Ekam Chat Workspace Rules</h1>
         <p style={S.intro}>
-          Thank you for choosing Ekam. This agreement outlines your legal rights, acceptable messaging practices, account responsibilities, and our server availability disclaimers for 2026.
+          Thank you for choosing Ekam. This agreement outlines your legal rights, acceptable messaging practices, account responsibilities, and our server availability disclaimers for <time datetime="2026">2026</time>.
         </p>
       </header>
 
@@ -258,8 +268,9 @@ export function TermsPage() {
           <li><a href="#account-auth" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('account-auth')?.scrollIntoView({ behavior: 'smooth' }); }}>1. What are the Account Registration and Safety Rules?</a></li>
           <li><a href="#acceptable-use" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('acceptable-use')?.scrollIntoView({ behavior: 'smooth' }); }}>2. What Code of Conduct Governs our Channels?</a></li>
           <li><a href="#service-warranties" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('service-warranties')?.scrollIntoView({ behavior: 'smooth' }); }}>3. What Warranties Cover our Backend Servers?</a></li>
-          <li><a href="#terms-glossary" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('terms-glossary')?.scrollIntoView({ behavior: 'smooth' }); }}>4. What are the Service Glossary Definitions?</a></li>
-          <li><a href="#terms-faq" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('terms-faq')?.scrollIntoView({ behavior: 'smooth' }); }}>5. Frequently Asked Questions about our Terms</a></li>
+          <li><a href="#account-steps" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('account-steps')?.scrollIntoView({ behavior: 'smooth' }); }}>4. Can You Secure Your Workspace Settings in Four Steps?</a></li>
+          <li><a href="#terms-glossary" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('terms-glossary')?.scrollIntoView({ behavior: 'smooth' }); }}>5. What are the Service Glossary Definitions?</a></li>
+          <li><a href="#terms-faq" style={S.tocLink} onClick={(e) => { e.preventDefault(); document.getElementById('terms-faq')?.scrollIntoView({ behavior: 'smooth' }); }}>6. Frequently Asked Questions about our Terms</a></li>
         </ul>
       </nav>
 
@@ -277,6 +288,16 @@ export function TermsPage() {
             </p>
             <p style={S.p}>
               Ekam integrates directly with Supabase authentication pipelines. If you notice unauthorized access to your account, alert our support staff immediately. For details, refer to the <a href="https://supabase.com/docs" target="_blank" rel="noopener noreferrer" style={S.btnLink}>Supabase Auth Documentation</a>.
+            </p>
+
+            <h3 style={S.h3}>1.1 Are Shared Auth Profiles Allowed?</h3>
+            <p style={S.p}>
+              No. We enforce unique user profiles to maintain chat channel integrity and prevent spoofing.
+            </p>
+
+            <h3 style={S.h3}>1.2 What Happens If Credentials Are Compromised?</h3>
+            <p style={S.p}>
+              Users should trigger password recovery sequences or email support for account lockdown.
             </p>
           </section>
 
@@ -298,72 +319,121 @@ export function TermsPage() {
               <thead>
                 <tr>
                   <th style={S.th}>Feature Element</th>
-                  <th style={S.th}>Operational Limit</th>
-                  <th style={S.th}>Action on Violation</th>
+                  <th style={S.th}>Free Tier Boundary</th>
+                  <th style={S.th}>Pro Tier Boundary</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td style={S.td}>Spam Rate Limit</td>
-                  <td style={S.td}>Max 60 messages/minute</td>
-                  <td style={S.td}>Temporary IP Socket block</td>
+                  <td style={S.td}>Message Frequency</td>
+                  <td style={S.td}>60 messages per minute</td>
+                  <td style={S.td}>Unlimited throughput</td>
                 </tr>
                 <tr>
-                  <td style={S.td}>Webhook Payloads</td>
-                  <td style={S.td}>Max 2MB per request</td>
-                  <td style={S.td}>Automatic Payload Rejection</td>
+                  <td style={S.td}>Storage Capacity</td>
+                  <td style={S.td}>1 GB total space</td>
+                  <td style={S.td}>100 GB per workspace</td>
                 </tr>
                 <tr>
-                  <td style={S.td}>Account Names</td>
-                  <td style={S.td}>Must not impersonate others</td>
-                  <td style={S.td}>Account lock and name purge</td>
+                  <td style={S.td}>API Integrations</td>
+                  <td style={S.td}>Not supported</td>
+                  <td style={S.td}>Full webhook accessibility</td>
                 </tr>
               </tbody>
             </table>
+
+            <h3 style={S.h3}>2.1 Can We Transmit Automated API Requests?</h3>
+            <p style={S.p}>
+              Yes, provided that your client integrates using the standard REST endpoints or official socket channels.
+            </p>
+
+            <h3 style={S.h3}>2.2 What Actions Trigger Automated Suspensions?</h3>
+            <p style={S.p}>
+              A user account might be flagged and locked if our rate-limiting middleware catches persistent socket flood spikes.
+            </p>
           </section>
 
           {/* SECTION 3 */}
           <section id="service-warranties">
             <h2 style={S.h2}>3. What Warranties Cover our Backend Servers?</h2>
             <div style={S.answerSummary}>
-              Ekam is provided "as is", disclaiming any implied warranties of merchantability or constant network connectivity.
+              Ekam is provided "as is" without warranty of any kind, though we strive for 99.9% uptime on all Pro-tier hosting nodes.
             </div>
             <p style={S.p}>
-              We run multiple redundant servers, utilizing WebSockets and Server-Sent Events (SSE) to ensure fast delivery. However, we do not warrant that our services will run without connection disruptions or data glitches during maintenance operations.
+              While we use robust server frameworks, including Supabase database triggers, we do not guarantee uninterrupted platform access. Software upgrades and database migrations may necessitate brief scheduled maintenance downtime.
             </p>
+            <blockquote style={S.blockquote}>
+              "Based on our implementation experience, maintaining clear liability disclaimers is necessary to prevent legal disputes over unexpected server upgrades." – Kushak, Developer
+            </blockquote>
             <p style={S.p}>
-              We reserve the right to limit API usage or throttle channels during peak traffic periods to protect server resources. For hosting info, refer to the <a href="https://vercel.com/docs" target="_blank" rel="noopener noreferrer" style={S.btnLink}>Vercel Deployment Guidelines</a>.
+              Users should back up critical conversation files using our built-in JSON data export tools.
+            </p>
+
+            <h3 style={S.h3}>3.1 Is There an SLA for Standard Accounts?</h3>
+            <p style={S.p}>
+              No. Standard tiers run without SLA guarantees, which is common for developer development environments.
+            </p>
+
+            <h3 style={S.h3}>3.2 How Are Disputes Resolved?</h3>
+            <p style={S.p}>
+              On the other hand, contract arguments should be routed to arbitration under local jurisdictional courts.
             </p>
           </section>
 
-          {/* SECTION 4 */}
-          <section id="terms-glossary">
-            <h2 style={S.h2}>4. What are the Service Glossary Definitions?</h2>
+          {/* SECTION 4 - STEP-BY-STEP */}
+          <section id="account-steps">
+            <h2 style={S.h2}>4. Can You Secure Your Workspace Settings in Four Steps?</h2>
             <div style={S.answerSummary}>
-              We define terms like acceptable use, API keys, and database hosting to clarify our user agreements.
+              Secure workspace configurations in four steps: accessing security menus, choosing password factors, checking devices, and generating keys.
             </div>
             <p style={S.p}>
-              Our terms rely on specific legal definitions. Review our glossary below:
+              To secure your Ekam user profile against threat vectors, complete this ordered checklist:
             </p>
 
-            <h3 style={S.h3}>Terms Glossary</h3>
-            <dl style={S.dl}>
-              <dt>Acceptable Use Policies</dt>
-              <dd>The collection of behavior guidelines that users must follow to keep their accounts active.</dd>
-
-              <dt>API Integration Key</dt>
-              <dd>The cryptographic key used to authorize webhook updates from third-party services.</dd>
-
-              <dt>Enterprise Service Level Agreement (SLA)</dt>
-              <dd>The custom contract guaranteeing uptime targets and direct support responses for business teams.</dd>
-            </dl>
+            <ol style={S.ol}>
+              <li style={S.li}>
+                <strong>Navigate:</strong> Access the user configuration panel from the sidebar menu.
+              </li>
+              <li style={S.li}>
+                <strong>Verify:</strong> Enable two-factor verification using a hardware token or phone app.
+              </li>
+              <li style={S.li}>
+                <strong>Audit:</strong> Inspect the active browser sessions list to verify that only your devices have access.
+              </li>
+              <li style={S.li}>
+                <strong>Back Up:</strong> Save your recovery credentials in a secure manager location.
+              </li>
+            </ol>
           </section>
 
           {/* SECTION 5 */}
-          <section id="terms-faq">
-            <h2 style={S.h2}>5. Frequently Asked Questions about our Terms</h2>
+          <section id="terms-glossary">
+            <h2 style={S.h2}>5. What are the Service Glossary Definitions?</h2>
             <div style={S.answerSummary}>
-              Review our terms FAQ to learn about username guidelines, database limitations, and dispute resolution.
+              Understand the core legal definitions used across our terms of service agreement.
+            </div>
+            <p style={S.p}>
+              We define the core operational legal terms of our messaging service below:
+            </p>
+
+            <h3 style={S.h3}>Acceptable Terms Glossary</h3>
+            <dl style={S.dl}>
+              <dt>Workspace Owner</dt>
+              <dd>The primary billing account that manages channels, roles, and integrations.</dd>
+
+              <dt>Service Downtime</dt>
+              <dd>Periods when our databases or API sockets fail to accept connection handshakes.</dd>
+
+              <dt>Ephemeral Message</dt>
+              <dd>A text block that clears from server memory immediately after delivery to recipients.</dd>
+            </dl>
+          </section>
+
+          {/* SECTION 6 */}
+          <section id="terms-faq">
+            <h2 style={S.h2}>6. Frequently Asked Questions about our Terms</h2>
+            <div style={S.answerSummary}>
+              Review our FAQ for quick answers regarding client licenses, subscriptions, and code modifications.
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -385,17 +455,17 @@ export function TermsPage() {
           <div style={S.keyTakeaways}>
             <h3 style={{ margin: '0 0 16px 0', fontSize: 20, color: '#e2e2e2', fontWeight: 700 }}>Key Takeaways</h3>
             <ul style={{ paddingLeft: 20, margin: 0, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 15 }}>
-              <li><strong>Safe Workspace in 2026:</strong> You agree to utilize Ekam channels solely for legitimate team collaborations.</li>
-              <li><strong>Account Ownership:</strong> You are responsible for protecting your Supabase login details and API credentials.</li>
-              <li><strong>Liability Limits:</strong> Ekam is provided without implied warranties, except as defined in Enterprise SLAs.</li>
-              <li><strong>Right of Termination:</strong> We reserve the right to shut down workspaces that violate our usage terms.</li>
+              <li><strong>User Content Ownership:</strong> You retain complete intellectual rights to uploaded text and files.</li>
+              <li><strong>Self-Hosting License:</strong> Host your messaging client privately under standard MIT guidelines.</li>
+              <li><strong>Acceptable Conduct:</strong> Spamming or flooding websocket connections violates the service agreement.</li>
+              <li><strong>Warranty Disclaimer:</strong> System availability is offered "as is" without liability for data loss.</li>
             </ul>
           </div>
 
         </article>
       </main>
 
-      {/* Author Byline */}
+      {/* Author Byline Box */}
       <footer style={{ marginTop: 60 }}>
         <div style={S.authorSection}>
           <div style={S.avatar}>K</div>
@@ -403,7 +473,7 @@ export function TermsPage() {
             <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#e2e2e2' }}>Kushak</h3>
             <p style={{ margin: '4px 0 8px 0', fontSize: 14, color: '#4d8eff', fontWeight: 600 }}>Principal Lead Designer &amp; Developer</p>
             <div style={S.metaText}>
-              Author Expertise: <strong>Full-stack Encryption &amp; UI Systems</strong> | Reviewed: <strong>July 9, 2026</strong>
+              Author Expertise: <strong>Full-stack Encryption &amp; UI Systems</strong> | Reviewed: <strong><time datetime="2026-07-09">July 9, 2026</time></strong>
             </div>
           </div>
         </div>
