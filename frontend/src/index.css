@@ -193,3 +193,34 @@ body {
 .highlight-flash {
   animation: highlightFlash 2s ease-out;
 }
+
+@keyframes golden-border-pulse {
+  0%, 100% {
+    border-color: rgba(255, 215, 0, 0.4);
+    box-shadow: 0 0 4px rgba(255, 215, 0, 0.2), inset 0 0 4px rgba(255, 215, 0, 0.1);
+  }
+  50% {
+    border-color: rgba(255, 215, 0, 1);
+    box-shadow: 0 0 16px rgba(255, 215, 0, 0.6), inset 0 0 8px rgba(255, 215, 0, 0.3);
+  }
+}
+
+@keyframes golden-text-glow {
+  0%, 100% {
+    color: #ffd700;
+    text-shadow: 0 0 4px rgba(255, 215, 0, 0.3);
+  }
+  50% {
+    color: #fff4b0;
+    text-shadow: 0 0 12px rgba(255, 215, 0, 0.8), 0 0 18px rgba(255, 215, 0, 0.4);
+  }
+}
+
+.golden-border-pulse {
+  border: 1px solid rgba(255, 215, 0, 0.4) !important;
+  animation: golden-border-pulse 1.8s infinite ease-in-out;
+}
+
+.golden-text-glow {
+  animation: golden-text-glow 1.8s infinite ease-in-out;
+}

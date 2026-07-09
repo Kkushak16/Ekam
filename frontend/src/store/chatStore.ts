@@ -51,6 +51,10 @@ export interface ChatState {
   presence: PresenceMap;
   setPresence: (presenceMap: PresenceMap) => void;
 
+  unreadFriends: Record<string, boolean>;
+  setUnreadFriend: (friendId: string, isUnread: boolean) => void;
+  clearUnreadFriend: (friendId: string) => void;
+
   typing: Record<string, Set<string>>;
   addTypingUser: (roomId: string, userId: string) => void;
   removeTypingUser: (roomId: string, userId: string) => void;
@@ -65,6 +69,22 @@ export const useChatStore = create<ChatState>()(
         // ----- Auth -----
         token: null,
         username: null,
+        unreadFriends: {},
+        setUnreadFriend: (friendId, isUnread) => {
+          set((state) => ({
+            unreadFriends: {
+              ...state.unreadFriends,
+              [friendId]: isUnread
+            }
+          }));
+        },
+        clearUnreadFriend: (friendId) => {
+          set((state) => {
+            const updated = { ...state.unreadFriends };
+            delete updated[friendId];
+            return { unreadFriends: updated };
+          });
+        },
         setToken: (token) => {
           set({ token });
           if (token) {
@@ -79,7 +99,7 @@ export const useChatStore = create<ChatState>()(
           const { disconnectSocket, disconnectSSE } = get();
           disconnectSocket();
           disconnectSSE();
-          set({ token: null, messages: [], presence: {}, typing: {}, activeRoomId: 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a' });
+          set({ token: null, messages: [], presence: {}, typing: {}, activeRoomId: 'da3c6d7d-5a9e-4e4f-bbfb-dc874e4c278a', unreadFriends: {} });
         },
 
         // ----- Socket (Pusher) + SSE -----
@@ -289,6 +309,10 @@ export const useChatStore = create<ChatState>()(
         connectionStatus: 'disconnected',
         initializeSocket: (jwt) => {
           if (get().socket) return;
+
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission().catch(() => {});
+          }
 
           set({ connectionStatus: 'connecting' });
 
@@ -541,6 +565,44 @@ export const useChatStore = create<ChatState>()(
         loadingOlder: false,
         setLoadingOlder: (status) => set({ loadingOlder: status }),
         addMessage: (msg) => {
+          const currentUserId = (() => {
+            try {
+              const t = get().token;
+              if (!t) return '';
+              const payload = get().parseJwt(t);
+              return payload.id || payload.sub || '';
+            } catch {
+              return '';
+            }
+          })();
+
+          if (msg.senderId && msg.senderId !== currentUserId) {
+            const isTabBackground = typeof document !== 'undefined' && document.hidden;
+            const isDifferentRoom = msg.roomId !== get().activeRoomId;
+
+            if (isDifferentRoom) {
+              set((state) => ({
+                unreadFriends: {
+                  ...state.unreadFriends,
+                  [msg.senderId]: true,
+                },
+              }));
+            }
+
+            if (isDifferentRoom || isTabBackground) {
+              if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+                try {
+                  new Notification("New message on Ekam", {
+                    body: msg.body || "Sent an attachment",
+                    icon: "/apple-touch-icon.png",
+                  });
+                } catch (e) {
+                  console.error("Failed to show HTML5 notification:", e);
+                }
+              }
+            }
+          }
+
           set((state) => {
             const safeMessages = Array.isArray(state.messages) ? state.messages : [];
             // Dedup: match by server id OR clientMessageId

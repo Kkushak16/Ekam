@@ -125,6 +125,7 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
 
   const activeRoomId = useChatStore(state => state.activeRoomId);
   const presenceMap = useChatStore(state => state.presence);
+  const unreadFriends = useChatStore(state => state.unreadFriends || {});
   const [isActiveRoomDm, setIsActiveRoomDm] = useState(false);
   const [activeFriendId, setActiveFriendId] = useState<string | null>(null);
 
@@ -140,6 +141,7 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
         setIsActiveRoomDm(isDm);
         if (isDm && data.room?.dmRecipientId) {
           setActiveFriendId(data.room.dmRecipientId);
+          useChatStore.getState().clearUnreadFriend(data.room.dmRecipientId);
         } else {
           setActiveFriendId(null);
         }
@@ -280,6 +282,7 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
   };
 
   const handleChatWithFriend = async (friendId: string) => {
+    useChatStore.getState().clearUnreadFriend(friendId);
     try {
       const { data } = await apiClient.post('/api/rooms/dm', { friendId });
       if (data.room_id) {
@@ -402,10 +405,12 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
               const friendStatusMsg = friend.activity_description
                 ? `"${friend.activity_description}"`
                 : (isOnline ? 'Active now' : 'Offline');
+              const isUnread = !!unreadFriends[friend.id];
               return (
                 <button
                   key={friend.id}
                   onClick={() => handleChatWithFriend(friend.id)}
+                  className={isUnread ? 'golden-border-pulse' : ''}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -414,24 +419,24 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
                     padding: '10px 12px',
                     borderRadius: 10,
                     fontSize: 14,
-                    fontWeight: isActive ? 600 : 500,
+                    fontWeight: (isActive || isUnread) ? 600 : 500,
                     transition: 'all 0.2s ease',
                     textAlign: 'left',
                     cursor: 'pointer',
-                    border: 'none',
+                    border: isUnread ? '1px solid rgba(255, 215, 0, 0.4)' : 'none',
                     background: isActive ? 'rgba(77, 142, 255, 0.08)' : 'transparent',
-                    color: isActive ? '#4d8eff' : 'rgba(194, 198, 214, 0.7)',
+                    color: isActive ? '#4d8eff' : (isUnread ? '#ffd700' : 'rgba(194, 198, 214, 0.7)'),
                     fontFamily: 'inherit',
                   }}
                   onMouseEnter={e => {
-                    if (!isActive) {
+                    if (!isActive && !isUnread) {
                       e.currentTarget.style.color = '#e2e2e2';
                       e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
                     }
                   }}
                   onMouseLeave={e => {
-                    if (!isActive) {
-                      e.currentTarget.style.color = 'rgba(194, 198, 214, 0.7)';
+                    if (!isActive && !isUnread) {
+                      e.currentTarget.style.color = 'rgba(194,198,214,0.7)';
                       e.currentTarget.style.background = 'transparent';
                     }
                   }}
@@ -448,20 +453,20 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
                     </div>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{
+                    <p className={isUnread ? 'golden-text-glow' : ''} style={{
                       margin: 0,
                       fontSize: 14,
                       fontWeight: 600,
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
-                      color: isActive ? '#adc6ff' : '#e2e2e2'
+                      color: isActive ? '#adc6ff' : (isUnread ? '#ffd700' : '#e2e2e2')
                     }}>{friend.name}</p>
                     {friendStatusMsg && (
                       <p style={{
                         margin: 0,
                         fontSize: 11,
-                        color: isActive ? 'rgba(173, 198, 255, 0.6)' : 'rgba(194, 198, 214, 0.4)',
+                        color: isActive ? 'rgba(173, 198, 255, 0.6)' : (isUnread ? 'rgba(255, 215, 0, 0.6)' : 'rgba(194, 198, 214, 0.4)'),
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
@@ -901,25 +906,31 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
                   const friendStatusMsg = friend.activity_description
                     ? `"${friend.activity_description}"`
                     : (isOnline ? 'Active now' : 'Offline');
+                  const isUnread = !!unreadFriends[friend.id];
                   return (
                     <div
                       key={friend.id}
                       onClick={() => handleChatWithFriend(friend.id)}
+                      className={isUnread ? 'golden-border-pulse' : ''}
                       style={{
                         background: friend.isFavorite ? 'rgba(173,198,255,0.04)' : 'rgba(20,20,24,0.7)',
                         backdropFilter: 'blur(20px)',
-                        border: friend.isFavorite ? '1px solid rgba(173,198,255,0.18)' : '1px solid rgba(255,255,255,0.06)',
+                        border: isUnread ? '1px solid rgba(255, 215, 0, 0.4)' : (friend.isFavorite ? '1px solid rgba(173,198,255,0.18)' : '1px solid rgba(255,255,255,0.06)'),
                         borderRadius: 18, padding: '20px 18px', cursor: 'pointer',
                         transition: 'all 0.25s ease', position: 'relative',
                       }}
                       onMouseEnter={e => {
-                        (e.currentTarget as HTMLElement).style.background = 'rgba(173,198,255,0.07)';
-                        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(173,198,255,0.2)';
+                        if (!isUnread) {
+                          (e.currentTarget as HTMLElement).style.background = 'rgba(173,198,255,0.07)';
+                          (e.currentTarget as HTMLElement).style.borderColor = 'rgba(173,198,255,0.2)';
+                        }
                         (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
                       }}
                       onMouseLeave={e => {
-                        (e.currentTarget as HTMLElement).style.background = friend.isFavorite ? 'rgba(173,198,255,0.04)' : 'rgba(20,20,24,0.7)';
-                        (e.currentTarget as HTMLElement).style.borderColor = friend.isFavorite ? 'rgba(173,198,255,0.18)' : 'rgba(255,255,255,0.06)';
+                        if (!isUnread) {
+                          (e.currentTarget as HTMLElement).style.background = friend.isFavorite ? 'rgba(173,198,255,0.04)' : 'rgba(20,20,24,0.7)';
+                          (e.currentTarget as HTMLElement).style.borderColor = friend.isFavorite ? 'rgba(173,198,255,0.18)' : 'rgba(255,255,255,0.06)';
+                        }
                         (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
                       }}
                     >
@@ -956,7 +967,7 @@ export function DirectMessages({ onNavigateToChat }: DirectMessagesProps) {
                         </div>
                       </div>
 
-                      <h3 style={{ fontSize: 15, fontWeight: 700, color: '#e2e2e2', marginBottom: 3, letterSpacing: '-0.01em' }}>
+                      <h3 className={isUnread ? 'golden-text-glow' : ''} style={{ fontSize: 15, fontWeight: 700, color: isUnread ? '#ffd700' : '#e2e2e2', marginBottom: 3, letterSpacing: '-0.01em' }}>
                         {friend.name}
                       </h3>
                       <p style={{
